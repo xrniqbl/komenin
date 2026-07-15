@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/app/page-header";
@@ -44,31 +45,48 @@ export default async function NewListenerPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="platform">Platform</Label>
-                <select id="platform" name="platform" className="h-9 rounded-md border border-input bg-transparent px-3 text-sm" defaultValue="instagram">
-                  <option value="instagram">Instagram</option>
-                  <option value="threads">Threads</option>
-                  <option value="tiktok">TikTok</option>
-                </select>
+                <FormSelect
+                  id="platform"
+                  name="platform"
+                  defaultValue="instagram"
+                  required
+                  options={[
+                    { value: "instagram", label: "Instagram" },
+                    { value: "threads", label: "Threads" },
+                    { value: "tiktok", label: "TikTok" },
+                  ]}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="type">Type</Label>
-                <select id="type" name="type" className="h-9 rounded-md border border-input bg-transparent px-3 text-sm" defaultValue="keyword">
-                  <option value="keyword">Keyword</option>
-                  <option value="competitor">Competitor</option>
-                  <option value="trend">Trend</option>
-                </select>
+                <FormSelect
+                  id="type"
+                  name="type"
+                  defaultValue="keyword"
+                  required
+                  options={[
+                    { value: "keyword", label: "Keyword" },
+                    { value: "competitor", label: "Competitor" },
+                    { value: "trend", label: "Trend" },
+                  ]}
+                />
               </div>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="campaignId">Campaign (optional)</Label>
-              <select id="campaignId" name="campaignId" className="h-9 rounded-md border border-input bg-transparent px-3 text-sm" defaultValue="">
-                <option value="">None</option>
-                {campaigns.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <FormSelect
+                id="campaignId"
+                name="campaignId"
+                defaultValue=""
+                placeholder="None"
+                options={[
+                  { value: "", label: "None" },
+                  ...campaigns.map((campaign) => ({
+                    value: campaign.id,
+                    label: campaign.name,
+                  })),
+                ]}
+              />
             </div>
             <Button type="submit" size="lg">
               Save listener

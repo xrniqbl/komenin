@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/app/page-header";
@@ -15,17 +16,17 @@ export default async function NewCampaignPage() {
 
   async function submit(formData: FormData) {
     "use server";
-    const selected = formData.getAll("socialAccountIds").map(String);
+    const socialAccountIds = formData.getAll("socialAccountIds").map(String);
     const campaign = await createCampaign({
       name: String(formData.get("name") || ""),
       platform: String(formData.get("platform") || "instagram") as Platform,
       mode: String(formData.get("mode") || "approval_required") as CampaignMode,
-      goal: String(formData.get("goal") || ""),
+      goal: String(formData.get("goal") || "") || undefined,
+      listenerQuery: String(formData.get("listenerQuery") || "") || undefined,
       dailyLimit: Number(formData.get("dailyLimit") || 30),
       minDelaySec: Number(formData.get("minDelaySec") || 45),
       maxDelaySec: Number(formData.get("maxDelaySec") || 180),
-      socialAccountIds: selected,
-      listenerQuery: String(formData.get("listenerQuery") || ""),
+      socialAccountIds,
     });
     redirect(`/app/campaigns/${campaign.id}`);
   }
@@ -33,8 +34,8 @@ export default async function NewCampaignPage() {
   return (
     <div>
       <PageHeader
-        title="Create campaign"
-        description="Default mode is approval_required for enterprise control."
+        title="New campaign"
+        description="Configure intent, mode, and attached social tunnels."
         action={
           <Button variant="link" render={<Link href="/app/campaigns" />} nativeButton={false}>
             Back
@@ -46,24 +47,36 @@ export default async function NewCampaignPage() {
           <form action={submit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" required />
+              <Input id="name" name="name" required placeholder="Product launch week" />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="platform">Platform</Label>
-                <select id="platform" name="platform" className="h-9 rounded-md border border-input bg-transparent px-3 text-sm" defaultValue="instagram">
-                  <option value="instagram">Instagram</option>
-                  <option value="threads">Threads</option>
-                  <option value="tiktok">TikTok</option>
-                </select>
+                <FormSelect
+                  id="platform"
+                  name="platform"
+                  defaultValue="instagram"
+                  required
+                  options={[
+                    { value: "instagram", label: "Instagram" },
+                    { value: "threads", label: "Threads" },
+                    { value: "tiktok", label: "TikTok" },
+                  ]}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="mode">Mode</Label>
-                <select id="mode" name="mode" className="h-9 rounded-md border border-input bg-transparent px-3 text-sm" defaultValue="approval_required">
-                  <option value="approval_required">Approval required</option>
-                  <option value="draft">Draft only</option>
-                  <option value="auto">Auto</option>
-                </select>
+                <FormSelect
+                  id="mode"
+                  name="mode"
+                  defaultValue="approval_required"
+                  required
+                  options={[
+                    { value: "approval_required", label: "Approval required" },
+                    { value: "draft", label: "Draft only" },
+                    { value: "auto", label: "Auto" },
+                  ]}
+                />
               </div>
             </div>
             <div className="flex flex-col gap-2">

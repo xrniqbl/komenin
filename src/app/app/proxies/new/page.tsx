@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/app/page-header";
@@ -56,11 +57,17 @@ export default function NewProxyPage() {
             <div className="grid gap-4 md:grid-cols-3">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="protocol">Protocol</Label>
-                <select id="protocol" name="protocol" className="h-9 rounded-md border border-input bg-transparent px-3 text-sm" defaultValue="http">
-                  <option value="http">HTTP</option>
-                  <option value="https">HTTPS</option>
-                  <option value="socks5">SOCKS5</option>
-                </select>
+                <FormSelect
+                  id="protocol"
+                  name="protocol"
+                  defaultValue="http"
+                  required
+                  options={[
+                    { value: "http", label: "HTTP" },
+                    { value: "https", label: "HTTPS" },
+                    { value: "socks5", label: "SOCKS5" },
+                  ]}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="host">Host</Label>
@@ -84,19 +91,31 @@ export default function NewProxyPage() {
             <div className="grid gap-4 md:grid-cols-3">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="type">Type</Label>
-                <select id="type" name="type" className="h-9 rounded-md border border-input bg-transparent px-3 text-sm" defaultValue="residential">
-                  <option value="residential">Residential</option>
-                  <option value="mobile">Mobile</option>
-                  <option value="datacenter">Datacenter</option>
-                </select>
+                <FormSelect
+                  id="type"
+                  name="type"
+                  defaultValue="residential"
+                  required
+                  options={[
+                    { value: "residential", label: "Residential" },
+                    { value: "mobile", label: "Mobile" },
+                    { value: "datacenter", label: "Datacenter" },
+                  ]}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="rotationMode">Rotation mode</Label>
-                <select id="rotationMode" name="rotationMode" className="h-9 rounded-md border border-input bg-transparent px-3 text-sm" defaultValue="sticky">
-                  <option value="sticky">Sticky</option>
-                  <option value="per_action">Per action</option>
-                  <option value="timed">Timed</option>
-                </select>
+                <FormSelect
+                  id="rotationMode"
+                  name="rotationMode"
+                  defaultValue="sticky"
+                  required
+                  options={[
+                    { value: "sticky", label: "Sticky" },
+                    { value: "per_action", label: "Per action" },
+                    { value: "timed", label: "Timed" },
+                  ]}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="rotateEveryMin">Rotate every (min)</Label>
