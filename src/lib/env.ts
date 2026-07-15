@@ -1,22 +1,36 @@
 import { z } from "zod";
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().min(1),
   AUTH_SECRET: z.string().min(16),
   AUTH_GOOGLE_ID: z.string().min(1),
   AUTH_GOOGLE_SECRET: z.string().min(1),
   APP_URL: z.string().url().default("http://localhost:3000"),
-  ENCRYPTION_KEY: z.string().length(64),
+  ENCRYPTION_KEY: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64}$/, "ENCRYPTION_KEY must be 64 hex characters"),
+  SIMULATOR_MODE: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  WORKER_SECRET: z.string().min(16).optional(),
 });
 
-export type Env = z.infer<typeof envSchema>;
+export type AppEnv = z.infer<typeof envSchema>;
 
-export function getEnv(): Env {
-  const parsed = envSchema.safeParse(process.env);
-  if (!parsed.success) {
-    console.error(parsed.error.flatten().fieldErrors);
-    throw new Error("Invalid environment variables");
-  }
-  return parsed.data;
+export function getEnv(): AppEnv {
+  return envSchema.parse({
+    DATABASE_URL: process.env.DATABASE_URL,
+    AUTH_SECRET: process.env.AUTH_SECRET,
+    AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
+    AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
+    APP_URL: process.env.APP_URL,
+    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
+    SIMULATOR_MODE: process.env.SIMULATOR_MODE ?? "true",
+    WORKER_SECRET: process.env.WORKER_SECRET,
+  });
+}
+
+export function isSimulatorMode(): boolean {
+  return getEnv().SIMULATOR_MODE;
 }

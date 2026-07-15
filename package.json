@@ -11,7 +11,13 @@
     "test:watch": "vitest",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "worker": "tsx scripts/run-worker.ts",
+    "worker:tick": "tsx scripts/run-worker.ts worker.tick",
+    "worker:health": "tsx scripts/run-worker.ts session.health_check",
+    "worker:poll": "tsx scripts/run-worker.ts listener.poll",
+    "worker:generate": "tsx scripts/run-worker.ts comment.generate",
+    "worker:send": "tsx scripts/run-worker.ts comment.send"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

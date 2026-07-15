@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { assertCan } from "@/lib/rbac";
 import { generateContextualComment, pickDelaySeconds } from "@/lib/comment-engine";
+import { describeSendResult } from "@/lib/runtime-mode";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/active-workspace";
 import { writeAuditLog } from "@/server/audit";
@@ -241,7 +242,7 @@ export async function executeDueSends() {
         data: {
           status: "sent",
           executedAt: new Date(),
-          resultMessage: "Comment sent via managed session worker (simulated)",
+          resultMessage: describeSendResult(),
         },
       });
       if (action.commentDraftId) {
