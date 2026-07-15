@@ -10,9 +10,12 @@ describe("HeroSection", () => {
         name: /operate social engagement with enterprise control/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /start free/i })).toHaveAttribute(
+
+    const cta = screen.getByRole("link", { name: /start free/i });
+    expect(cta).toHaveAttribute("href", "/signup");
+    expect(screen.getByRole("link", { name: /book demo/i })).toHaveAttribute(
       "href",
-      "/signup",
+      "/contact",
     );
   });
 });

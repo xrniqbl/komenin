@@ -1,6 +1,8 @@
 "use client";
 
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
+import { mergeProps } from "@base-ui/react/merge-props";
+import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
 import type React from "react";
 
@@ -40,18 +42,44 @@ const buttonVariants = cva(
   },
 );
 
+type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof buttonVariants>;
+
 function Button({
   className,
   variant = "default",
   size = "default",
+  render,
+  nativeButton,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>): React.ReactElement {
+}: ButtonProps): React.ReactElement {
+  const classes = cn(buttonVariants({ variant, size }), className);
+
+  // Link-style composition: keep the host element's native semantics.
+  // Base UI Button with nativeButton={false} forces role="button", which
+  // incorrectly turns Next.js Link anchors into buttons for a11y queries.
+  if (render != null && nativeButton === false) {
+    const defaultProps = {
+      className: classes,
+      "data-slot": "button",
+      "data-variant": variant,
+      "data-size": size,
+    };
+
+    return useRender({
+      defaultTagName: "a",
+      props: mergeProps(defaultProps, props as Record<string, unknown>),
+      render: render as useRender.ComponentProps<"a">["render"],
+    });
+  }
+
   return (
     <ButtonPrimitive
       data-slot="button"
       data-variant={variant}
       data-size={size}
-      className={cn(buttonVariants({ variant, size }), className)}
+      className={classes}
+      render={render}
+      nativeButton={nativeButton}
       {...props}
     />
   );
