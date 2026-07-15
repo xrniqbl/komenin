@@ -10,8 +10,7 @@ export default function Page() {
             <li>Workspace isolation</li>
             <li>Contact for data requests</li>
       </ul>
-      <div className="mt-8"><Button variant="default" size="lg" asChild><Link href="/contact">Contact
-      </Link></Button></div>
+      <div className="mt-8"><Button variant="default" size="lg" render={<Link href="/contact" />} nativeButton={false}>Contact</Button></div>
     </div>
   );
 }

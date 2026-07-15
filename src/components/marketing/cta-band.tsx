@@ -16,16 +16,11 @@ export function CtaBand() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
-            <Button asChild size="lg" variant="secondary">
-              <Link href="/signup">Start free</Link>
+            <Button size="lg" variant="secondary" render={<Link href="/signup" />} nativeButton={false}>
+              Start free
             </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="border-primary-foreground/20 bg-transparent text-primary-foreground hover:bg-primary-foreground/10"
-            >
-              <Link href="/contact">Talk to sales</Link>
+            <Button size="lg" variant="outline" className="border-primary-foreground/20 bg-transparent text-primary-foreground hover:bg-primary-foreground/10" render={<Link href="/contact" />} nativeButton={false}>
+              Talk to sales
             </Button>
           </CardContent>
         </Card>

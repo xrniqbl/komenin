@@ -36,8 +36,8 @@ export default async function NewCampaignPage() {
         title="Create campaign"
         description="Default mode is approval_required for enterprise control."
         action={
-          <Button asChild variant="link">
-            <Link href="/app/campaigns">Back</Link>
+          <Button variant="link" render={<Link href="/app/campaigns" />} nativeButton={false}>
+            Back
           </Button>
         }
       />

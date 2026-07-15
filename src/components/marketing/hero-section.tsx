@@ -20,11 +20,11 @@ export function HeroSection() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Button asChild size="lg">
-              <Link href="/signup">Start free</Link>
+            <Button size="lg" render={<Link href="/signup" />} nativeButton={false}>
+              Start free
             </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link href="/contact">Book demo</Link>
+            <Button size="lg" variant="outline" render={<Link href="/contact" />} nativeButton={false}>
+              Book demo
             </Button>
           </div>
         </div>

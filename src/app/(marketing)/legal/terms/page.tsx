@@ -10,8 +10,7 @@ export default function Page() {
             <li>No warranty of platform compliance</li>
             <li>Enterprise terms available</li>
       </ul>
-      <div className="mt-8"><Button variant="default" size="lg" asChild><Link href="/legal/aup">Read AUP
-      </Link></Button></div>
+      <div className="mt-8"><Button variant="default" size="lg" render={<Link href="/legal/aup" />} nativeButton={false}>Read AUP</Button></div>
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+
 import { db } from "@/lib/db";
 
 export async function writeAuditLog(input: {
@@ -7,7 +9,7 @@ export async function writeAuditLog(input: {
   resourceType: string;
   resourceId?: string;
   ip?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Prisma.InputJsonValue;
 }) {
   return db.auditLog.create({
     data: {

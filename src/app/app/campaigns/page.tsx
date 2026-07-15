@@ -14,7 +14,7 @@ export default async function CampaignsPage() {
         title="Campaigns"
         description="Approval-first engagement campaigns across social tunnels."
         action={
-          <Button variant="default"  asChild><Link href="/app/campaigns/new">New campaign</Link></Button>
+          <Button variant="default" render={<Link href="/app/campaigns/new" />} nativeButton={false}>New campaign</Button>
         }
       />
 
@@ -39,7 +39,7 @@ export default async function CampaignsPage() {
               </div>
               <div className="col-span-2 text-xs text-muted-foreground">{campaign.mode}</div>
               <div className="col-span-2 text-xs text-muted-foreground">
-                {campaign._count.targetPosts} posts · {campaign._count.approvals} approvals
+                {campaign._count.targetPosts} posts Â· {campaign._count.approvals} approvals
               </div>
             </div>
           ))

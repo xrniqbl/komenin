@@ -27,11 +27,11 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <Button asChild variant="ghost">
-            <Link href="/login">Log in</Link>
+          <Button variant="ghost" render={<Link href="/login" />} nativeButton={false}>
+            Log in
           </Button>
-          <Button asChild>
-            <Link href="/signup">Start free</Link>
+          <Button render={<Link href="/signup" />} nativeButton={false}>
+            Start free
           </Button>
         </div>
       </div>

@@ -49,11 +49,7 @@ export default function PricingPage() {
               ))}
             </CardContent>
             <CardFooter>
-              <Button asChild className="w-full" variant={plan.featured ? "default" : "outline"}>
-                <Link href={plan.name === "Enterprise" ? "/contact" : "/signup"}>
-                  {plan.name === "Enterprise" ? "Contact sales" : "Start free"}
-                </Link>
-              </Button>
+              <Button className="w-full" variant={plan.featured ? "default" : "outline"} render={<Link href={plan.name === "Enterprise" ? "/contact" : "/signup"} />} nativeButton={false}>{plan.name === "Enterprise" ? "Contact sales" : "Start free"}</Button>
             </CardFooter>
           </Card>
         ))}

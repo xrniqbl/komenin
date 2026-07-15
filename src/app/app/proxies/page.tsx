@@ -13,7 +13,7 @@ export default async function ProxiesPage() {
         title="Proxies"
         description="Residential/mobile proxy pool with health and assignment visibility."
         action={
-          <Button variant="default"  asChild><Link href="/app/proxies/new">Add proxy</Link></Button>
+          <Button variant="default" render={<Link href="/app/proxies/new" />} nativeButton={false}>Add proxy</Button>
         }
       />
 
@@ -41,14 +41,14 @@ export default async function ProxiesPage() {
                 {proxy.protocol}://{proxy.host}:{proxy.port}
               </div>
               <div className="col-span-2 text-xs">
-                {proxy.type} · {proxy.rotationMode}
+                {proxy.type} Â· {proxy.rotationMode}
               </div>
               <div className="col-span-2">
                 <StatusPill
                   label={proxy.isHealthy ? "healthy" : "down"}
                   color={proxy.isHealthy ? "var(--signal-ok)" : "var(--signal-danger)"}
                 />
-                <div className="mt-1 font-mono text-xs text-muted-foreground">{proxy.lastIp || "—"}</div>
+                <div className="mt-1 font-mono text-xs text-muted-foreground">{proxy.lastIp || "â€”"}</div>
               </div>
               <div className="col-span-2 flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">{proxy.assignments.length} accounts</span>

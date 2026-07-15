@@ -20,8 +20,8 @@ export function EmptyState({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardFooter>
-        <Button asChild>
-          <Link href={href}>{actionLabel}</Link>
+        <Button render={<Link href={href} />} nativeButton={false}>
+          {actionLabel}
         </Button>
       </CardFooter>
     </Card>

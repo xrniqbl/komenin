@@ -10,8 +10,7 @@ export default function Page() {
             <li>Approval and quota controls expected</li>
             <li>Abuse may result in suspension</li>
       </ul>
-      <div className="mt-8"><Button variant="default" size="lg" asChild><Link href="/contact">Contact
-      </Link></Button></div>
+      <div className="mt-8"><Button variant="default" size="lg" render={<Link href="/contact" />} nativeButton={false}>Contact</Button></div>
     </div>
   );
 }

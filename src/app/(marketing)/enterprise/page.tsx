@@ -11,8 +11,7 @@ export default function Page() {
             <li>Dedicated support path</li>
             <li>Hybrid self-serve + sales</li>
       </ul>
-      <div className="mt-8"><Button variant="default" size="lg" asChild><Link href="/contact">Book demo
-      </Link></Button></div>
+      <div className="mt-8"><Button variant="default" size="lg" render={<Link href="/contact" />} nativeButton={false}>Book demo</Button></div>
     </div>
   );
 }

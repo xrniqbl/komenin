@@ -35,8 +35,8 @@ export default function NewProxyPage() {
         title="Add proxy"
         description="Register an HTTP/SOCKS5 endpoint for tunnel assignment."
         action={
-          <Button asChild variant="link">
-            <Link href="/app/proxies">Back to proxies</Link>
+          <Button variant="link" render={<Link href="/app/proxies" />} nativeButton={false}>
+            Back to proxies
           </Button>
         }
       />

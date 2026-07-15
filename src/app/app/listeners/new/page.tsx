@@ -29,8 +29,8 @@ export default async function NewListenerPage() {
         title="Create listener"
         description="Watch keywords or competitor signals."
         action={
-          <Button asChild variant="link">
-            <Link href="/app/listeners">Back</Link>
+          <Button variant="link" render={<Link href="/app/listeners" />} nativeButton={false}>
+            Back
           </Button>
         }
       />

@@ -13,8 +13,8 @@ export function PricingTeaserSection() {
             Start self-serve, then move into enterprise quotas, audit export, and guided onboarding.
           </p>
         </div>
-        <Button asChild size="lg">
-          <Link href="/pricing">View pricing</Link>
+        <Button size="lg" render={<Link href="/pricing" />} nativeButton={false}>
+          View pricing
         </Button>
       </div>
     </section>

@@ -11,8 +11,7 @@ export default function Page() {
             <li>Builtin and webhook skills</li>
             <li>CoT run timeline</li>
       </ul>
-      <div className="mt-8"><Button variant="default" size="lg" asChild><Link href="/signup">Start free
-      </Link></Button></div>
+      <div className="mt-8"><Button variant="default" size="lg" render={<Link href="/signup" />} nativeButton={false}>Start free</Button></div>
     </div>
   );
 }

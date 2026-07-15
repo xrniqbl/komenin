@@ -26,8 +26,8 @@ export default async function LoginPage() {
               Continue with Google
             </Button>
           </form>
-          <Button asChild variant="ghost">
-            <Link href="/">Back to site</Link>
+          <Button variant="ghost" render={<Link href="/" />} nativeButton={false}>
+            Back to site
           </Button>
         </CardContent>
       </Card>

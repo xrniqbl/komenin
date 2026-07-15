@@ -12,7 +12,7 @@ export default async function ListenersPage() {
       <PageHeader
         title="Listeners"
         description="Keyword, competitor, and trend watchers."
-        action={<Button variant="default"  asChild><Link href="/app/listeners/new">New listener</Link></Button>}
+        action={<Button variant="default" render={<Link href="/app/listeners/new" />} nativeButton={false}>New listener</Button>}
       />
       <div className="overflow-hidden rounded-2xl border border bg-background">
         {listeners.length === 0 ? (
@@ -23,7 +23,7 @@ export default async function ListenersPage() {
               <div>
                 <div className="font-medium">{listener.query}</div>
                 <div className="text-xs text-muted-foreground">
-                  {platformLabel(listener.platform)} · {listener.type} · {listener._count.posts} posts
+                  {platformLabel(listener.platform)} Â· {listener.type} Â· {listener._count.posts} posts
                 </div>
               </div>
               <form

@@ -42,8 +42,8 @@ export default async function NewAccountPage() {
         title="Connect account"
         description="Import a session bundle and bind it to a proxy tunnel."
         action={
-          <Button asChild variant="link">
-            <Link href="/app/accounts">Back to accounts</Link>
+          <Button variant="link" render={<Link href="/app/accounts" />} nativeButton={false}>
+            Back to accounts
           </Button>
         }
       />

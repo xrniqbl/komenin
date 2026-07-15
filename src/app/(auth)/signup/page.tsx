@@ -26,8 +26,8 @@ export default async function SignupPage() {
               Continue with Google
             </Button>
           </form>
-          <Button asChild variant="ghost">
-            <Link href="/login">Already have an account?</Link>
+          <Button variant="ghost" render={<Link href="/login" />} nativeButton={false}>
+            Already have an account?
           </Button>
         </CardContent>
       </Card>

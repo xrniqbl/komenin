@@ -55,9 +55,7 @@ export default function ContactPage() {
                 <Label htmlFor="message">How can we help?</Label>
                 <Textarea id="message" name="message" required />
               </div>
-              <Button type="submit" size="lg">
-                Send message
-              </Button>
+              <Button type="submit" size="lg">Send message</Button>
             </form>
           </CardContent>
         </Card>

@@ -16,7 +16,7 @@ export default async function AccountsPage() {
         title="Accounts"
         description="Multi-tunnel grid for Instagram, Threads, and TikTok identities."
         action={
-          <Button variant="default"  asChild><Link href="/app/accounts/new">Connect account</Link></Button>
+          <Button variant="default" render={<Link href="/app/accounts/new" />} nativeButton={false}>Connect account</Button>
         }
       />
 
@@ -45,11 +45,11 @@ export default async function AccountsPage() {
                     <Link href={`/app/accounts/${account.id}`} className="font-medium hover:text-primary">
                       @{account.username}
                     </Link>
-                    <div className="text-xs text-muted-foreground">{account.displayName || "—"}</div>
+                    <div className="text-xs text-muted-foreground">{account.displayName || "â€”"}</div>
                   </div>
                   <div className="col-span-2">{platformLabel(account.platform)}</div>
                   <div className="col-span-2">
-                    <div className="font-mono text-xs">{account.currentIp || "—"}</div>
+                    <div className="font-mono text-xs">{account.currentIp || "â€”"}</div>
                     <div className="text-xs text-muted-foreground">{proxy?.label || "No proxy"}</div>
                   </div>
                   <div className="col-span-2">
