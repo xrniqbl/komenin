@@ -1,7 +1,15 @@
-import { Button } from "@/components/ui/button";
+﻿import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusPill } from "@/components/session-routing/status-pill";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { checkProxyHealth, listProxies } from "@/server/proxies";
 
 export default async function ProxiesPage() {
@@ -13,58 +21,71 @@ export default async function ProxiesPage() {
         title="Proxies"
         description="Residential/mobile proxy pool with health and assignment visibility."
         action={
-          <Button variant="default" render={<Link href="/app/proxies/new" />} nativeButton={false}>Add proxy</Button>
+          <Button variant="default" render={<Link href="/app/proxies/new" />} nativeButton={false}>
+            Add proxy
+          </Button>
         }
       />
 
-      <div className="overflow-hidden rounded-2xl border border bg-background">
-        <div className="grid grid-cols-12 gap-2 border-b border bg-muted/30 px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          <div className="col-span-3">Label</div>
-          <div className="col-span-3">Endpoint</div>
-          <div className="col-span-2">Type</div>
-          <div className="col-span-2">Health</div>
-          <div className="col-span-2">Assigned</div>
-        </div>
-
+      <div className="overflow-hidden rounded-2xl border bg-background">
         {proxies.length === 0 ? (
           <div className="px-4 py-10 text-sm text-muted-foreground">No proxies yet.</div>
         ) : (
-          proxies.map((proxy) => (
-            <div key={proxy.id} className="grid grid-cols-12 items-center gap-2 border-b border px-4 py-3 text-sm last:border-b-0">
-              <div className="col-span-3">
-                <Link href={`/app/proxies/${proxy.id}`} className="font-medium hover:text-primary">
-                  {proxy.label}
-                </Link>
-                <div className="text-xs text-muted-foreground">{proxy.provider || "custom"}</div>
-              </div>
-              <div className="col-span-3 font-mono text-xs">
-                {proxy.protocol}://{proxy.host}:{proxy.port}
-              </div>
-              <div className="col-span-2 text-xs">
-                {proxy.type} Â· {proxy.rotationMode}
-              </div>
-              <div className="col-span-2">
-                <StatusPill
-                  label={proxy.isHealthy ? "healthy" : "down"}
-                  color={proxy.isHealthy ? "var(--signal-ok)" : "var(--signal-danger)"}
-                />
-                <div className="mt-1 font-mono text-xs text-muted-foreground">{proxy.lastIp || "â€”"}</div>
-              </div>
-              <div className="col-span-2 flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">{proxy.assignments.length} accounts</span>
-                <form
-                  action={async () => {
-                    "use server";
-                    await checkProxyHealth(proxy.id);
-                  }}
-                >
-                  <Button type="submit" variant="outline" >
-                    Check
-                  </Button>
-                </form>
-              </div>
-            </div>
-          ))
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Label</TableHead>
+                <TableHead>Endpoint</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Health</TableHead>
+                <TableHead>Assigned</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {proxies.map((proxy) => (
+                <TableRow key={proxy.id}>
+                  <TableCell>
+                    <Link href={`/app/proxies/${proxy.id}`} className="font-medium hover:text-primary">
+                      {proxy.label}
+                    </Link>
+                    <div className="text-xs text-muted-foreground">{proxy.provider || "custom"}</div>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {proxy.protocol}://{proxy.host}:{proxy.port}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {proxy.type} · {proxy.rotationMode}
+                  </TableCell>
+                  <TableCell>
+                    <StatusPill
+                      label={proxy.isHealthy ? "healthy" : "down"}
+                      color={proxy.isHealthy ? "var(--signal-ok)" : "var(--signal-danger)"}
+                    />
+                    <div className="mt-1 font-mono text-xs text-muted-foreground">
+                      {proxy.lastIp || "—"}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {proxy.assignments.length} accounts
+                      </span>
+                      <form
+                        action={async () => {
+                          "use server";
+                          await checkProxyHealth(proxy.id);
+                        }}
+                      >
+                        <Button type="submit" variant="outline" size="sm">
+                          Check
+                        </Button>
+                      </form>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </div>
     </div>

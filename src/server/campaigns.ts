@@ -5,13 +5,29 @@ import { assertCan } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/active-workspace";
 import { writeAuditLog } from "@/server/audit";
-import { ensureDefaultAgent } from "@/server/agents-lite";
+import { ensureDefaultAgent } from "@/server/agents";
 import type { CampaignMode, Platform } from "@prisma/client";
 
-export async function listCampaigns() {
+export async function listCampaigns(input?: {
+  q?: string;
+  status?: string;
+  platform?: string;
+}) {
   const { workspace } = await requireActiveWorkspace();
+  const where: Record<string, unknown> & { workspaceId: string } = {
+    workspaceId: workspace.id,
+  };
+  if (input?.q) {
+    where.OR = [
+      { name: { contains: input.q, mode: "insensitive" as const } },
+      { goal: { contains: input.q, mode: "insensitive" as const } },
+    ];
+  }
+  if (input?.status) where.status = input.status as never;
+  if (input?.platform) where.platform = input.platform as never;
+
   return db.campaign.findMany({
-    where: { workspaceId: workspace.id },
+    where,
     include: {
       agent: true,
       accounts: true,

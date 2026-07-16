@@ -1,3 +1,6 @@
+"use client";
+
+import { useLocale } from "@/components/i18n/locale-provider";
 import {
   Accordion,
   AccordionContent,
@@ -5,35 +8,29 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-const faqs = [
-  {
-    q: "Is automation fully automatic?",
-    a: "Default campaign mode requires human approval before send.",
-  },
-  {
-    q: "Which platforms are supported?",
-    a: "Instagram, Threads, and TikTok are in the MVP platform model.",
-  },
-  {
-    q: "How do you handle security?",
-    a: "Workspace RBAC, encrypted secrets, and append-only audit logs.",
-  },
-  {
-    q: "Do you support enterprise sales?",
-    a: "Yes. Hybrid GTM includes self-serve and enterprise paths.",
-  },
-];
-
 export function FaqSection() {
+  const { t } = useLocale();
+
   return (
-    <section className="bg-muted/30 py-16 md:py-24">
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 md:px-6">
-        <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">FAQ</h2>
-        <Accordion className="w-full rounded-xl border bg-card px-4">
-          {faqs.map((item, index) => (
+    <section className="bg-neutral-50 py-16 md:py-24">
+      <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 sm:px-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <p className="text-sm font-medium text-neutral-500">{t.faq.kicker}</p>
+          <h2 className="text-3xl font-semibold tracking-tight text-neutral-900 md:text-4xl">
+            {t.faq.title}
+          </h2>
+          <p className="max-w-xl text-base text-neutral-600">{t.faq.subtitle}</p>
+        </div>
+
+        <Accordion className="w-full rounded-2xl border border-neutral-200 bg-white px-4 shadow-sm">
+          {t.faq.items.map((item, index) => (
             <AccordionItem key={item.q} value={`item-${index}`}>
-              <AccordionTrigger>{item.q}</AccordionTrigger>
-              <AccordionContent>{item.a}</AccordionContent>
+              <AccordionTrigger className="text-left text-neutral-900 hover:no-underline">
+                {item.q}
+              </AccordionTrigger>
+              <AccordionContent className="text-neutral-600">
+                {item.a}
+              </AccordionContent>
             </AccordionItem>
           ))}
         </Accordion>

@@ -1,6 +1,7 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/app/app-sidebar";
 import { AppTopbar } from "@/components/app/app-topbar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
 import { listWorkspacesForUser } from "@/server/workspaces";
 
@@ -18,12 +19,12 @@ export default async function AppLayout({
   const workspace = workspaces[0];
 
   return (
-    <div className="flex min-h-screen bg-muted/20">
+    <SidebarProvider className="bg-muted/20">
       <AppSidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <SidebarInset className="bg-muted/20">
         <AppTopbar workspace={workspace} userEmail={session.user.email} />
-        <main className="flex-1 px-4 py-6 md:px-6">{children}</main>
-      </div>
-    </div>
+        <div className="flex-1 px-4 py-6 md:px-6">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

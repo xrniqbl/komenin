@@ -1,29 +1,42 @@
+"use client";
+
 import Link from "next/link";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function CtaBand() {
+  const { t } = useLocale();
+
   return (
     <section className="py-16 md:py-24">
       <div className="mx-auto max-w-6xl px-4 md:px-6">
-        <Card className="bg-primary text-primary-foreground">
-          <CardHeader className="gap-3">
-            <CardTitle className="text-3xl md:text-4xl">
-              Ready to run controlled engagement ops?
-            </CardTitle>
-            <CardDescription className="max-w-2xl text-base text-primary-foreground/80">
-              Create a workspace, invite your team, and launch with approval-first automation.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            <Button size="lg" variant="secondary" render={<Link href="/signup" />} nativeButton={false}>
-              Start free
-            </Button>
-            <Button size="lg" variant="outline" className="border-primary-foreground/20 bg-transparent text-primary-foreground hover:bg-primary-foreground/10" render={<Link href="/contact" />} nativeButton={false}>
-              Talk to sales
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-neutral-200 bg-neutral-900 px-6 py-10 text-white shadow-sm sm:px-10 sm:py-12">
+          <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
+            <h2 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
+              {t.cta.title}
+            </h2>
+            <p className="max-w-2xl text-base text-neutral-300">{t.cta.subtitle}</p>
+            <div className="mt-2 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
+              <Button
+                size="lg"
+                className="w-full bg-white text-neutral-900 hover:bg-neutral-100 sm:w-auto"
+                render={<Link href="/signup" />}
+                nativeButton={false}
+              >
+                {t.cta.startFree}
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="w-full border-neutral-600 bg-transparent text-white hover:bg-white/10 sm:w-auto"
+                render={<Link href="/contact" />}
+                nativeButton={false}
+              >
+                {t.cta.talkSales}
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );

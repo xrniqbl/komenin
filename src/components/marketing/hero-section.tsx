@@ -1,54 +1,54 @@
+"use client";
+
 import Link from "next/link";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function HeroSection() {
+  const { t } = useLocale();
+
   return (
-    <section className="border-b">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 md:grid-cols-2 md:items-center md:px-6 md:py-24">
-        <div className="flex flex-col gap-6">
-          <Badge variant="secondary" className="w-fit">
-            Enterprise social operations
-          </Badge>
-          <div className="flex flex-col gap-4">
-            <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
-              Operate social engagement with enterprise control
-            </h1>
-            <p className="max-w-xl text-lg text-muted-foreground">
-              Route sessions, run contextual campaigns, ground agents in your knowledge, and execute skills with full auditability.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Button size="lg" render={<Link href="/signup" />} nativeButton={false}>
-              Start free
-            </Button>
-            <Button size="lg" variant="outline" render={<Link href="/contact" />} nativeButton={false}>
-              Book demo
-            </Button>
-          </div>
+    <section className="relative overflow-hidden border-b">
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[520px] bg-[radial-gradient(circle_at_top,rgba(23,23,23,0.06),transparent_60%)]" />
+      <div className="mx-auto flex max-w-4xl flex-col items-center px-4 py-16 text-center sm:px-6 md:py-24">
+        <Badge variant="secondary" className="mb-6">
+          {t.hero.badge}
+        </Badge>
+
+        <h1 className="text-balance text-4xl font-semibold tracking-tight text-neutral-900 sm:text-5xl md:text-6xl">
+          {t.hero.title}
+        </h1>
+
+        <p className="mt-5 max-w-2xl text-base text-neutral-600 sm:text-lg">
+          {t.hero.subtitle}
+        </p>
+
+        <div className="mt-8 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
+          <Button
+            size="lg"
+            className="w-full bg-neutral-900 text-white hover:bg-neutral-800 sm:w-auto"
+            render={<Link href="/signup" />}
+            nativeButton={false}
+          >
+            {t.hero.startFree}
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="w-full border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50 sm:w-auto"
+            render={<Link href="/features" />}
+            nativeButton={false}
+          >
+            {t.hero.watchVideo}
+          </Button>
         </div>
 
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">Multi-tunnel grid</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {[
-              { account: "@brand.ig", status: "healthy" },
-              { account: "@growth.threads", status: "healthy" },
-              { account: "@ops.tiktok", status: "healthy" },
-            ].map((row) => (
-              <div
-                key={row.account}
-                className="flex items-center justify-between rounded-lg border px-4 py-3"
-              >
-                <span className="text-sm font-medium">{row.account}</span>
-                <Badge variant="secondary">{row.status}</Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-neutral-500 sm:text-sm">
+          <span>{t.hero.point1}</span>
+          <span>{t.hero.point2}</span>
+          <span>{t.hero.point3}</span>
+        </div>
       </div>
     </section>
   );

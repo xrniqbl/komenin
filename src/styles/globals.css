@@ -27,6 +27,10 @@
     transition-timing-function: inherit;
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
 html,
 body {
     font-family: var(--font-body);
@@ -223,8 +227,8 @@ input[type="search"]::-webkit-search-cancel-button {
     --muted-foreground: color-mix(in srgb, var(--color-neutral-500) 90%, var(--color-black));
     --popover: var(--color-white);
     --popover-foreground: var(--color-neutral-800);
-    --primary: var(--color-neutral-800);
-    --primary-foreground: var(--color-neutral-50);
+    --primary: #171717;
+    --primary-foreground: #fafafa;
     --ring: var(--color-neutral-400);
     --secondary: --alpha(var(--color-black) / 4%);
     --secondary-foreground: var(--color-neutral-800);
@@ -302,6 +306,6 @@ input[type="search"]::-webkit-search-cancel-button {
     font-family: var(--font-mono);
     }
   html {
-    @apply font-sans font-mono;
+    @apply font-sans;
     }
 }

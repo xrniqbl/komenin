@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { assertCan } from "@/lib/rbac";
-import { generateContextualComment, pickDelaySeconds } from "@/lib/comment-engine";
+import { generateContextualCommentHybrid, pickDelaySeconds } from "@/lib/comment-engine";
 import { describeSendResult } from "@/lib/runtime-mode";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/active-workspace";
@@ -71,11 +71,13 @@ export async function generateDraftsForCampaign(campaignId: string) {
 
   let created = 0;
   for (const post of posts) {
-    const generated = generateContextualComment({
+    const generated = await generateContextualCommentHybrid({
       postContent: post.content,
       goal: campaign.goal,
       tone: campaign.agent?.tone,
       agentName: campaign.agent?.name,
+      systemPrompt: campaign.agent?.systemPrompt,
+      language: campaign.agent?.language,
     });
 
     await db.$transaction(async (tx) => {
@@ -219,6 +221,109 @@ export async function decideApproval(input: {
   revalidatePath("/app/inbox");
   revalidatePath("/app");
   return { ok: true };
+}
+
+export async function bulkDecideApprovals(input: {
+  approvalIds: string[];
+  decision: "approved" | "rejected";
+  note?: string;
+}) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertCan(workspace.role, "campaigns.manage");
+
+  if (input.approvalIds.length === 0) return { processed: 0 };
+  if (input.approvalIds.length > 100) throw new Error("Bulk limit is 100");
+
+  let approved = 0;
+  let rejected = 0;
+
+  for (const approvalId of input.approvalIds) {
+    const approval = await db.approval.findFirst({
+      where: { id: approvalId, workspaceId: workspace.id },
+      include: {
+        commentDraft: true,
+        campaign: { include: { accounts: true } },
+        targetPost: true,
+      },
+    });
+    if (!approval || approval.status !== "pending") continue;
+
+    if (input.decision === "rejected") {
+      await db.$transaction(async (tx) => {
+        await tx.approval.update({
+          where: { id: approval.id },
+          data: {
+            status: "rejected",
+            decisionNote: input.note || "Bulk rejected",
+            decidedAt: new Date(),
+          },
+        });
+        await tx.commentDraft.update({
+          where: { id: approval.commentDraftId },
+          data: { status: "rejected" },
+        });
+        await tx.targetPost.update({
+          where: { id: approval.targetPostId },
+          data: { status: "skipped" },
+        });
+      });
+      rejected += 1;
+    } else {
+      const accountId = approval.campaign?.accounts[0]?.socialAccountId || null;
+      const delay = pickDelaySeconds(
+        approval.campaign?.minDelaySec ?? 45,
+        approval.campaign?.maxDelaySec ?? 180,
+      );
+      const scheduledFor = new Date(Date.now() + delay * 1000);
+
+      await db.$transaction(async (tx) => {
+        await tx.approval.update({
+          where: { id: approval.id },
+          data: {
+            status: "approved",
+            decisionNote: input.note || "Bulk approved",
+            decidedAt: new Date(),
+          },
+        });
+        await tx.commentDraft.update({
+          where: { id: approval.commentDraftId },
+          data: { status: "approved" },
+        });
+        await tx.commentAction.create({
+          data: {
+            workspaceId: workspace.id,
+            campaignId: approval.campaignId,
+            targetPostId: approval.targetPostId,
+            commentDraftId: approval.commentDraftId,
+            socialAccountId: accountId,
+            status: "scheduled",
+            resultMessage: `Bulk approved with ${delay}s delay`,
+            scheduledFor,
+          },
+        });
+        await tx.targetPost.update({
+          where: { id: approval.targetPostId },
+          data: { status: "approved" },
+        });
+      });
+      approved += 1;
+    }
+  }
+
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: `approval.bulk_${input.decision}`,
+    resourceType: "approval",
+    resourceId: input.approvalIds.join(","),
+    metadata: { approved, rejected, ids: input.approvalIds },
+  });
+
+  revalidatePath("/app/approvals");
+  revalidatePath("/app/activity");
+  revalidatePath("/app/inbox");
+  revalidatePath("/app");
+  return { processed: approved + rejected, approved, rejected };
 }
 
 export async function executeDueSends() {

@@ -1,0 +1,977 @@
+export type Locale = "en" | "id";
+
+export const messages = {
+  en: {
+    nav: {
+      features: "Features",
+      pricing: "Pricing",
+      enterprise: "Enterprise",
+      security: "Security",
+      docs: "Docs",
+      login: "Log in",
+      startFree: "Start free",
+      openMenu: "Open menu",
+      language: "Language",
+    },
+    hero: {
+      badge: "Social ops control plane",
+      title: "Run comments and auto posts with enterprise control",
+      subtitle:
+        "Route sessions, generate content with AI, approve safely, and schedule publishing by the minute, hour, or day.",
+      startFree: "Start free",
+      watchVideo: "Watch video",
+      point1: "Approval-first by default",
+      point2: "AI via 9Router",
+      point3: "1 / 6 / 12 month plans",
+    },
+    pillars: {
+      badge: "Product pillars",
+      title: "Four control pillars",
+      subtitle: "Built for operators who need scale without losing governance.",
+      items: [
+        {
+          title: "Session Routing",
+          body: "Proxy pools, anti-detect sessions, and a high-performance multi-tunnel account grid.",
+        },
+        {
+          title: "Comment Engine",
+          body: "Keyword listeners, contextual drafts, human-like pacing, and approval queues.",
+        },
+        {
+          title: "Agent Intelligence",
+          body: "Persona, guardrails, RAG knowledge, and long-term memory for accurate replies.",
+        },
+        {
+          title: "Skill Execution",
+          body: "Function calling with intent triggers and transparent chain-of-thought logs.",
+        },
+      ],
+    },
+    howItWorks: {
+      title: "How it works",
+      step: "Step",
+      steps: [
+        "Connect social accounts with proxy-backed sessions",
+        "Launch campaigns with approval-first controls",
+        "Generate auto posts from topics on your schedule",
+        "Review approvals, publish, and audit every action",
+      ],
+    },
+    securitySection: {
+      badge: "Security by default",
+      title: "Security and control first",
+      body: "Role-based access, encrypted session vaults, approval workflows, rate limits, and immutable audit logs keep enterprise operators in control.",
+      chips: ["RBAC", "Encrypted secrets", "Audit trail"],
+    },
+    pricingTeaser: {
+      badge: "Pricing",
+      title: "1, 6, or 12 months. That's it.",
+      subtitle: "Pick a commitment length. Longer plans unlock lower monthly pricing.",
+      viewPlan: "View plan",
+      compare: "Compare all plans",
+      perMonth: "/mo",
+      billed: "billed",
+    },
+    pricingPage: {
+      badge: "Simple pricing",
+      title: "Choose how long you want to run Aether",
+      subtitle:
+        "Only three plans: 1 month, 6 months, and 12 months. Longer commitment, lower monthly rate. No hidden tiers.",
+      perMonth: "/month",
+      billedEvery: "Billed",
+      every: "every",
+      month: "month",
+      months: "months",
+      footerNote: "Need custom limits, security review, or procurement paperwork?",
+      talkSales: "Talk to sales",
+      compareTitle: "Compare all plans",
+      compareSubtitle:
+        "A side-by-side view of what changes as commitment length increases. Pick the runway that matches your ops maturity.",
+      backHome: "Back to home",
+      comparisonHeading: "What you get by plan",
+      whyTitle: "How to choose",
+      whyBody:
+        "Start monthly if you are validating workflows. Move to 6 months once campaigns are live weekly. Choose 12 months when Aether is part of daily production ops.",
+      savingsNote: "Longer plans lower the monthly rate while unlocking higher account limits and stronger support.",
+      comparisonRows: [
+        {
+          label: "Best for",
+          values: {
+            "1m": "Testing and pilot teams",
+            "6m": "Growing operator teams",
+            "12m": "Stable production ops",
+          },
+        },
+        {
+          label: "Social accounts",
+          values: {
+            "1m": "Up to 10",
+            "6m": "Up to 40",
+            "12m": "Up to 100",
+          },
+        },
+        {
+          label: "Automation depth",
+          values: {
+            "1m": "Comment + auto post basics",
+            "6m": "Routing + content calendar",
+            "12m": "Full worker automation",
+          },
+        },
+        {
+          label: "Approvals & control",
+          values: {
+            "1m": "Approval queue included",
+            "6m": "Bulk approve workflows",
+            "12m": "Audit logs + webhook controls",
+          },
+        },
+        {
+          label: "AI generation",
+          values: {
+            "1m": "Standard 9Router drafts",
+            "6m": "Priority generation limits",
+            "12m": "Higher production throughput",
+          },
+        },
+        {
+          label: "Support",
+          values: {
+            "1m": "Email support",
+            "6m": "Chat support",
+            "12m": "Priority onboarding + support",
+          },
+        },
+        {
+          label: "Monthly rate",
+          values: {
+            "1m": "$49 / month",
+            "6m": "$39 / month",
+            "12m": "$29 / month",
+          },
+        },
+        {
+          label: "Billed total",
+          values: {
+            "1m": "$49 every 1 month",
+            "6m": "$234 every 6 months",
+            "12m": "$348 every 12 months",
+          },
+        },
+      ],
+      plans: {
+        "1m": {
+          name: "1 Month",
+          badge: "",
+          description: "Flexible month-to-month for testing workflows.",
+          features: [
+            "Up to 10 social accounts",
+            "Comment + auto post campaigns",
+            "Approval queue included",
+            "AI drafts via 9Router gateway",
+            "Email support",
+          ],
+          cta: "Start 1 month",
+        },
+        "6m": {
+          name: "6 Months",
+          badge: "Most popular",
+          description: "Best balance of commitment and savings for growing teams.",
+          features: [
+            "Up to 40 social accounts",
+            "Proxy + session routing",
+            "Content calendar + bulk approve",
+            "Priority AI generation limits",
+            "Chat support",
+          ],
+          cta: "Choose 6 months",
+        },
+        "12m": {
+          name: "12 Months",
+          badge: "Best value",
+          description: "Lowest monthly rate for stable production operations.",
+          features: [
+            "Up to 100 social accounts",
+            "Full worker automation",
+            "Audit logs + publisher webhook",
+            "Team seats included",
+            "Priority onboarding",
+          ],
+          cta: "Choose 12 months",
+        },
+      },
+    },
+    featuresPage: {
+      title: "Features",
+      subtitle: "Four integrated pillars for enterprise social operations.",
+      cta: "Start free",
+      items: [
+        {
+          title: "Session Routing",
+          body: "Multi-tunnel account grid, proxy pools, session vault, and health checks.",
+        },
+        {
+          title: "Comment Engine",
+          body: "Find conversations, draft replies with AI, and approve before send.",
+        },
+        {
+          title: "Auto Post Campaigns",
+          body: "Turn a topic into N posts and schedule by minutes, hours, or days.",
+        },
+        {
+          title: "Agent Intelligence",
+          body: "Persona, tone, and system prompts powered by your AI gateway.",
+        },
+        {
+          title: "Approvals & Audit",
+          body: "Human-in-the-loop queues with editable drafts and action trails.",
+        },
+        {
+          title: "Publisher Webhook",
+          body: "Simulator or live webhook delivery with testable endpoints.",
+        },
+      ],
+    },
+    featureDetails: {
+      sessionRouting: {
+        title: "Session Routing",
+        subtitle: "Manage proxies, anti-detect sessions, and multi-tunnel account health.",
+        points: [
+          "HTTP/SOCKS5 proxy pools",
+          "Encrypted session vault",
+          "IP rotation logs",
+          "Account health grid",
+        ],
+        cta: "Start free",
+      },
+      commentEngine: {
+        title: "Comment Engine",
+        subtitle: "Discover targets, generate contextual comments, and send with human-like controls.",
+        points: [
+          "Keyword and competitor listeners",
+          "Approval-required campaigns",
+          "Rate limits and delays",
+          "Activity logging",
+        ],
+        cta: "Start free",
+      },
+      agentIntelligence: {
+        title: "Agent Intelligence",
+        subtitle: "Train agents with persona, guardrails, knowledge, and memory.",
+        points: [
+          "Persona configuration",
+          "RAG document ingestion",
+          "Long-term memory ledger",
+          "Playground testing",
+        ],
+        cta: "Start free",
+      },
+      skillExecution: {
+        title: "Skill Execution",
+        subtitle: "Let agents call approved skills with transparent chain-of-thought logs.",
+        points: [
+          "Skill registry",
+          "Intent auto-triggers",
+          "Builtin and webhook skills",
+          "CoT run timeline",
+        ],
+        cta: "Start free",
+      },
+    },
+    enterprisePage: {
+      badge: "Enterprise",
+      title: "Built for security reviews and multi-team ops",
+      subtitle:
+        "Aether gives enterprise operators governed automation: custom quotas, SSO-ready access, audit export, and guided onboarding without losing day-to-day control.",
+      cta: "Book demo",
+      backHome: "Back to home",
+      fitTitle: "When enterprise is the right fit",
+      fitBody:
+        "Choose enterprise when you need procurement support, higher limits, dedicated onboarding, or stricter compliance controls than self-serve plans.",
+      sections: [
+        {
+          title: "Governance & access",
+          body: "Keep every workspace isolated and role-aware.",
+          bullets: [
+            "Workspace RBAC with owner/admin/operator/analyst/auditor/viewer",
+            "SSO/SAML configuration for domain-enforced login",
+            "Invite flows and membership lifecycle controls",
+          ],
+        },
+        {
+          title: "Scale controls",
+          body: "Operate more accounts without losing guardrails.",
+          bullets: [
+            "Custom account, send, and publish limits",
+            "Approval-first defaults with paced automation",
+            "Worker and connector policy tailored to your environment",
+          ],
+        },
+        {
+          title: "Security review support",
+          body: "Make diligence faster for IT and compliance teams.",
+          bullets: [
+            "Encrypted secrets and audit-ready action trails",
+            "Security questionnaire and architecture walkthrough support",
+            "Clear data handling and residency metadata",
+          ],
+        },
+        {
+          title: "Success & support",
+          body: "Launch with runbooks, not guesswork.",
+          bullets: [
+            "Guided onboarding for operators and admins",
+            "Priority support path for production incidents",
+            "Playbooks for campaign rollout and approval workflows",
+          ],
+        },
+      ],
+    },
+    securityPage: {
+      badge: "Security",
+      title: "Control-plane security for social operations",
+      subtitle:
+        "Aether is designed for managed engagement operations with explicit approvals, encrypted credentials, and immutable audit trails—not uncontrolled spam tooling.",
+      cta: "Start free",
+      backHome: "Back to home",
+      sections: [
+        {
+          title: "Data protection",
+          body: "Sensitive values stay protected at rest.",
+          bullets: [
+            "Application-level encryption for secrets and session material",
+            "Least-privilege workspace isolation on every business query",
+            "No plaintext credential storage in operator UI",
+          ],
+        },
+        {
+          title: "Operational guardrails",
+          body: "Automation remains human-supervised by default.",
+          bullets: [
+            "Approval-required campaign mode as the default",
+            "Daily quotas, delays, and health gating before send/publish",
+            "High-risk skills can force manual review even in auto mode",
+          ],
+        },
+        {
+          title: "Identity & access",
+          body: "Role boundaries are first-class.",
+          bullets: [
+            "Fine-grained workspace permissions",
+            "Enterprise SSO/SAML path for domain-controlled access",
+            "Platform superadmin separated from workspace roles",
+          ],
+        },
+        {
+          title: "Auditability",
+          body: "Every sensitive action is reviewable.",
+          bullets: [
+            "Append-only audit logs for config and billing changes",
+            "CSV export for compliance archives",
+            "Delivery and job run histories for outbound actions",
+          ],
+        },
+      ],
+    },
+    aboutPage: {
+      title: "About Aether",
+      subtitle: "A quiet control plane for teams that need scale with governance.",
+      cta: "Start free",
+      points: [
+        "Enterprise-first design",
+        "Operator workflows",
+        "AI with guardrails",
+      ],
+    },
+    contactPage: {
+      badge: "Contact",
+      title: "Book a demo",
+      subtitle: "Ask about enterprise onboarding, security review, or custom quotas.",
+      success: "Thanks. Your message is ready for sales follow-up.",
+      formTitle: "Send a message",
+      formSubtitle: "We will respond with next steps.",
+      name: "Name",
+      email: "Work email",
+      message: "How can we help?",
+      submit: "Send message",
+    },
+    legalPages: {
+      privacy: {
+        title: "Privacy Policy",
+        subtitle: "We process workspace and account operational data to provide the service.",
+        points: [
+          "Data retention controls",
+          "Workspace isolation",
+          "Contact for data requests",
+        ],
+        cta: "Contact",
+        href: "/contact",
+      },
+      terms: {
+        title: "Terms of Service",
+        subtitle: "Use Aether in compliance with platform policies and applicable law.",
+        points: [
+          "Acceptable use required",
+          "No warranty of platform compliance",
+          "Enterprise terms available",
+        ],
+        cta: "Read AUP",
+        href: "/legal/aup",
+      },
+      aup: {
+        title: "Acceptable Use Policy",
+        subtitle: "Automation must respect platform rules, consent, and rate limits.",
+        points: [
+          "No spam campaigns",
+          "Approval and quota controls expected",
+          "Abuse may result in suspension",
+        ],
+        cta: "Contact",
+        href: "/contact",
+      },
+    },
+    faq: {
+      kicker: "FAQ",
+      title: "Answers before you start",
+      subtitle: "Clear details on plans, AI posting, approvals, and platform support.",
+      items: [
+        {
+          q: "What plans can I buy?",
+          a: "Only three duration plans: 1 month, 6 months, and 12 months. Longer commitments unlock a lower monthly rate.",
+        },
+        {
+          q: "Can AI create posts from a topic I choose?",
+          a: "Yes. In Auto Post campaigns you enter a topic, choose how many posts you want, and set the interval (minutes, hours, or days). Aether generates drafts via your 9Router AI gateway.",
+        },
+        {
+          q: "Do posts publish automatically?",
+          a: "You can choose Approval required or Auto mode. Approval mode keeps a human review step before scheduling/publishing.",
+        },
+        {
+          q: "Which platforms are supported?",
+          a: "Instagram, Threads, and TikTok are in the product model. Publishing currently supports simulator mode and live webhook delivery.",
+        },
+        {
+          q: "How does AI connect?",
+          a: "Aether routes generation through an OpenAI-compatible gateway such as 9Router. Provider auth (for example xAI build auth) stays inside 9Router.",
+        },
+        {
+          q: "Is this safe for team operations?",
+          a: "Yes. Workspace RBAC, encrypted secrets, approval queues, audit logs, and rate/delay controls are built into the control plane.",
+        },
+      ],
+    },
+    cta: {
+      title: "Ready to run controlled engagement ops?",
+      subtitle:
+        "Create a workspace, invite your team, and launch with approval-first automation.",
+      startFree: "Start free",
+      talkSales: "Talk to sales",
+    },
+    footer: {
+      blurb: "Quiet control plane for enterprise social engagement operations.",
+      product: "Product",
+      company: "Company",
+      legal: "Legal",
+      features: "Features",
+      pricing: "Pricing",
+      security: "Security",
+      docs: "Docs",
+      about: "About",
+      contact: "Contact",
+      enterprise: "Enterprise",
+      privacy: "Privacy",
+      terms: "Terms",
+      aup: "AUP",
+    },
+  },
+  id: {
+    nav: {
+      features: "Fitur",
+      pricing: "Harga",
+      enterprise: "Enterprise",
+      security: "Keamanan",
+      docs: "Dokumentasi",
+      login: "Masuk",
+      startFree: "Mulai gratis",
+      openMenu: "Buka menu",
+      language: "Bahasa",
+    },
+    hero: {
+      badge: "Control plane social ops",
+      title: "Jalankan komentar dan auto post dengan kontrol enterprise",
+      subtitle:
+        "Route session, generate konten dengan AI, approve dengan aman, dan jadwalkan publish per menit, jam, atau hari.",
+      startFree: "Mulai gratis",
+      watchVideo: "Tonton video",
+      point1: "Approval-first secara default",
+      point2: "AI via 9Router",
+      point3: "Paket 1 / 6 / 12 bulan",
+    },
+    pillars: {
+      badge: "Pilar produk",
+      title: "Empat pilar kontrol",
+      subtitle: "Dibangun untuk operator yang butuh skala tanpa kehilangan governance.",
+      items: [
+        {
+          title: "Session Routing",
+          body: "Proxy pool, session anti-detect, dan grid multi-tunnel berperforma tinggi.",
+        },
+        {
+          title: "Comment Engine",
+          body: "Listener kata kunci, draft kontekstual, pacing human-like, dan antrian approval.",
+        },
+        {
+          title: "Agent Intelligence",
+          body: "Persona, guardrail, knowledge RAG, dan memori jangka panjang untuk balasan akurat.",
+        },
+        {
+          title: "Skill Execution",
+          body: "Function calling dengan intent trigger dan log chain-of-thought yang transparan.",
+        },
+      ],
+    },
+    howItWorks: {
+      title: "Cara kerja",
+      step: "Langkah",
+      steps: [
+        "Hubungkan akun sosial dengan session berbasis proxy",
+        "Jalankan campaign dengan kontrol approval-first",
+        "Generate auto post dari topik sesuai jadwal Anda",
+        "Review approval, publish, dan audit setiap aksi",
+      ],
+    },
+    securitySection: {
+      badge: "Keamanan default",
+      title: "Keamanan dan kontrol lebih dulu",
+      body: "Akses berbasis peran, session vault terenkripsi, alur approval, rate limit, dan audit log imutabel menjaga operator enterprise tetap kendali.",
+      chips: ["RBAC", "Secret terenkripsi", "Jejak audit"],
+    },
+    pricingTeaser: {
+      badge: "Harga",
+      title: "1, 6, atau 12 bulan. Selesai.",
+      subtitle:
+        "Pilih lama berlangganan. Paket lebih panjang, harga bulanan lebih rendah.",
+      viewPlan: "Lihat paket",
+      compare: "Bandingkan semua paket",
+      perMonth: "/bln",
+      billed: "ditagih",
+    },
+    pricingPage: {
+      badge: "Harga sederhana",
+      title: "Pilih berapa lama Anda ingin memakai Aether",
+      subtitle:
+        "Hanya tiga paket: 1 bulan, 6 bulan, dan 12 bulan. Semakin panjang, semakin rendah harga bulanan. Tanpa tier tersembunyi.",
+      perMonth: "/bulan",
+      billedEvery: "Ditagih",
+      every: "setiap",
+      month: "bulan",
+      months: "bulan",
+      footerNote: "Butuh limit kustom, security review, atau proses procurement?",
+      talkSales: "Hubungi sales",
+      compareTitle: "Bandingkan semua paket",
+      compareSubtitle:
+        "Perbandingan berdampingan tentang apa yang berubah seiring durasi komitmen. Pilih runway yang sesuai kematangan operasi Anda.",
+      backHome: "Kembali ke beranda",
+      comparisonHeading: "Yang Anda dapat per paket",
+      whyTitle: "Cara memilih",
+      whyBody:
+        "Mulai bulanan jika masih validasi workflow. Pindah ke 6 bulan saat campaign sudah jalan mingguan. Pilih 12 bulan ketika Aether jadi bagian operasi produksi harian.",
+      savingsNote: "Paket lebih panjang menurunkan harga bulanan sekaligus membuka limit akun lebih tinggi dan support lebih kuat.",
+      comparisonRows: [
+        {
+          label: "Paling cocok untuk",
+          values: {
+            "1m": "Tim uji coba / pilot",
+            "6m": "Tim operator yang berkembang",
+            "12m": "Operasi produksi yang stabil",
+          },
+        },
+        {
+          label: "Akun sosial",
+          values: {
+            "1m": "Hingga 10",
+            "6m": "Hingga 40",
+            "12m": "Hingga 100",
+          },
+        },
+        {
+          label: "Kedalaman otomasi",
+          values: {
+            "1m": "Dasar komentar + auto post",
+            "6m": "Routing + kalender konten",
+            "12m": "Otomasi worker penuh",
+          },
+        },
+        {
+          label: "Approval & kontrol",
+          values: {
+            "1m": "Antrian approval termasuk",
+            "6m": "Workflow bulk approve",
+            "12m": "Audit log + kontrol webhook",
+          },
+        },
+        {
+          label: "Generate AI",
+          values: {
+            "1m": "Draft 9Router standar",
+            "6m": "Limit generate prioritas",
+            "12m": "Throughput produksi lebih tinggi",
+          },
+        },
+        {
+          label: "Dukungan",
+          values: {
+            "1m": "Dukungan email",
+            "6m": "Dukungan chat",
+            "12m": "Onboarding + support prioritas",
+          },
+        },
+        {
+          label: "Harga bulanan",
+          values: {
+            "1m": "$49 / bulan",
+            "6m": "$39 / bulan",
+            "12m": "$29 / bulan",
+          },
+        },
+        {
+          label: "Total tagihan",
+          values: {
+            "1m": "$49 setiap 1 bulan",
+            "6m": "$234 setiap 6 bulan",
+            "12m": "$348 setiap 12 bulan",
+          },
+        },
+      ],
+      plans: {
+        "1m": {
+          name: "1 Bulan",
+          badge: "",
+          description: "Fleksibel bulanan untuk uji coba workflow.",
+          features: [
+            "Hingga 10 akun sosial",
+            "Campaign komentar + auto post",
+            "Antrian approval termasuk",
+            "Draft AI via gateway 9Router",
+            "Dukungan email",
+          ],
+          cta: "Mulai 1 bulan",
+        },
+        "6m": {
+          name: "6 Bulan",
+          badge: "Paling populer",
+          description: "Keseimbangan terbaik antara komitmen dan penghematan.",
+          features: [
+            "Hingga 40 akun sosial",
+            "Proxy + session routing",
+            "Kalender konten + bulk approve",
+            "Limit generate AI prioritas",
+            "Dukungan chat",
+          ],
+          cta: "Pilih 6 bulan",
+        },
+        "12m": {
+          name: "12 Bulan",
+          badge: "Nilai terbaik",
+          description: "Harga bulanan terendah untuk operasi produksi yang stabil.",
+          features: [
+            "Hingga 100 akun sosial",
+            "Otomasi worker penuh",
+            "Audit log + publisher webhook",
+            "Seat tim termasuk",
+            "Onboarding prioritas",
+          ],
+          cta: "Pilih 12 bulan",
+        },
+      },
+    },
+    featuresPage: {
+      title: "Fitur",
+      subtitle: "Empat pilar terintegrasi untuk operasi sosial enterprise.",
+      cta: "Mulai gratis",
+      items: [
+        {
+          title: "Session Routing",
+          body: "Grid multi-tunnel akun, proxy pool, session vault, dan health check.",
+        },
+        {
+          title: "Comment Engine",
+          body: "Temukan percakapan, buat balasan AI, dan approve sebelum kirim.",
+        },
+        {
+          title: "Auto Post Campaign",
+          body: "Ubah topik menjadi N postingan dan jadwalkan per menit, jam, atau hari.",
+        },
+        {
+          title: "Agent Intelligence",
+          body: "Persona, tone, dan system prompt yang didukung AI gateway Anda.",
+        },
+        {
+          title: "Approval & Audit",
+          body: "Antrian human-in-the-loop dengan draft yang bisa diedit dan jejak aksi.",
+        },
+        {
+          title: "Publisher Webhook",
+          body: "Simulator atau live webhook delivery dengan endpoint yang bisa diuji.",
+        },
+      ],
+    },
+    featureDetails: {
+      sessionRouting: {
+        title: "Session Routing",
+        subtitle: "Kelola proxy, session anti-detect, dan kesehatan akun multi-tunnel.",
+        points: [
+          "Proxy pool HTTP/SOCKS5",
+          "Session vault terenkripsi",
+          "Log rotasi IP",
+          "Grid kesehatan akun",
+        ],
+        cta: "Mulai gratis",
+      },
+      commentEngine: {
+        title: "Comment Engine",
+        subtitle: "Temukan target, generate komentar kontekstual, dan kirim dengan kontrol human-like.",
+        points: [
+          "Listener kata kunci dan kompetitor",
+          "Campaign approval-required",
+          "Rate limit dan delay",
+          "Logging aktivitas",
+        ],
+        cta: "Mulai gratis",
+      },
+      agentIntelligence: {
+        title: "Agent Intelligence",
+        subtitle: "Latih agent dengan persona, guardrail, knowledge, dan memori.",
+        points: [
+          "Konfigurasi persona",
+          "Ingest dokumen RAG",
+          "Ledger memori jangka panjang",
+          "Pengujian playground",
+        ],
+        cta: "Mulai gratis",
+      },
+      skillExecution: {
+        title: "Skill Execution",
+        subtitle: "Biarkan agent memanggil skill yang disetujui dengan log chain-of-thought yang transparan.",
+        points: [
+          "Registry skill",
+          "Auto-trigger intent",
+          "Skill builtin dan webhook",
+          "Timeline run CoT",
+        ],
+        cta: "Mulai gratis",
+      },
+    },
+    enterprisePage: {
+      badge: "Enterprise",
+      title: "Dirancang untuk security review dan operasi multi-tim",
+      subtitle:
+        "Aether memberi operator enterprise otomatisasi yang terkendali: kuota kustom, akses siap SSO, export audit, dan onboarding terpandu tanpa kehilangan kontrol harian.",
+      cta: "Jadwalkan demo",
+      backHome: "Kembali ke beranda",
+      fitTitle: "Kapan paket enterprise paling pas",
+      fitBody:
+        "Pilih enterprise jika Anda butuh dukungan procurement, limit lebih tinggi, onboarding khusus, atau kontrol compliance yang lebih ketat daripada paket self-serve.",
+      sections: [
+        {
+          title: "Governance & akses",
+          body: "Setiap workspace tetap terisolasi dan berbasis peran.",
+          bullets: [
+            "RBAC workspace: owner/admin/operator/analyst/auditor/viewer",
+            "Konfigurasi SSO/SAML untuk login berbasis domain",
+            "Alur invite dan kontrol siklus membership",
+          ],
+        },
+        {
+          title: "Kontrol skala",
+          body: "Kelola lebih banyak akun tanpa lepas guardrail.",
+          bullets: [
+            "Limit akun, send, dan publish yang bisa dikustom",
+            "Default approval-first dengan otomasi berirama",
+            "Kebijakan worker dan connector sesuai environment Anda",
+          ],
+        },
+        {
+          title: "Dukungan security review",
+          body: "Proses due diligence jadi lebih cepat untuk IT dan compliance.",
+          bullets: [
+            "Secret terenkripsi dan jejak aksi siap audit",
+            "Dukungan kuesioner keamanan dan walkthrough arsitektur",
+            "Metadata penanganan data dan residency yang jelas",
+          ],
+        },
+        {
+          title: "Success & support",
+          body: "Go-live dengan runbook, bukan tebakan.",
+          bullets: [
+            "Onboarding terpandu untuk operator dan admin",
+            "Jalur support prioritas untuk insiden production",
+            "Playbook rollout campaign dan workflow approval",
+          ],
+        },
+      ],
+    },
+    securityPage: {
+      badge: "Keamanan",
+      title: "Keamanan control plane untuk social operations",
+      subtitle:
+        "Aether dirancang untuk managed engagement operations dengan approval eksplisit, kredensial terenkripsi, dan audit trail imutabel—bukan tooling spam tanpa kontrol.",
+      cta: "Mulai gratis",
+      backHome: "Kembali ke beranda",
+      sections: [
+        {
+          title: "Proteksi data",
+          body: "Nilai sensitif tetap terlindungi saat disimpan.",
+          bullets: [
+            "Enkripsi level aplikasi untuk secret dan material session",
+            "Isolasi workspace least-privilege di setiap query bisnis",
+            "Tidak ada penyimpanan kredensial plaintext di UI operator",
+          ],
+        },
+        {
+          title: "Guardrail operasional",
+          body: "Otomasi tetap diawasi manusia secara default.",
+          bullets: [
+            "Mode campaign approval-required sebagai default",
+            "Kuota harian, delay, dan health gating sebelum send/publish",
+            "Skill berisiko tinggi bisa memaksa review manual meski mode auto",
+          ],
+        },
+        {
+          title: "Identitas & akses",
+          body: "Batas peran adalah first-class.",
+          bullets: [
+            "Permission workspace yang granular",
+            "Jalur SSO/SAML enterprise untuk akses berbasis domain",
+            "Superadmin platform terpisah dari role workspace",
+          ],
+        },
+        {
+          title: "Auditabilitas",
+          body: "Setiap aksi sensitif bisa ditinjau ulang.",
+          bullets: [
+            "Audit log append-only untuk perubahan config dan billing",
+            "Export CSV untuk arsip compliance",
+            "Riwayat delivery dan job run untuk aksi outbound",
+          ],
+        },
+      ],
+    },
+    aboutPage: {
+      title: "Tentang Aether",
+      subtitle: "Control plane yang tenang untuk tim yang butuh skala dengan governance.",
+      cta: "Mulai gratis",
+      points: [
+        "Desain enterprise-first",
+        "Workflow operator",
+        "AI dengan guardrail",
+      ],
+    },
+    contactPage: {
+      badge: "Kontak",
+      title: "Jadwalkan demo",
+      subtitle: "Tanyakan onboarding enterprise, security review, atau kuota kustom.",
+      success: "Terima kasih. Pesan Anda siap ditindaklanjuti tim sales.",
+      formTitle: "Kirim pesan",
+      formSubtitle: "Kami akan membalas dengan langkah berikutnya.",
+      name: "Nama",
+      email: "Email kerja",
+      message: "Ada yang bisa kami bantu?",
+      submit: "Kirim pesan",
+    },
+    legalPages: {
+      privacy: {
+        title: "Kebijakan Privasi",
+        subtitle: "Kami memproses data operasional workspace dan akun untuk menyediakan layanan.",
+        points: [
+          "Kontrol retensi data",
+          "Isolasi workspace",
+          "Hubungi kami untuk permintaan data",
+        ],
+        cta: "Kontak",
+        href: "/contact",
+      },
+      terms: {
+        title: "Syarat Layanan",
+        subtitle: "Gunakan Aether sesuai kebijakan platform dan hukum yang berlaku.",
+        points: [
+          "Wajib mematuhi acceptable use",
+          "Tidak ada jaminan kepatuhan platform",
+          "Syarat enterprise tersedia",
+        ],
+        cta: "Baca AUP",
+        href: "/legal/aup",
+      },
+      aup: {
+        title: "Kebijakan Penggunaan yang Dapat Diterima",
+        subtitle: "Otomasi harus menghormati aturan platform, consent, dan rate limit.",
+        points: [
+          "Tidak boleh campaign spam",
+          "Kontrol approval dan kuota diharapkan",
+          "Penyalahgunaan dapat berujung penangguhan",
+        ],
+        cta: "Kontak",
+        href: "/contact",
+      },
+    },
+    faq: {
+      kicker: "FAQ",
+      title: "Jawaban sebelum mulai",
+      subtitle:
+        "Detail jelas soal paket, AI posting, approval, dan dukungan platform.",
+      items: [
+        {
+          q: "Paket apa saja yang tersedia?",
+          a: "Hanya tiga: 1 bulan, 6 bulan, dan 12 bulan. Semakin panjang masa aktif, semakin rendah harga per bulan.",
+        },
+        {
+          q: "Apakah AI bisa membuat postingan dari topik yang saya pilih?",
+          a: "Ya. Di Auto Post Campaign, masukkan topik, tentukan jumlah post, dan atur interval (menit, jam, atau hari). Aether generate draft lewat 9Router AI gateway.",
+        },
+        {
+          q: "Apakah postingan langsung publish otomatis?",
+          a: "Bisa pilih mode Approval required atau Auto. Mode approval tetap butuh review manusia sebelum dijadwalkan/dipublish.",
+        },
+        {
+          q: "Platform apa yang didukung?",
+          a: "Instagram, Threads, dan TikTok ada di model produk. Publish saat ini mendukung simulator mode dan live webhook.",
+        },
+        {
+          q: "Bagaimana AI terhubung?",
+          a: "Aether mengarahkan generate lewat gateway OpenAI-compatible seperti 9Router. Auth provider (misalnya xAI build auth) tetap di 9Router.",
+        },
+        {
+          q: "Apakah aman untuk operasi tim?",
+          a: "Ya. RBAC workspace, secret terenkripsi, antrian approval, audit log, serta kontrol rate/delay sudah built-in.",
+        },
+      ],
+    },
+    cta: {
+      title: "Siap menjalankan engagement ops yang terkendali?",
+      subtitle:
+        "Buat workspace, undang tim, dan mulai dengan otomasi approval-first.",
+      startFree: "Mulai gratis",
+      talkSales: "Hubungi sales",
+    },
+    footer: {
+      blurb:
+        "Control plane yang tenang untuk operasi engagement sosial enterprise.",
+      product: "Produk",
+      company: "Perusahaan",
+      legal: "Legal",
+      features: "Fitur",
+      pricing: "Harga",
+      security: "Keamanan",
+      docs: "Dokumentasi",
+      about: "Tentang",
+      contact: "Kontak",
+      enterprise: "Enterprise",
+      privacy: "Privasi",
+      terms: "Syarat",
+      aup: "AUP",
+    },
+  },
+} as const;
+
+export type Messages = (typeof messages)["en"];

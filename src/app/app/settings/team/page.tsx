@@ -1,9 +1,17 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
 import { auth } from "@/lib/auth";
 import { can } from "@/lib/rbac";
@@ -11,12 +19,17 @@ import { db } from "@/lib/db";
 import { createInvite } from "@/server/invites";
 import { listWorkspacesForUser } from "@/server/workspaces";
 
-export default async function TeamSettingsPage() {
+export default async function TeamSettingsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ inviteToken?: string }>;
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   const workspaces = await listWorkspacesForUser();
   const workspace = workspaces[0];
   if (!workspace) redirect("/onboarding");
+  const params = searchParams ? await searchParams : {};
 
   const members = await db.membership.findMany({
     where: { workspaceId: workspace.id, status: "active" },
@@ -41,22 +54,36 @@ export default async function TeamSettingsPage() {
     <div>
       <PageHeader title="Team" description="Members and invitations." />
       <div className="flex flex-col gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Members</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {members.map((member) => (
-              <div key={member.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
-                <div>
-                  <div className="text-sm font-medium">{member.user.name || member.user.email}</div>
-                  <div className="text-xs text-muted-foreground">{member.user.email}</div>
-                </div>
-                <Badge variant="secondary">{member.role}</Badge>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        {params.inviteToken ? (
+          <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm">
+            Invite created. Token: <code className="font-mono text-xs">{params.inviteToken}</code>
+          </div>
+        ) : null}
+
+        <div className="overflow-hidden rounded-2xl border bg-background">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Member</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {members.map((member) => (
+                <TableRow key={member.id}>
+                  <TableCell className="font-medium">
+                    {member.user.name || member.user.email}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{member.user.email}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{member.role}</Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
 
         {canInvite ? (
           <Card className="max-w-xl">
@@ -71,7 +98,7 @@ export default async function TeamSettingsPage() {
                 </div>
                 <Button type="submit">Create invite</Button>
                 <p className="text-xs text-muted-foreground">
-                  In development, invite tokens are returned via query string for manual sharing.
+                  In development, invite tokens are returned in-page for testing.
                 </p>
               </form>
             </CardContent>

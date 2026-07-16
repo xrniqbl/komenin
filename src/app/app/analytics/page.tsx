@@ -1,14 +1,119 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/app/page-header";
+import { QuotaMeter } from "@/components/analytics/quota-meter";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getAnalyticsSummary } from "@/server/analytics";
+import { listRateLimitStatus } from "@/server/rate-limits";
+import { checkUsageAlerts } from "@/server/usage-alerts";
 
-export default function Page() {
+export default async function AnalyticsPage() {
+  const [summary, quota, alerts] = await Promise.all([
+    getAnalyticsSummary(30),
+    listRateLimitStatus(),
+    checkUsageAlerts(),
+  ]);
+
+  const metrics = [
+    { label: "Comments sent", value: summary.sends },
+    { label: "Send failures", value: summary.failedSends },
+    { label: "Pending approvals", value: summary.approvalsPending },
+    { label: "Approvals decided", value: summary.approvalsDone },
+    { label: "Posts published", value: summary.publishes },
+    { label: "Healthy accounts", value: summary.healthyAccounts },
+    { label: "Degraded accounts", value: summary.degradedAccounts },
+    { label: "Skill runs", value: summary.skillRuns },
+  ];
+
   return (
-    <div>
+    <div className="space-y-6">
       <PageHeader
         title="Analytics"
-        description="Module shell ready. Full implementation lands in the next foundation follow-on plan."
+        description={`Workspace KPIs for the last ${summary.rangeDays} days. Period ${quota.periodKey}.`}
+        action={
+          <Button variant="outline" render={<Link href="/app/rate-limits" />} nativeButton={false}>
+            Rate limits
+          </Button>
+        }
       />
-      <div className="rounded-2xl border border bg-background p-6 text-sm text-muted-foreground">
-        Placeholder route for Analytics. Data model and IA are prepared.
+
+      {alerts.length > 0 ? (
+        <div className="space-y-2">
+          {alerts.map((alert, i) => (
+            <div key={i} className="rounded-xl border border-amber-300 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+              ⚠ {alert}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm flex items-center justify-between">
+              <span>Monthly Sends</span>
+              <Badge variant={quota.workspace.sendsStatus === "ok" ? "secondary" : "destructive"}>{quota.workspace.sendsStatus}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <QuotaMeter used={quota.workspace.sendsUsed} limit={quota.workspace.sendLimit} label="Sends" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm flex items-center justify-between">
+              <span>Monthly Publishes</span>
+              <Badge variant={quota.workspace.publishesStatus === "ok" ? "secondary" : "destructive"}>{quota.workspace.publishesStatus}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <QuotaMeter used={quota.workspace.publishesUsed} limit={quota.workspace.publishLimit} label="Publishes" />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {metrics.map((metric) => (
+          <Card key={metric.label}>
+            <CardHeader>
+              <CardDescription>{metric.label}</CardDescription>
+              <CardTitle className="text-3xl">{metric.value}</CardTitle>
+            </CardHeader>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Delivery mix</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {summary.deliveries.length === 0 ? (
+              <div className="text-muted-foreground">No deliveries yet.</div>
+            ) : (
+              summary.deliveries.map((row) => (
+                <div key={row.kind} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                  <span>{row.kind}</span>
+                  <span className="font-medium">{row.count}</span>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Plan usage</CardTitle>
+            <CardDescription>Plan {summary.limits.planCode}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div>Sends this period: {summary.usage?.sends ?? 0} / {summary.limits.monthlySendLimit}</div>
+            <div>Publishes this period: {summary.usage?.publishes ?? 0} / {summary.limits.monthlyPublishLimit}</div>
+            <div>Generates: {summary.usage?.generates ?? 0}</div>
+            <div>Skill runs: {summary.usage?.skillRuns ?? 0}</div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

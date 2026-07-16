@@ -1,0 +1,170 @@
+﻿"use client";
+
+import { Search, X } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
+  Popover,
+  PopoverDescription,
+  PopoverPopup,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+
+type FilterOption = { value: string; label: string };
+
+type Props = {
+  placeholder?: string;
+  statusOptions?: FilterOption[];
+  platformOptions?: FilterOption[];
+  queryParam?: string;
+  statusParam?: string;
+  platformParam?: string;
+  defaultQ?: string;
+  defaultStatus?: string;
+  defaultPlatform?: string;
+  className?: string;
+};
+
+export function FilterBar({
+  placeholder = "Search...",
+  statusOptions,
+  platformOptions,
+  queryParam = "q",
+  statusParam = "status",
+  platformParam = "platform",
+  defaultQ = "",
+  defaultStatus = "",
+  defaultPlatform = "",
+  className,
+}: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [q, setQ] = useState(defaultQ);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (q === defaultQ) return;
+      startTransition(() => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (q) params.set(queryParam, q);
+        else params.delete(queryParam);
+        params.delete("page");
+        router.replace(`${pathname}?${params.toString()}`);
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [q]);
+
+  const updateFilter = (key: string, value: string) => {
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (value) params.set(key, value);
+      else params.delete(key);
+      params.delete("page");
+      router.replace(`${pathname}?${params.toString()}`);
+    });
+  };
+
+  const clearAll = () => {
+    setQ("");
+    startTransition(() => {
+      router.replace(pathname);
+    });
+  };
+
+  const hasFilters = !!q || !!defaultStatus || !!defaultPlatform;
+
+  return (
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+      <InputGroup className="min-w-[200px] flex-1">
+        <InputGroupAddon align="inline-start">
+          <Search className="size-4 opacity-80" />
+        </InputGroupAddon>
+        <InputGroupInput
+          placeholder={placeholder}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          className="h-8 text-sm"
+        />
+      </InputGroup>
+
+      {statusOptions && statusOptions.length > 0 ? (
+        <Select
+          value={defaultStatus || "__all"}
+          onValueChange={(v) => updateFilter(statusParam, v === "__all" || !v ? "" : v)}
+        >
+          <SelectTrigger className="h-8 w-[140px] text-sm">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectPopup>
+            <SelectItem value="__all">All status</SelectItem>
+            {statusOptions.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectPopup>
+        </Select>
+      ) : null}
+
+      {platformOptions && platformOptions.length > 0 ? (
+        <Select
+          value={defaultPlatform || "__all"}
+          onValueChange={(v) => updateFilter(platformParam, v === "__all" || !v ? "" : v)}
+        >
+          <SelectTrigger className="h-8 w-[140px] text-sm">
+            <SelectValue placeholder="Platform" />
+          </SelectTrigger>
+          <SelectPopup>
+            <SelectItem value="__all">All platforms</SelectItem>
+            {platformOptions.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectPopup>
+        </Select>
+      ) : null}
+
+      <Popover>
+        <PopoverTrigger render={<Button size="sm" variant="ghost" className="h-8" />}>
+          Tips
+        </PopoverTrigger>
+        <PopoverPopup className="w-72 p-4" align="end">
+          <PopoverTitle className="text-sm">Filter tips</PopoverTitle>
+          <PopoverDescription className="mt-2 space-y-1 text-xs">
+            <div>Search updates as you type.</div>
+            <div>Status/platform filters reset pagination to page 1.</div>
+            <div>Use Clear to remove all active filters.</div>
+          </PopoverDescription>
+        </PopoverPopup>
+      </Popover>
+
+      {hasFilters ? (
+        <Button size="sm" variant="ghost" className="h-8" onClick={clearAll}>
+          <X className="mr-1 h-3.5 w-3.5" />
+          Clear
+        </Button>
+      ) : null}
+
+      {isPending ? <span className="text-xs text-muted-foreground">Filtering...</span> : null}
+    </div>
+  );
+}

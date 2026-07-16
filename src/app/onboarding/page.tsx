@@ -1,8 +1,13 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Field,
+  FieldDescription,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Form } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { auth } from "@/lib/auth";
 import { createInvite } from "@/server/invites";
@@ -48,30 +53,32 @@ export default async function OnboardingPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={completeOnboarding} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="name">Workspace name</Label>
+          <Form action={completeOnboarding} className="flex flex-col gap-4">
+            <Field name="name">
+              <FieldLabel htmlFor="name">Workspace name</FieldLabel>
               <Input id="name" name="name" required placeholder="Acme Growth" />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="timezone">Timezone</Label>
+            </Field>
+            <Field name="timezone">
+              <FieldLabel htmlFor="timezone">Timezone</FieldLabel>
               <Input id="timezone" name="timezone" defaultValue="Asia/Jakarta" />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="invites">Invite teammates (optional)</Label>
+              <FieldDescription>Used for schedules, audit timestamps, and digests.</FieldDescription>
+            </Field>
+            <Field name="invites">
+              <FieldLabel htmlFor="invites">Invite teammates (optional)</FieldLabel>
               <Textarea
                 id="invites"
                 name="invites"
                 placeholder="ops@company.com, analyst@company.com"
               />
-            </div>
+              <FieldDescription>Comma-separated emails. Invites can also be sent later.</FieldDescription>
+            </Field>
             <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
               Platforms ready in product model: Instagram, Threads, TikTok.
             </div>
             <Button type="submit" size="lg">
               Launch command center
             </Button>
-          </form>
+          </Form>
         </CardContent>
       </Card>
     </div>

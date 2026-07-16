@@ -12,10 +12,27 @@ import type { Platform, SocialAccountStatus } from "@prisma/client";
 const DEFAULT_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 
-export async function listAccounts() {
+export async function listAccounts(input?: {
+  q?: string;
+  status?: string;
+  platform?: string;
+}) {
   const { workspace } = await requireActiveWorkspace();
+  const where: Record<string, unknown> & { workspaceId: string; deletedAt: null } = {
+    workspaceId: workspace.id,
+    deletedAt: null,
+  };
+  if (input?.q) {
+    where.OR = [
+      { username: { contains: input.q, mode: "insensitive" as const } },
+      { displayName: { contains: input.q, mode: "insensitive" as const } },
+    ];
+  }
+  if (input?.status) where.status = input.status as never;
+  if (input?.platform) where.platform = input.platform as never;
+
   return db.socialAccount.findMany({
-    where: { workspaceId: workspace.id, deletedAt: null },
+    where,
     include: {
       sessions: {
         where: { isActive: true },

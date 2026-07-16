@@ -1,6 +1,21 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/page-header";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { platformLabel } from "@/lib/session-routing";
 import { listListeners, pollListener } from "@/server/listeners";
 
@@ -12,32 +27,59 @@ export default async function ListenersPage() {
       <PageHeader
         title="Listeners"
         description="Keyword, competitor, and trend watchers."
-        action={<Button variant="default" render={<Link href="/app/listeners/new" />} nativeButton={false}>New listener</Button>}
+        action={
+          <Button variant="default" render={<Link href="/app/listeners/new" />} nativeButton={false}>
+            New listener
+          </Button>
+        }
       />
-      <div className="overflow-hidden rounded-2xl border border bg-background">
+      <div className="overflow-hidden rounded-2xl border bg-background">
         {listeners.length === 0 ? (
-          <div className="px-4 py-10 text-sm text-muted-foreground">No listeners yet.</div>
+          <Empty className="py-12">
+            <EmptyHeader>
+              <EmptyTitle>No listeners yet</EmptyTitle>
+              <EmptyDescription>Create a watcher to discover posts automatically.</EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button render={<Link href="/app/listeners/new" />} nativeButton={false}>
+                New listener
+              </Button>
+            </EmptyContent>
+          </Empty>
         ) : (
-          listeners.map((listener) => (
-            <div key={listener.id} className="flex items-center justify-between gap-3 border-b border px-4 py-3 text-sm last:border-b-0">
-              <div>
-                <div className="font-medium">{listener.query}</div>
-                <div className="text-xs text-muted-foreground">
-                  {platformLabel(listener.platform)} Â· {listener.type} Â· {listener._count.posts} posts
-                </div>
-              </div>
-              <form
-                action={async () => {
-                  "use server";
-                  await pollListener(listener.id);
-                }}
-              >
-                <Button type="submit" variant="outline" >
-                  Poll now
-                </Button>
-              </form>
-            </div>
-          ))
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Query</TableHead>
+                <TableHead>Platform</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Posts</TableHead>
+                <TableHead className="text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {listeners.map((listener) => (
+                <TableRow key={listener.id}>
+                  <TableCell className="font-medium">{listener.query}</TableCell>
+                  <TableCell>{platformLabel(listener.platform)}</TableCell>
+                  <TableCell className="text-muted-foreground">{listener.type}</TableCell>
+                  <TableCell className="text-muted-foreground">{listener._count.posts}</TableCell>
+                  <TableCell className="text-right">
+                    <form
+                      action={async () => {
+                        "use server";
+                        await pollListener(listener.id);
+                      }}
+                    >
+                      <Button type="submit" variant="outline" size="sm">
+                        Poll now
+                      </Button>
+                    </form>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </div>
     </div>

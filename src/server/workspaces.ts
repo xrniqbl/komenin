@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -22,6 +22,13 @@ export async function listWorkspacesForUser() {
       name: m.workspace.name,
       slug: m.workspace.slug,
       role: m.role,
+      connectorPolicy: m.workspace.connectorPolicy,
+      planCode: m.workspace.planCode,
+      monthlySendLimit: m.workspace.monthlySendLimit,
+      monthlyPublishLimit: m.workspace.monthlyPublishLimit,
+      homeRegion: m.workspace.homeRegion,
+      ssoRequired: m.workspace.ssoRequired,
+      billingEmail: m.workspace.billingEmail,
     }));
 }
 
@@ -72,3 +79,4 @@ export async function createWorkspace(input: { name: string; timezone?: string }
 
   return workspace;
 }
+

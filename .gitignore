@@ -1,4 +1,4 @@
-﻿# dependencies
+# dependencies
 node_modules/
 .pnp
 .pnp.*
@@ -45,3 +45,7 @@ next-env.d.ts
 .worktrees/
 worktrees/
 work/
+/data/
+tmp/
+output/
+docs/superpowers/

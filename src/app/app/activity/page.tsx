@@ -1,6 +1,20 @@
-import { Badge } from "@/components/ui/badge";
+﻿import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/app/page-header";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { getRuntimeModeLabel } from "@/lib/runtime-mode";
 import { executeDueSends, listActivity } from "@/server/comment-pipeline";
 
@@ -32,25 +46,42 @@ export default async function ActivityPage() {
 
       <div className="overflow-hidden rounded-2xl border bg-background">
         {actions.length === 0 ? (
-          <div className="px-4 py-10 text-sm text-muted-foreground">No actions yet.</div>
+          <Empty className="py-12">
+            <EmptyHeader>
+              <EmptyTitle>No actions yet</EmptyTitle>
+              <EmptyDescription>Approved comments will appear here once scheduled.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
-          actions.map((action) => (
-            <div key={action.id} className="border-b px-4 py-3 text-sm last:border-b-0">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="font-medium">{action.status}</div>
-                <div className="text-xs text-muted-foreground">
-                  {action.scheduledFor
-                    ? `scheduled ${action.scheduledFor.toISOString().slice(0, 19)}`
-                    : "—"}
-                </div>
-              </div>
-              <div className="mt-1 text-muted-foreground">{action.resultMessage}</div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                post @{action.targetPost.authorHandle}
-                {action.socialAccount ? ` · via @${action.socialAccount.username}` : ""}
-              </div>
-            </div>
-          ))
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Status</TableHead>
+                <TableHead>Schedule</TableHead>
+                <TableHead>Message</TableHead>
+                <TableHead>Context</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {actions.map((action) => (
+                <TableRow key={action.id}>
+                  <TableCell className="font-medium">{action.status}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {action.scheduledFor
+                      ? action.scheduledFor.toISOString().slice(0, 19)
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="max-w-md truncate text-muted-foreground">
+                    {action.resultMessage}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    post @{action.targetPost.authorHandle}
+                    {action.socialAccount ? ` · via @${action.socialAccount.username}` : ""}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </div>
     </div>
