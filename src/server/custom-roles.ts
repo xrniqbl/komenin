@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { assertCan, PERMISSION_DEFINITIONS, type Permission } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 
 function slugify(name: string): string {
@@ -133,7 +133,7 @@ export async function deleteCustomRole(id: string) {
   if (existing.isSystem) throw new Error("Cannot delete system role");
 
   // Check if any membership uses it
-  const count = await db.membership.count({ where: { customRoleId: id } });
+  const count = await db.membership.count({ where: { customRoleId: id, workspaceId: workspace.id } });
   if (count > 0) throw new Error(`Cannot delete — ${count} member(s) still use this role`);
 
   await db.customRole.delete({ where: { id } });

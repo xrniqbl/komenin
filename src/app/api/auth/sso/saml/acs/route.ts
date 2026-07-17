@@ -1,14 +1,25 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { allowDevStubs, isProductionRuntime } from "@/lib/security";
 
 export const runtime = "nodejs";
 
 /**
- * SAML ACS stub:
- * Accepts assertion payload metadata and JIT-provisions membership when email domain matches.
- * Replace with full XML signature validation in production IdP integration.
+ * SAML ACS endpoint.
+ * Full XML signature validation is required for production IdP integration.
+ * The development stub is disabled unless ALLOW_SECURITY_STUBS=true and not production.
  */
 export async function POST(request: Request) {
+  if (isProductionRuntime() || !allowDevStubs()) {
+    return NextResponse.json(
+      {
+        error:
+          "SAML ACS stub is disabled. Configure full IdP assertion signature validation before enabling SSO login.",
+      },
+      { status: 501 },
+    );
+  }
+
   try {
     const form = await request.formData().catch(() => null);
     const body = form
@@ -76,19 +87,19 @@ export async function POST(request: Request) {
       data: {
         workspaceId: config.workspaceId,
         actorUserId: user.id,
-        action: "sso.login_jit",
+        action: "sso.login_jit_stub",
         resourceType: "membership",
         resourceId: user.id,
-        metadata: { protocol: config.protocol, email },
+        metadata: { protocol: config.protocol, email, stub: true },
       },
     });
 
-    // Client should complete session via normal auth; ACS acknowledges provisioning.
     return NextResponse.json({
       ok: true,
       userId: user.id,
       workspaceId: config.workspaceId,
       next: "/login?sso=1",
+      warning: "Development SSO stub only. Not safe for production.",
     });
   } catch (error) {
     return NextResponse.json(

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -112,7 +112,7 @@ export default function PricingPage() {
           })}
         </div>
 
-        <section className="rounded-2xl border bg-background/95 p-5 shadow-sm sm:p-6">
+        <Card className="border bg-background/95 p-5 shadow-sm sm:p-6">
           <div className="mb-5 max-w-3xl">
             <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">
               {copy.comparisonHeading}
@@ -153,7 +153,7 @@ export default function PricingPage() {
               </tbody>
             </table>
           </div>
-        </section>
+        </Card>
 
         <section className="grid gap-4 md:grid-cols-2">
           <Card>

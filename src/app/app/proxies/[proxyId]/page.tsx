@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusPill } from "@/components/session-routing/status-pill";
 import { db } from "@/lib/db";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 import { checkProxyHealth } from "@/server/proxies";
 
 export default async function ProxyDetailPage({
@@ -39,33 +40,40 @@ export default async function ProxyDetailPage({
       />
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border bg-background p-5 md:col-span-2">
-          <StatusPill
-            label={proxy.isHealthy ? "healthy" : "down"}
-            color={proxy.isHealthy ? "var(--signal-ok)" : "var(--signal-danger)"}
-          />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
-            <div>Type: {proxy.type}</div>
-            <div>Rotation: {proxy.rotationMode}</div>
-            <div>Provider: {proxy.provider || "—"}</div>
-            <div>Last IP: <span className="font-mono">{proxy.lastIp || "—"}</span></div>
-          </div>
-          <form
-            className="mt-6"
-            action={async () => {
-              "use server";
-              await checkProxyHealth(proxy.id);
-            }}
-          >
-            <Button type="submit" variant="default" >
-              Run health check
-            </Button>
-          </form>
-        </div>
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <StatusPill
+              label={proxy.isHealthy ? "healthy" : "down"}
+              color={proxy.isHealthy ? "var(--signal-ok)" : "var(--signal-danger)"}
+            />
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-3 sm:grid-cols-2 text-sm">
+              <div>Type: {proxy.type}</div>
+              <div>Rotation: {proxy.rotationMode}</div>
+              <div>Provider: {proxy.provider || "—"}</div>
+              <div>
+                Last IP: <span className="font-mono">{proxy.lastIp || "—"}</span>
+              </div>
+            </div>
+            <form
+              action={async () => {
+                "use server";
+                await checkProxyHealth(proxy.id);
+              }}
+            >
+              <Button type="submit" variant="default">
+                Run health check
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-2xl border border bg-background p-5">
-          <div className="font-medium">Assigned accounts</div>
-          <div className="mt-3 space-y-2 text-sm">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Assigned accounts</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
             {proxy.assignments.length === 0 ? (
               <div className="text-muted-foreground">None</div>
             ) : (
@@ -73,24 +81,26 @@ export default async function ProxyDetailPage({
                 <Link
                   key={assignment.id}
                   href={`/app/accounts/${assignment.socialAccountId}`}
-                  className="block rounded-lg border border px-3 py-2 hover:border-brand"
+                  className="block rounded-lg border px-3 py-2 hover:border-brand"
                 >
                   @{assignment.socialAccount.username}
                 </Link>
               ))
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="mt-4 rounded-2xl border border bg-background p-5">
-        <div className="font-medium">Rotation log</div>
-        <div className="mt-3 space-y-2">
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle className="text-base">Rotation log</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
           {proxy.rotationLogs.length === 0 ? (
             <div className="text-sm text-muted-foreground">No rotation events.</div>
           ) : (
             proxy.rotationLogs.map((log) => (
-              <div key={log.id} className="rounded-lg border border px-3 py-2 text-sm">
+              <div key={log.id} className="rounded-lg border px-3 py-2 text-sm">
                 <div className="font-mono text-xs">
                   {log.oldIp || "—"} → {log.newIp || "—"}
                 </div>
@@ -98,8 +108,8 @@ export default async function ProxyDetailPage({
               </div>
             ))
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

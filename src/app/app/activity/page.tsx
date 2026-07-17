@@ -1,5 +1,6 @@
-﻿import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/app/page-header";
 import {
   Empty,
@@ -44,7 +45,7 @@ export default async function ActivityPage() {
         }
       />
 
-      <div className="overflow-hidden rounded-2xl border bg-background">
+      <Card className="gap-0 overflow-hidden py-0">
         {actions.length === 0 ? (
           <Empty className="py-12">
             <EmptyHeader>
@@ -83,7 +84,7 @@ export default async function ActivityPage() {
             </TableBody>
           </Table>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

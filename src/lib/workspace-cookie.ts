@@ -1,0 +1,1 @@
+export const ACTIVE_WORKSPACE_COOKIE = "aether_active_workspace";

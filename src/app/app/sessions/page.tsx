@@ -1,4 +1,11 @@
-﻿import Link from "next/link";
+import Link from "next/link";
+import { Card } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusPill } from "@/components/session-routing/status-pill";
 import {
@@ -22,9 +29,14 @@ export default async function SessionsPage() {
         description="Anti-detect session vault health and reconnect candidates."
       />
 
-      <div className="overflow-hidden rounded-2xl border bg-background">
+      <Card className="gap-0 overflow-hidden py-0">
         {sessions.length === 0 ? (
-          <div className="px-4 py-10 text-sm text-muted-foreground">No sessions imported yet.</div>
+          <Empty className="py-12">
+            <EmptyHeader>
+              <EmptyTitle>No sessions imported yet</EmptyTitle>
+              <EmptyDescription>Nothing to show yet.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <Table>
             <TableHeader>
@@ -62,7 +74,8 @@ export default async function SessionsPage() {
             </TableBody>
           </Table>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
+

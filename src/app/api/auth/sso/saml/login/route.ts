@@ -1,5 +1,5 @@
-﻿import { NextResponse } from "next/server";
-import { getSsoLoginTarget } from "@/server/sso";
+import { NextResponse } from "next/server";
+import { getSsoLoginTarget } from "@/server/sso-service";
 
 export const runtime = "nodejs";
 

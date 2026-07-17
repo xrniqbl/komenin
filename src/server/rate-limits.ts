@@ -2,7 +2,7 @@
 
 import { getQuotaPercent, getThresholdStatus } from "@/lib/quota";
 import { db } from "@/lib/db";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 
 function currentPeriodKey(date = new Date()): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;

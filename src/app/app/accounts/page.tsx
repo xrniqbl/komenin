@@ -1,8 +1,9 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { AccountRowActions } from "@/components/accounts/account-row-actions";
 import { FilterBar } from "@/components/app/filter-bar";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Empty,
   EmptyContent,
@@ -72,7 +73,7 @@ export default async function AccountsPage({
         />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border bg-background">
+      <Card className="gap-0 overflow-hidden py-0">
         {accounts.length === 0 ? (
           <Empty className="py-12">
             <EmptyHeader>
@@ -150,7 +151,7 @@ export default async function AccountsPage({
             </TableBody>
           </Table>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

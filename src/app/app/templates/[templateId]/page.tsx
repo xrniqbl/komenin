@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { EditTemplateClient } from "@/components/templates/edit-template-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { getCommentTemplate } from "@/server/templates";
 
 export default async function TemplateDetailPage({
@@ -29,9 +30,9 @@ export default async function TemplateDetailPage({
           </div>
         }
       />
-      <div className="rounded-2xl border bg-background p-6">
+      <Card><CardContent className="p-6">
         <EditTemplateClient template={template} />
-      </div>
+      </CardContent></Card>
     </div>
   );
 }

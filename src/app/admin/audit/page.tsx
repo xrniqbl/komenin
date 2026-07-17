@@ -1,4 +1,11 @@
-﻿import { ListPagination, paginateItems } from "@/components/app/list-pagination";
+import { Card } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { ListPagination, paginateItems } from "@/components/app/list-pagination";
 import {
   Table,
   TableBody,
@@ -21,9 +28,14 @@ export default async function AdminAuditPage({
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Platform audit</h1>
-      <div className="overflow-hidden rounded-2xl border bg-background">
+      <Card className="gap-0 overflow-hidden py-0">
         {items.length === 0 ? (
-          <div className="px-4 py-10 text-sm text-muted-foreground">No audit events yet.</div>
+          <Empty className="py-12">
+            <EmptyHeader>
+              <EmptyTitle>No audit events yet</EmptyTitle>
+              <EmptyDescription>Nothing to show yet.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <>
             <Table>
@@ -55,7 +67,8 @@ export default async function AdminAuditPage({
             <ListPagination pathname="/admin/audit" window={window} />
           </>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
+

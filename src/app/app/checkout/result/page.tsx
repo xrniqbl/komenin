@@ -1,27 +1,41 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { markSimulatedPaid } from "@/server/billing";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 import { db } from "@/lib/db";
+import { isProductionRuntime } from "@/lib/security";
 
 export default async function CheckoutResultPage({
   searchParams,
 }: {
   searchParams: Promise<{ order_id?: string; result?: string; sim?: string }>;
 }) {
+  const { workspace } = await requireActiveWorkspace();
   const params = await searchParams;
   const orderId = params.order_id || "";
   let note = "Payment status will update after Midtrans notification.";
 
   if (orderId && params.sim === "1") {
-    await markSimulatedPaid(orderId);
-    note = "Simulation payment marked as paid.";
+    if (isProductionRuntime() || process.env.MIDTRANS_SERVER_KEY?.trim()) {
+      note = "Simulation payment is disabled for this environment.";
+    } else {
+      try {
+        await markSimulatedPaid(orderId);
+        note = "Simulation payment marked as paid.";
+      } catch (error) {
+        note = error instanceof Error ? error.message : "Unable to mark simulation payment.";
+      }
+    }
   }
 
   const order = orderId
     ? await db.subscriptionOrder.findFirst({
-        where: { OR: [{ orderCode: orderId }, { midtransOrderId: orderId }] },
+        where: {
+          workspaceId: workspace.id,
+          OR: [{ orderCode: orderId }, { midtransOrderId: orderId }],
+        },
         include: { plan: true },
       })
     : null;

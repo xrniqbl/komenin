@@ -1,4 +1,4 @@
-﻿import { PageHeader } from "@/components/app/page-header";
+import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,10 +13,11 @@ import {
 } from "@/components/ui/fieldset";
 import { Form } from "@/components/ui/form";
 import { FormSelect } from "@/components/ui/form-select";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getWorkspaceSsoConfig, saveWorkspaceSsoConfig } from "@/server/sso";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 
 export default async function SecuritySettingsPage() {
   const { workspace } = await requireActiveWorkspace();
@@ -114,14 +115,14 @@ export default async function SecuritySettingsPage() {
                   ]}
                 />
               </Field>
-              <label className="flex items-center gap-2 text-sm">
+              <Label className="flex items-center gap-2 text-sm font-normal">
                 <Checkbox name="isActive" defaultChecked={config?.isActive ?? true} />
                 SSO active
-              </label>
-              <label className="flex items-center gap-2 text-sm">
+              </Label>
+              <Label className="flex items-center gap-2 text-sm font-normal">
                 <Checkbox name="ssoRequired" defaultChecked={workspace.ssoRequired} />
                 Require SSO for this workspace
-              </label>
+              </Label>
             </Fieldset>
             <Button type="submit">Save SSO settings</Button>
           </Form>

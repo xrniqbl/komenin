@@ -1,36 +1,14 @@
-﻿"use server";
+"use server";
 
+import { cookies } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { buildUniqueSlugCandidate, slugifyWorkspaceName } from "@/lib/workspace";
+import { ACTIVE_WORKSPACE_COOKIE } from "@/lib/workspace-cookie";
 import { writeAuditLog } from "@/server/audit";
+import { listWorkspacesForUser } from "@/server/workspace-access";
 
-export async function listWorkspacesForUser() {
-  const session = await auth();
-  if (!session?.user?.id) return [];
-
-  const memberships = await db.membership.findMany({
-    where: { userId: session.user.id, status: "active" },
-    include: { workspace: true },
-    orderBy: { createdAt: "asc" },
-  });
-
-  return memberships
-    .filter((m) => m.workspace.status === "active")
-    .map((m) => ({
-      id: m.workspace.id,
-      name: m.workspace.name,
-      slug: m.workspace.slug,
-      role: m.role,
-      connectorPolicy: m.workspace.connectorPolicy,
-      planCode: m.workspace.planCode,
-      monthlySendLimit: m.workspace.monthlySendLimit,
-      monthlyPublishLimit: m.workspace.monthlyPublishLimit,
-      homeRegion: m.workspace.homeRegion,
-      ssoRequired: m.workspace.ssoRequired,
-      billingEmail: m.workspace.billingEmail,
-    }));
-}
+export { listWorkspacesForUser };
 
 export async function createWorkspace(input: { name: string; timezone?: string }) {
   const session = await auth();
@@ -77,6 +55,14 @@ export async function createWorkspace(input: { name: string; timezone?: string }
     metadata: { name: workspace.name, slug: workspace.slug },
   });
 
+  const jar = await cookies();
+  jar.set(ACTIVE_WORKSPACE_COOKIE, workspace.id, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+
   return workspace;
 }
-

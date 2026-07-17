@@ -1,7 +1,14 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { FilterBar } from "@/components/app/filter-bar";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { StatusPill } from "@/components/session-routing/status-pill";
 import {
   Table,
@@ -62,14 +69,9 @@ export default async function CampaignsPage({
         />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border bg-background">
+      <Card className="gap-0 overflow-hidden py-0">
         {campaigns.length === 0 ? (
-          <div className="px-4 py-10 text-sm text-muted-foreground">
-            No campaigns found.{" "}
-            {params.q || params.status || params.platform
-              ? "Try clearing filters."
-              : "Create your first campaign."}
-          </div>
+          <Empty className="py-12"><EmptyHeader><EmptyTitle>No campaigns yet</EmptyTitle><EmptyDescription>Create your first campaign to start discovery and approvals.</EmptyDescription></EmptyHeader></Empty>
         ) : (
           <Table>
             <TableHeader>
@@ -106,7 +108,7 @@ export default async function CampaignsPage({
             </TableBody>
           </Table>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

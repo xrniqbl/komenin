@@ -109,12 +109,12 @@ export default async function NewCampaignPage() {
                 </div>
               ) : (
                 accounts.map((account) => (
-                  <label key={account.id} className="flex items-center gap-2 text-sm">
+                  <Label key={account.id} className="flex items-center gap-2 text-sm font-normal">
                     <Checkbox name="socialAccountIds" value={account.id} />
                     <span>
                       @{account.username} ({account.platform})
                     </span>
-                  </label>
+                  </Label>
                 ))
               )}
             </div>

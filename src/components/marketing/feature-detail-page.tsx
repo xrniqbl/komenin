@@ -152,19 +152,21 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
 
           <div className="mt-8 grid grid-cols-3 gap-4">
             {stats.map((s) => (
-              <div key={s.label} className="rounded-2xl border bg-card p-4">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">{s.label}</div>
-                <div className="mt-1 text-sm font-semibold leading-tight">{s.value}</div>
-              </div>
+              <Card key={s.label} className="py-0 shadow-none">
+                <CardContent className="p-4">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">{s.label}</div>
+                  <div className="mt-1 text-sm font-semibold leading-tight">{s.value}</div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
 
         <div className="md:col-span-2">
           <FeatureMock detailKey={detailKey} />
-          <div className="mt-4 rounded-xl border border-dashed bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+          <Card className="mt-4 border-dashed bg-muted/30 py-0 shadow-none"><CardContent className="px-4 py-3 text-xs text-muted-foreground">
             <span className="font-medium text-foreground">Live preview mock.</span> Data shown is synthetic and not from real accounts.
-          </div>
+          </CardContent></Card>
         </div>
       </div>
 
@@ -207,15 +209,17 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
                   <div className="h-px w-6 bg-border" />
                 </div>
               ) : null}
-              <div className="flex-1 rounded-2xl border bg-card p-4">
-                <div className="mb-1 flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-[10px] font-bold text-background">
-                    {i + 1}
-                  </span>
-                  <span className="text-xs font-semibold">{step.title}</span>
-                </div>
-                <p className="text-xs leading-relaxed text-muted-foreground">{step.body}</p>
-              </div>
+              <Card className="flex-1 py-0 shadow-none">
+                <CardContent className="p-4">
+                  <div className="mb-1 flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-[10px] font-bold text-background">
+                      {i + 1}
+                    </span>
+                    <span className="text-xs font-semibold">{step.title}</span>
+                  </div>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{step.body}</p>
+                </CardContent>
+              </Card>
             </div>
           ))}
         </div>
@@ -236,7 +240,7 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
               ))}
             </ul>
           </div>
-          <div className="rounded-2xl border bg-muted/30 p-6">
+          <Card className="bg-muted/30 py-0 shadow-none"><CardContent className="p-6">
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Security & control</div>
             <div className="mt-4 space-y-3 text-sm">
               <div className="flex items-center gap-2">
@@ -252,7 +256,7 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
                 <span>Audit logs for every config, approval, and publish action</span>
               </div>
             </div>
-          </div>
+          </CardContent></Card>
         </div>
       </div>
 

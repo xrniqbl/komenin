@@ -1,4 +1,11 @@
-﻿import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import Link from "next/link";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusPill } from "@/components/session-routing/status-pill";
@@ -27,9 +34,14 @@ export default async function ProxiesPage() {
         }
       />
 
-      <div className="overflow-hidden rounded-2xl border bg-background">
+      <Card className="gap-0 overflow-hidden py-0">
         {proxies.length === 0 ? (
-          <div className="px-4 py-10 text-sm text-muted-foreground">No proxies yet.</div>
+          <Empty className="py-12">
+            <EmptyHeader>
+              <EmptyTitle>No proxies yet</EmptyTitle>
+              <EmptyDescription>Nothing to show yet.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <Table>
             <TableHeader>
@@ -87,7 +99,7 @@ export default async function ProxiesPage() {
             </TableBody>
           </Table>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

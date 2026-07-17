@@ -1,10 +1,10 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath } from "next/cache";
 import { assertCan } from "@/lib/rbac";
 import { parseConnectorPolicy } from "@/lib/connectors";
 import { db } from "@/lib/db";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 import {
   getPublisherStatus as basePublisherStatus,

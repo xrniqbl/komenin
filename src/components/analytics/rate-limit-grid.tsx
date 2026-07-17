@@ -25,14 +25,12 @@ type AccountStatus = {
 export function RateLimitGrid({ accounts }: { accounts: AccountStatus[] }) {
   if (accounts.length === 0) {
     return (
-      <div className="rounded-2xl border bg-background">
-        <Empty className="py-10">
-          <EmptyHeader>
-            <EmptyTitle>No accounts</EmptyTitle>
-            <EmptyDescription>Connect accounts to monitor daily quotas.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      </div>
+      <Card className="gap-0 py-0"><Empty className="py-10">
+        <EmptyHeader>
+          <EmptyTitle>No accounts</EmptyTitle>
+          <EmptyDescription>Connect accounts to monitor daily quotas.</EmptyDescription>
+        </EmptyHeader>
+      </Empty></Card>
     );
   }
 
@@ -45,11 +43,22 @@ export function RateLimitGrid({ accounts }: { accounts: AccountStatus[] }) {
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium">@{acc.username}</div>
                 <div className="mt-0.5 flex items-center gap-1.5">
-                  <Badge variant="outline" className="text-[10px]">{platformLabel(acc.platform as never)}</Badge>
-                  <Badge variant={acc.status === "healthy" ? "secondary" : "destructive"} className="text-[10px]">{acc.status}</Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    {platformLabel(acc.platform as never)}
+                  </Badge>
+                  <Badge
+                    variant={acc.status === "healthy" ? "secondary" : "destructive"}
+                    className="text-[10px]"
+                  >
+                    {acc.status}
+                  </Badge>
                 </div>
               </div>
-              {acc.throttled ? <Badge variant="destructive" className="text-[10px]">throttled</Badge> : null}
+              {acc.throttled ? (
+                <Badge variant="destructive" className="text-[10px]">
+                  throttled
+                </Badge>
+              ) : null}
             </div>
             <div className="mt-3">
               <QuotaMeter used={acc.actionsToday} limit={acc.dailyQuota} label="Daily quota" />

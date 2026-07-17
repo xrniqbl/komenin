@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { assertCan } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 import { ensureDefaultAgent } from "@/server/agents";
 import type { CampaignMode, Platform } from "@prisma/client";

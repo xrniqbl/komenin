@@ -1,11 +1,11 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { assertCan } from "@/lib/rbac";
 import { ensureBuiltinSkills, runSkill } from "@/lib/skills/runtime";
 import { db } from "@/lib/db";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 
 export async function listSkills() {

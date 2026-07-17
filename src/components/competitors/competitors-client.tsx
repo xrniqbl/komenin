@@ -7,7 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectPopup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { createCompetitorProfile, getCompetitorMetrics } from "@/server/competitors";
 import type { Platform } from "@prisma/client";
 
@@ -77,7 +84,10 @@ export function CompetitorsClient({
   return (
     <div className="space-y-6">
       {error ? (
-        <div className="rounded-xl border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div>
+        <Alert variant="error">
+          <AlertTitle>Competitor error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
 
       {/* Stats */}
@@ -141,10 +151,14 @@ export function CompetitorsClient({
 
       {/* Grid */}
       {initialProfiles.length === 0 ? (
-        <div className="rounded-2xl border bg-background p-10 text-center">
-          <div className="text-sm font-medium">No competitors tracked yet</div>
-          <div className="mt-1 text-xs text-muted-foreground">Add a handle above to start tracking their post volume and keywords.</div>
-        </div>
+        <Card className="gap-0 py-0"><Empty className="py-12">
+          <EmptyHeader>
+            <EmptyTitle>No competitors tracked yet</EmptyTitle>
+            <EmptyDescription>
+              Add a handle above to start tracking their post volume and keywords.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty></Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {initialProfiles.map((profile) => (

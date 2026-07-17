@@ -8,7 +8,7 @@ import { publishSocialPost } from "@/lib/publish-connector";
 import { assertCan } from "@/lib/rbac";
 import { getRuntimeModeLabel } from "@/lib/runtime-mode";
 import { db } from "@/lib/db";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 import { ensureDefaultAgent } from "@/server/agents";
 import { writeAuditLog } from "@/server/audit";
 

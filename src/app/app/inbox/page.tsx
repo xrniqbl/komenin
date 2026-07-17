@@ -1,4 +1,11 @@
 import { PageHeader } from "@/components/app/page-header";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { listInbox } from "@/server/comment-pipeline";
 
 export default async function InboxPage() {
@@ -9,25 +16,32 @@ export default async function InboxPage() {
       <PageHeader title="Inbox" description="Discovered posts and latest generated drafts." />
       <div className="space-y-3">
         {posts.length === 0 ? (
-          <div className="rounded-2xl border border bg-background p-6 text-sm text-muted-foreground">
-            Inbox empty. Poll a listener first.
-          </div>
+          <Card className="gap-0 py-0"><Empty className="py-12">
+            <EmptyHeader>
+              <EmptyTitle>Inbox empty</EmptyTitle>
+              <EmptyDescription>Poll a listener first to discover target posts.</EmptyDescription>
+            </EmptyHeader>
+          </Empty></Card>
         ) : (
           posts.map((post) => {
             const draft = post.drafts[0];
             return (
-              <div key={post.id} className="rounded-2xl border border bg-background p-4">
-                <div className="text-xs text-muted-foreground">
-                  @{post.authorHandle} · {post.platform} · {post.status}
-                </div>
-                <div className="mt-2 text-sm">{post.content}</div>
+              <Card key={post.id}>
+                <CardHeader className="pb-3">
+                  <CardDescription>
+                    @{post.authorHandle} · {post.platform} · {post.status}
+                  </CardDescription>
+                  <CardTitle className="text-base font-normal leading-relaxed">{post.content}</CardTitle>
+                </CardHeader>
                 {draft ? (
-                  <div className="mt-3 rounded-lg bg-muted/30 p-3 text-sm">
-                    <div className="text-xs text-muted-foreground">Draft · {draft.status}</div>
-                    <div className="mt-1">{draft.content}</div>
-                  </div>
+                  <CardContent>
+                    <div className="rounded-lg bg-muted/30 p-3 text-sm">
+                      <div className="text-xs text-muted-foreground">Draft · {draft.status}</div>
+                      <div className="mt-1">{draft.content}</div>
+                    </div>
+                  </CardContent>
                 ) : null}
-              </div>
+              </Card>
             );
           })
         )}

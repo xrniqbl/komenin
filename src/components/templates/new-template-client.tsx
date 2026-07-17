@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TemplateEditor } from "@/components/templates/template-editor";
 import { createCommentTemplate } from "@/server/templates";
 
@@ -13,9 +14,10 @@ export function NewTemplateClient() {
   return (
     <div>
       {error ? (
-        <div className="mb-4 rounded-xl border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="error" className="mb-4">
+          <AlertTitle>Template error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
       <TemplateEditor
         submitLabel="Create template"

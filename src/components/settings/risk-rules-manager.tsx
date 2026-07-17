@@ -1,9 +1,16 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -92,117 +99,138 @@ export function RiskRulesManager({ rules: initial }: { rules: Rule[] }) {
   return (
     <div className="space-y-6">
       {error ? (
-        <div className="rounded-xl border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="error">
+          <AlertTitle>Risk rule error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
 
-      <div className="rounded-2xl border bg-background p-5">
-        <div className="text-sm font-medium">Add rule</div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <div className="flex flex-col gap-2">
-            <Label>Type</Label>
-            <Select value={type} onValueChange={(v) => { if (v) setType(v); }}>
-              <SelectTrigger>
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectPopup>
-                {TYPE_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectPopup>
-            </Select>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Add rule</CardTitle>
+          <CardDescription>
+            Banned phrase matches substring (case-insensitive). Custom may be exact string or a JS regex literal like{" "}
+            <code className="rounded bg-muted px-1">/bad\s*word/i</code>.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="flex flex-col gap-2">
+              <Label>Type</Label>
+              <Select value={type} onValueChange={(v) => { if (v) setType(v); }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectPopup>
+                  {TYPE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Severity</Label>
+              <Select value={severity} onValueChange={(v) => { if (v) setSeverity(v); }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Severity" />
+                </SelectTrigger>
+                <SelectPopup>
+                  {SEV_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Actions</Label>
+              <Button onClick={handleCreate} disabled={pending} className="w-full">
+                {pending ? "..." : "Add rule"}
+              </Button>
+            </div>
           </div>
           <div className="flex flex-col gap-2">
-            <Label>Severity</Label>
-            <Select value={severity} onValueChange={(v) => { if (v) setSeverity(v); }}>
-              <SelectTrigger>
-                <SelectValue placeholder="Severity" />
-              </SelectTrigger>
-              <SelectPopup>
-                {SEV_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectPopup>
-            </Select>
+            <Label htmlFor="rr-pattern">Pattern</Label>
+            <Textarea
+              id="rr-pattern"
+              value={pattern}
+              onChange={(e) => setPattern(e.target.value)}
+              placeholder='e.g. "investasi bodong" or /skema\s*cepat\s*kaya/i'
+              className="min-h-20 font-mono text-sm"
+            />
           </div>
-          <div className="flex flex-col gap-2">
-            <Label>Actions</Label>
-            <Button onClick={handleCreate} disabled={pending} className="w-full">
-              {pending ? "..." : "Add rule"}
-            </Button>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-col gap-2">
-          <Label htmlFor="rr-pattern">Pattern</Label>
-          <Textarea
-            id="rr-pattern"
-            value={pattern}
-            onChange={(e) => setPattern(e.target.value)}
-            placeholder='e.g. "investasi bodong" or /skema\s*cepat\s*kaya/i'
-            className="min-h-20 font-mono text-sm"
-          />
-          <div className="text-xs text-muted-foreground">
-            Banned phrase matches substring (case-insensitive). Custom may be exact string or a JS regex literal like <code className="rounded bg-muted px-1">/bad\s*word/i</code>.
-          </div>
-        </div>
+          <Alert variant="info">
+            <AlertDescription>
+              Built-in promo claim detector always active: patterns like <code>gratis 100%</code>, <code>dijamin untung</code>, <code>100% berhasil</code>, etc.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
 
-        <div className="mt-4 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-          Built-in promo claim detector always active: patterns like <code>gratis 100%</code>, <code>dijamin untung</code>, <code>100% berhasil</code>, etc. These require no custom rule.
-        </div>
-      </div>
-
-      <div className="rounded-2xl border bg-background">
-        {initial.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
-            No custom risk rules yet. Add your first above.
-          </div>
-        ) : (
-          <div className="divide-y">
-            {initial.map((rule) => (
-              <div key={rule.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={rule.isActive ? "secondary" : "outline"}>{rule.type}</Badge>
-                    <Badge variant={rule.severity === "high" ? "destructive" : rule.severity === "medium" ? "default" : "outline"} className="text-[10px]">
-                      {rule.severity}
-                    </Badge>
-                    {!rule.isActive ? <Badge variant="outline">inactive</Badge> : null}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Custom rules</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {initial.length === 0 ? (
+            <Empty className="py-12">
+              <EmptyHeader>
+                <EmptyTitle>No custom risk rules yet</EmptyTitle>
+                <EmptyDescription>Add your first rule above to extend the built-in scanner.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <div className="divide-y">
+              {initial.map((rule) => (
+                <div key={rule.id} className="flex flex-wrap items-start justify-between gap-3 px-6 py-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={rule.isActive ? "secondary" : "outline"}>{rule.type}</Badge>
+                      <Badge
+                        variant={rule.severity === "high" ? "destructive" : rule.severity === "medium" ? "default" : "outline"}
+                        className="text-[10px]"
+                      >
+                        {rule.severity}
+                      </Badge>
+                      {!rule.isActive ? <Badge variant="outline">inactive</Badge> : null}
+                    </div>
+                    <div className="mt-2 font-mono text-sm">{rule.pattern}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {typeof rule.createdAt === "string"
+                        ? rule.createdAt
+                        : rule.createdAt.toISOString().slice(0, 19).replace("T", " ")}{" "}
+                      UTC
+                    </div>
                   </div>
-                  <div className="mt-2 font-mono text-sm">{rule.pattern}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {typeof rule.createdAt === "string" ? rule.createdAt : rule.createdAt.toISOString().slice(0, 19).replace("T", " ")} UTC
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Switch
-                      checked={rule.isActive}
+                  <div className="flex gap-2">
+                    <Label className="flex items-center gap-2 text-xs font-normal text-muted-foreground">
+                      <Switch
+                        checked={rule.isActive}
+                        disabled={pending}
+                        onCheckedChange={() => toggleActive(rule.id, rule.isActive)}
+                        aria-label={rule.isActive ? "Disable rule" : "Enable rule"}
+                      />
+                      {rule.isActive ? "Active" : "Inactive"}
+                    </Label>
+                    <ConfirmAction
+                      title="Delete risk rule?"
+                      description="This guardrail will stop applying to future drafts."
+                      confirmLabel="Delete rule"
+                      destructive
                       disabled={pending}
-                      onCheckedChange={() => toggleActive(rule.id, rule.isActive)}
-                      aria-label={rule.isActive ? "Disable rule" : "Enable rule"}
+                      trigger={<Button size="sm" variant="outline">Delete</Button>}
+                      onConfirm={() => handleDelete(rule.id)}
                     />
-                    {rule.isActive ? "Active" : "Inactive"}
-                  </label>
-                  <ConfirmAction
-                    title="Delete risk rule?"
-                    description="This guardrail will stop applying to future drafts."
-                    confirmLabel="Delete rule"
-                    destructive
-                    disabled={pending}
-                    trigger={<Button size="sm" variant="outline">Delete</Button>}
-                    onConfirm={() => handleDelete(rule.id)}
-                  />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

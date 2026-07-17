@@ -1,7 +1,8 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import type { DocsPage } from "@/data/docs";
 import { getDocsNeighbors } from "@/data/docs";
 import { DocsCopyButton } from "@/components/docs/docs-copy-button";
+import { Card, CardContent } from "@/components/ui/card";
 import { DocsPager } from "@/components/docs/docs-pager";
 
 export function DocsArticle({
@@ -58,9 +59,13 @@ export function DocsArticle({
                   </ol>
                 ) : null}
                 {section.code ? (
-                  <pre className="mt-4 overflow-x-auto rounded-xl border bg-muted/40 p-4 text-xs leading-6 md:text-sm">
-                    <code>{section.code}</code>
-                  </pre>
+                  <Card className="mt-4 gap-0 overflow-hidden py-0">
+                    <CardContent className="p-0">
+                      <pre className="overflow-x-auto bg-muted/40 p-4 text-xs leading-6 md:text-sm">
+                        <code>{section.code}</code>
+                      </pre>
+                    </CardContent>
+                  </Card>
                 ) : null}
               </section>
             ))}

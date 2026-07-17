@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmAction } from "@/components/ui-patterns/confirm-action";
 import { toastManager } from "@/components/ui/toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { deleteCompetitorProfile } from "@/server/competitors";
 import { platformLabel } from "@/lib/session-routing";
 
@@ -33,7 +33,7 @@ export function CompetitorCard({
   profile: Profile;
   metrics?: Metrics;
 }) {
-  const [pending, startTransition] = useTransition();
+  const [pending] = useTransition();
 
   return (
     <Card>
@@ -60,7 +60,11 @@ export function CompetitorCard({
           confirmLabel="Remove"
           destructive
           disabled={pending}
-          trigger={<Button size="sm" variant="ghost" className="h-7 text-xs">Remove</Button>}
+          trigger={
+            <Button size="sm" variant="ghost" className="h-7 text-xs">
+              Remove
+            </Button>
+          }
           onConfirm={async () => {
             await deleteCompetitorProfile(profile.id);
             toastManager.add({ title: "Competitor removed", type: "success" });
@@ -71,57 +75,68 @@ export function CompetitorCard({
         {metrics ? (
           <>
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl border bg-muted/30 p-2">
-                <div className="text-lg font-semibold leading-none">{metrics.count7d}</div>
-                <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">7d posts</div>
-              </div>
-              <div className="rounded-xl border bg-muted/30 p-2">
-                <div className="text-lg font-semibold leading-none">{metrics.count30d}</div>
-                <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">30d posts</div>
-              </div>
-              <div className="rounded-xl border bg-muted/30 p-2">
-                <div className="text-lg font-semibold leading-none">{metrics.avgPerDay}</div>
-                <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">avg / day</div>
-              </div>
+              <Card className="bg-muted/30 py-0 shadow-none">
+                <CardContent className="p-2">
+                  <div className="text-lg font-semibold leading-none">{metrics.count7d}</div>
+                  <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">7d posts</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-muted/30 py-0 shadow-none">
+                <CardContent className="p-2">
+                  <div className="text-lg font-semibold leading-none">{metrics.count30d}</div>
+                  <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">30d posts</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-muted/30 py-0 shadow-none">
+                <CardContent className="p-2">
+                  <div className="text-lg font-semibold leading-none">{metrics.avgPerDay}</div>
+                  <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">avg / day</div>
+                </CardContent>
+              </Card>
             </div>
 
-            {/* Sparkline 14d */}
-            <div className="rounded-xl border bg-card p-3">
-              <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Last 14 days</div>
-              <div className="flex h-12 items-end gap-0.5">
-                {metrics.dailyBuckets.map((b) => {
-                  const max = Math.max(1, ...metrics.dailyBuckets.map((x) => x.count));
-                  const h = max > 0 ? Math.round((b.count / max) * 100) : 0;
-                  return (
-                    <div key={b.date} className="flex flex-1 flex-col items-center gap-0.5">
-                      <div
-                        className="w-full rounded-sm bg-foreground transition-all"
-                        style={{ height: `${Math.max(2, h)}%` }}
-                        title={`${b.date}: ${b.count} posts`}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-                <span>{metrics.dailyBuckets[0]?.date}</span>
-                <span>{metrics.dailyBuckets[metrics.dailyBuckets.length - 1]?.date}</span>
-              </div>
-            </div>
+            <Card className="py-0 shadow-none">
+              <CardContent className="p-3">
+                <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Last 14 days
+                </div>
+                <div className="flex h-12 items-end gap-0.5">
+                  {metrics.dailyBuckets.map((b) => {
+                    const max = Math.max(1, ...metrics.dailyBuckets.map((x) => x.count));
+                    const h = max > 0 ? Math.round((b.count / max) * 100) : 0;
+                    return (
+                      <div key={b.date} className="flex flex-1 flex-col items-center gap-0.5">
+                        <div
+                          className="w-full rounded-sm bg-foreground transition-all"
+                          style={{ height: `${Math.max(2, h)}%` }}
+                          title={`${b.date}: ${b.count} posts`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+                  <span>{metrics.dailyBuckets[0]?.date}</span>
+                  <span>{metrics.dailyBuckets[metrics.dailyBuckets.length - 1]?.date}</span>
+                </div>
+              </CardContent>
+            </Card>
 
             {metrics.topKeywords.length > 0 ? (
-              <div className="rounded-xl border bg-card p-3">
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Top keywords (30d)
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {metrics.topKeywords.map((k) => (
-                    <Badge key={k.word} variant="outline" className="text-[10px]">
-                      {k.word} <span className="ml-1 text-[9px] text-muted-foreground">×{k.count}</span>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+              <Card className="py-0 shadow-none">
+                <CardContent className="p-3">
+                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Top keywords (30d)
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {metrics.topKeywords.map((k) => (
+                      <Badge key={k.word} variant="outline" className="text-[10px]">
+                        {k.word} <span className="ml-1 text-[9px] text-muted-foreground">x{k.count}</span>
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             ) : null}
           </>
         ) : (

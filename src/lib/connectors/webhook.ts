@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   CommentPayload,
   ConnectorActionInput,
   ConnectorResult,
@@ -119,6 +119,7 @@ export async function runWebhookConnector(
   const platform = input.target.platform || "unknown";
   const username = input.target.username || null;
   const accountId = input.target.accountId || null;
+  const workspaceId = input.target.workspaceId || null;
 
   switch (input.action) {
     case "discoverPosts": {
@@ -154,6 +155,7 @@ export async function runWebhookConnector(
         platform,
         username,
         accountId,
+        workspaceId,
         title: payload.title || null,
         body: payload.body,
         hashtags: payload.hashtags || [],

@@ -1,5 +1,3 @@
-﻿"use server";
-
 import { revalidatePath } from "next/cache";
 import { assertCan } from "@/lib/rbac";
 import {
@@ -10,8 +8,9 @@ import {
 } from "@/lib/billing/catalog";
 import { createMidtransSnapTransaction } from "@/lib/billing/midtrans";
 import { db } from "@/lib/db";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
+import { isProductionRuntime } from "@/lib/security";
 
 function appUrl() {
   return process.env.APP_URL?.replace(/\/$/, "") || "http://localhost:3000";
@@ -269,6 +268,10 @@ export async function applyPaidOrder(orderCode: string, payment?: {
   });
   if (!order) throw new Error("Order not found");
 
+  if (payment && payment.signatureValid === false) {
+    throw new Error("Payment signature invalid");
+  }
+
   if (payment?.payload) {
     await db.paymentEvent.create({
       data: {
@@ -385,7 +388,13 @@ export async function applyPaidOrder(orderCode: string, payment?: {
 }
 
 export async function markSimulatedPaid(orderCode: string) {
-  // For local/dev when Midtrans keys are absent.
+  if (isProductionRuntime()) {
+    throw new Error("Simulated payments are disabled in production");
+  }
+  if (process.env.MIDTRANS_SERVER_KEY?.trim()) {
+    throw new Error("Simulated payments are disabled when Midtrans is configured");
+  }
+  // Local/dev only when Midtrans keys are absent.
   return applyPaidOrder(orderCode, {
     transactionStatus: "settlement",
     paymentType: "simulation",

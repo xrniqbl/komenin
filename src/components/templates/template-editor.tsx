@@ -1,8 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,11 +63,21 @@ export function TemplateEditor({
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="t-name">Name</Label>
-          <Input id="t-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Friendly outreach" />
+          <Input
+            id="t-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Friendly outreach"
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="t-category">Category</Label>
-          <Input id="t-category" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="general" />
+          <Input
+            id="t-category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder="general"
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="t-body">Body (supports {"{{var}}"})</Label>
@@ -79,26 +91,32 @@ export function TemplateEditor({
           />
         </div>
 
-        <div className="rounded-xl border bg-muted/30 p-3">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Variables</div>
-          <div className="flex flex-wrap gap-1.5">
-            {TEMPLATE_VARIABLES.map((v) => (
-              <Button
-                key={v}
-                type="button"
-                size="xs"
-                variant="outline"
-                className="rounded-full"
-                onClick={() => insertVar(v)}
-              >
-                {"{{"}
-                {v}
-                {"}}"}
-              </Button>
-            ))}
-          </div>
-          <div className="mt-2 text-[11px] text-muted-foreground">Click to insert at cursor.</div>
-        </div>
+        <Card className="bg-muted/30">
+          <CardHeader className="p-3 pb-2">
+            <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+              Variables
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 p-3 pt-0">
+            <div className="flex flex-wrap gap-1.5">
+              {TEMPLATE_VARIABLES.map((v) => (
+                <Button
+                  key={v}
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => insertVar(v)}
+                >
+                  {"{{"}
+                  {v}
+                  {"}}"}
+                </Button>
+              ))}
+            </div>
+            <div className="text-[11px] text-muted-foreground">Click to insert at cursor.</div>
+          </CardContent>
+        </Card>
 
         {variables.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
@@ -122,20 +140,29 @@ export function TemplateEditor({
 
       <div className="flex flex-col gap-3">
         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Preview</div>
-        <div className="rounded-2xl border bg-card p-4">
-          <div className="mb-2 text-xs text-muted-foreground">Sample context: {JSON.stringify(sampleRenderContext(), null, 1).slice(0, 80)}…</div>
-          <div className="whitespace-pre-wrap rounded-xl bg-muted p-3 text-sm leading-relaxed">
-            {preview || <span className="text-muted-foreground">(empty preview)</span>}
-          </div>
-        </div>
+        <Card>
+          <CardContent className="space-y-3 p-4">
+            <div className="text-xs text-muted-foreground">
+              Sample context: {JSON.stringify(sampleRenderContext(), null, 1).slice(0, 80)}…
+            </div>
+            <div className="whitespace-pre-wrap rounded-xl bg-muted p-3 text-sm leading-relaxed">
+              {preview || <span className="text-muted-foreground">(empty preview)</span>}
+            </div>
+          </CardContent>
+        </Card>
         {variables.length > 0 ? (
-          <div className="rounded-xl border bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">
-            This template uses {variables.length} variable(s). They will be replaced at send time with context from the target post.
-          </div>
+          <Alert variant="warning">
+            <AlertDescription>
+              This template uses {variables.length} variable(s). They will be replaced at send time with
+              context from the target post.
+            </AlertDescription>
+          </Alert>
         ) : (
-          <div className="rounded-xl border bg-muted/30 p-3 text-xs text-muted-foreground">
-            Tip: add {"{{authorHandle}}"} or {"{{postSnippet}}"} to personalize replies.
-          </div>
+          <Alert variant="info">
+            <AlertDescription>
+              Tip: add {"{{authorHandle}}"} or {"{{postSnippet}}"} to personalize replies.
+            </AlertDescription>
+          </Alert>
         )}
       </div>
     </div>

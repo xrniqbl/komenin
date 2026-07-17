@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { ConfirmAction } from "@/components/ui-patterns/confirm-action";
 import { toastManager } from "@/components/ui/toast";
 import { PERMISSION_DEFINITIONS } from "@/lib/rbac";
@@ -80,7 +87,12 @@ export function RolesManager({
 
   return (
     <div className="space-y-6">
-      {error ? <div className="rounded-xl border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</div> : null}
+      {error ? (
+        <Alert variant="error">
+          <AlertTitle>Could not save role</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
 
       <Card>
         <CardHeader className="p-4 pb-2">
@@ -99,24 +111,29 @@ export function RolesManager({
           </div>
           <div className="space-y-3">
             {Array.from(GROUPED_PERMS.entries()).map(([group, perms]) => (
-              <div key={group} className="rounded-xl border bg-muted/20 p-3">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group}</div>
-                <div className="flex flex-wrap gap-2">
-                  {perms.map((p) => (
-                    <label key={p.key} className="flex cursor-pointer items-center gap-1.5 rounded-full border bg-background px-3 py-1 text-xs hover:bg-accent">
-                      <Checkbox
-                        checked={selectedPerms.includes(p.key)}
-                        onCheckedChange={(checked) => {
-                          if (checked) setSelectedPerms((prev) => [...prev, p.key]);
-                          else setSelectedPerms((prev) => prev.filter((x) => x !== p.key));
-                        }}
-                        className="size-3"
-                      />
-                      {p.label}
-                    </label>
-                  ))}
-                </div>
-              </div>
+              <Card key={group} className="bg-muted/20 py-0 shadow-none">
+                <CardContent className="p-3">
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group}</div>
+                  <div className="flex flex-wrap gap-2">
+                    {perms.map((p) => (
+                      <Label
+                        key={p.key}
+                        className="flex cursor-pointer items-center gap-1.5 rounded-full border bg-background px-3 py-1 text-xs font-normal hover:bg-accent"
+                      >
+                        <Checkbox
+                          checked={selectedPerms.includes(p.key)}
+                          onCheckedChange={(checked) => {
+                            if (checked) setSelectedPerms((prev) => [...prev, p.key]);
+                            else setSelectedPerms((prev) => prev.filter((x) => x !== p.key));
+                          }}
+                          className="size-3"
+                        />
+                        {p.label}
+                      </Label>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
           <Button size="sm" disabled={pending} onClick={handleCreate}>{pending ? "..." : "Create role"}</Button>
@@ -126,7 +143,12 @@ export function RolesManager({
       <div>
         <h3 className="mb-3 text-sm font-semibold">Custom roles ({customRoles.length})</h3>
         {customRoles.length === 0 ? (
-          <div className="rounded-2xl border bg-background p-6 text-center text-sm text-muted-foreground">No custom roles yet.</div>
+          <Card className="gap-0 py-0"><Empty className="py-10">
+            <EmptyHeader>
+              <EmptyTitle>No custom roles yet</EmptyTitle>
+              <EmptyDescription>Create a custom role with scoped permissions above.</EmptyDescription>
+            </EmptyHeader>
+          </Empty></Card>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {customRoles.map((role) => (

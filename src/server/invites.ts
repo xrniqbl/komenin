@@ -5,6 +5,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { assertCan } from "@/lib/rbac";
 import { requireMembership } from "@/server/memberships";
+import { cookies } from "next/headers";
+import { ACTIVE_WORKSPACE_COOKIE } from "@/lib/workspace-cookie";
 import { writeAuditLog } from "@/server/audit";
 import type { WorkspaceRole } from "@/types/workspace";
 

@@ -1,10 +1,27 @@
-﻿import { NextResponse } from "next/server";
+import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
+import { NextResponse } from "next/server";
 import { validateVoucherCode } from "@/server/billing";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const rate = consumeRateLimit({
+    key: getRequestRateKey(request, 'api:billing:voucher'),
+    limit: 20,
+    windowMs: 60_000,
+  });
+  if (!rate.ok) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))),
+        },
+      },
+    );
+  }
   try {
     const body = (await request.json()) as {
       code?: string;

@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -101,9 +102,9 @@ export function ContentCalendar({
   });
 
   return (
-    <div className="rounded-2xl border bg-background">
+    <Card className="gap-0 py-0">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+      <CardHeader className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
           <Badge variant="outline">{items.length} posts</Badge>
@@ -116,7 +117,7 @@ export function ContentCalendar({
             size="sm"
             onClick={() => setCursor((c) => (view === "month" ? addMonths(c, -1) : addDays(c, view === "week" ? -7 : -1)))}
           >
-            ‹
+            Prev
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setCursor(new Date())}>
             Today
@@ -126,10 +127,11 @@ export function ContentCalendar({
             size="sm"
             onClick={() => setCursor((c) => (view === "month" ? addMonths(c, 1) : addDays(c, view === "week" ? 7 : 1)))}
           >
-            ›
+            Next
           </Button>
         </div>
-      </div>
+      
+      </CardHeader>
 
       {/* View toggle + title */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
@@ -338,6 +340,6 @@ export function ContentCalendar({
         </span>
         <span>Drag & drop to reschedule</span>
       </div>
-    </div>
+    </Card>
   );
 }

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { assertCan } from "@/lib/rbac";
 import { parseVariables } from "@/lib/template-engine";
 import { db } from "@/lib/db";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 
 export async function listCommentTemplates(input?: {

@@ -9,10 +9,14 @@ const { auth } = NextAuth(authConfig);
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const isLoggedIn = !!req.auth;
-  const isApp = pathname.startsWith("/app") || pathname.startsWith("/onboarding");
+  const isProtected =
+    pathname.startsWith("/app") ||
+    pathname.startsWith("/onboarding") ||
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/invite");
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/signup");
 
-  if (isApp && !isLoggedIn) {
+  if (isProtected && !isLoggedIn) {
     const url = new URL("/login", req.nextUrl.origin);
     url.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(url);
@@ -26,5 +30,12 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/app/:path*", "/onboarding", "/login", "/signup"],
+  matcher: [
+    "/app/:path*",
+    "/admin/:path*",
+    "/invite/:path*",
+    "/onboarding",
+    "/login",
+    "/signup",
+  ],
 };

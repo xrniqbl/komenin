@@ -1,8 +1,9 @@
-﻿import { FilterBar } from "@/components/app/filter-bar";
+import { FilterBar } from "@/components/app/filter-bar";
 import { ListPagination, paginateItems } from "@/components/app/list-pagination";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -79,7 +80,7 @@ export default async function AuditLogsPage({
         </Dialog>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border bg-background">
+      <Card className="gap-0 overflow-hidden py-0">
         {items.length === 0 ? (
           <Empty className="py-12">
             <EmptyHeader>
@@ -138,7 +139,7 @@ export default async function AuditLogsPage({
             />
           </>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

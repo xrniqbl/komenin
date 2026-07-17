@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -10,13 +10,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { AppCommandPalette } from "@/components/app/app-command-palette";
+import { WorkspaceSwitcher } from "@/components/app/workspace-switcher";
 import type { WorkspaceSummary } from "@/types/workspace";
 
 export function AppTopbar({
   workspace,
+  workspaces,
   userEmail,
 }: {
   workspace: WorkspaceSummary;
+  workspaces: WorkspaceSummary[];
   userEmail?: string | null;
 }) {
   const initials = (userEmail || "A").slice(0, 2).toUpperCase();
@@ -36,6 +39,7 @@ export function AppTopbar({
             <Badge variant="secondary">{workspace.role}</Badge>
           </div>
         </div>
+        <WorkspaceSwitcher workspaces={workspaces} activeWorkspaceId={workspace.id} />
       </div>
       <div className="flex items-center gap-2 md:gap-3">
         <AppCommandPalette />

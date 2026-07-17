@@ -1,4 +1,11 @@
-﻿import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -14,9 +21,14 @@ export default async function AdminJobsPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Job runs</h1>
-      <div className="overflow-hidden rounded-2xl border bg-background">
+      <Card className="gap-0 overflow-hidden py-0">
         {rows.length === 0 ? (
-          <div className="px-4 py-10 text-sm text-muted-foreground">No job runs yet.</div>
+          <Empty className="py-12">
+            <EmptyHeader>
+              <EmptyTitle>No job runs yet</EmptyTitle>
+              <EmptyDescription>Nothing to show yet.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <Table>
             <TableHeader>
@@ -45,7 +57,7 @@ export default async function AdminJobsPage() {
             </TableBody>
           </Table>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

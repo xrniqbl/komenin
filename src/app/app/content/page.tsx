@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { ContentCalendar } from "@/components/content/content-calendar";
 import { ContentPageActions } from "@/components/content/content-page-actions";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getRuntimeModeLabel } from "@/lib/runtime-mode";
 import { listContentCampaigns, listContentSchedule } from "@/server/content-campaigns";
@@ -77,11 +78,9 @@ export default async function ContentCampaignsPage({
           ) : (
             <div className="space-y-3">
               {campaigns.map((campaign) => (
-                <Link
-                  key={campaign.id}
-                  href={`/app/content/${campaign.id}`}
-                  className="block rounded-2xl border bg-background p-4 transition-colors hover:bg-accent/30"
-                >
+                <Link key={campaign.id} href={`/app/content/${campaign.id}`} className="block">
+                  <Card className="transition-colors hover:bg-accent/30">
+                    <CardContent className="p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <div className="text-base font-semibold">{campaign.name}</div>
@@ -102,12 +101,16 @@ export default async function ContentCampaignsPage({
                     </span>
                     {campaign.socialAccount ? <span>@{campaign.socialAccount.username}</span> : null}
                   </div>
+                    </CardContent>
+                  </Card>
                 </Link>
               ))}
-              <div className="rounded-2xl border bg-background p-4 text-xs text-muted-foreground">
+              <Card>
+                <CardContent className="p-4 text-xs text-muted-foreground">
                 Publisher mode: <span className="font-medium text-foreground">{mode}</span>. Simulator records fake
                 external IDs. Live mode posts to SOCIAL_PUBLISH_WEBHOOK_URL when configured.
-              </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>

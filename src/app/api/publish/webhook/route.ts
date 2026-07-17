@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { appendPublishDelivery } from "@/lib/publish-delivery-log";
+import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
+import { isProductionRuntime, safeEqual } from "@/lib/security";
 
 export const runtime = "nodejs";
 
@@ -7,6 +9,7 @@ type WebhookBody = {
   platform?: string;
   username?: string | null;
   accountId?: string | null;
+  workspaceId?: string | null;
   title?: string | null;
   body?: string;
   hashtags?: string[];
@@ -16,11 +19,26 @@ type WebhookBody = {
 };
 
 export async function POST(request: Request) {
+  const rate = consumeRateLimit({
+    key: getRequestRateKey(request, "api:publish:webhook"),
+    limit: 120,
+    windowMs: 60_000,
+  });
+  if (!rate.ok) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
   const expected = process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN?.trim();
-  if (expected) {
+  if (!expected) {
+    if (isProductionRuntime()) {
+      return NextResponse.json(
+        { error: "SOCIAL_PUBLISH_WEBHOOK_TOKEN must be configured in production" },
+        { status: 503 },
+      );
+    }
+  } else {
     const auth = request.headers.get("authorization") || "";
     const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
-    if (token !== expected) {
+    if (!token || !safeEqual(token, expected)) {
       return NextResponse.json({ error: "Unauthorized webhook token" }, { status: 401 });
     }
   }
@@ -34,13 +52,16 @@ export async function POST(request: Request) {
   }
 
   const delivery = await appendPublishDelivery({
-    platform: String(payload.platform || "unknown"),
-    username: payload.username ? String(payload.username) : null,
-    accountId: payload.accountId ? String(payload.accountId) : null,
-    title: payload.title ? String(payload.title) : null,
-    body: payload.body.trim(),
-    hashtags: Array.isArray(payload.hashtags) ? payload.hashtags.map(String) : [],
-    caption: String(payload.caption || payload.body).trim(),
+    workspaceId: payload.workspaceId ? String(payload.workspaceId).slice(0, 120) : null,
+    platform: String(payload.platform || "unknown").slice(0, 40),
+    username: payload.username ? String(payload.username).slice(0, 120) : null,
+    accountId: payload.accountId ? String(payload.accountId).slice(0, 120) : null,
+    title: payload.title ? String(payload.title).slice(0, 200) : null,
+    body: payload.body.trim().slice(0, 10000),
+    hashtags: Array.isArray(payload.hashtags)
+      ? payload.hashtags.map(String).slice(0, 30)
+      : [],
+    caption: String(payload.caption || payload.body).trim().slice(0, 10000),
     scheduledFor: payload.scheduledFor ? String(payload.scheduledFor) : null,
     publishedAt: payload.publishedAt ? String(payload.publishedAt) : new Date().toISOString(),
     sourceIp: request.headers.get("x-forwarded-for"),

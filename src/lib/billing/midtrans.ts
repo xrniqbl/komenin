@@ -1,4 +1,5 @@
-﻿import { createHash } from "node:crypto";
+import { isProductionRuntime } from "@/lib/security";
+import { createHash } from "node:crypto";
 
 export type MidtransConfig = {
   isProduction: boolean;
@@ -46,6 +47,9 @@ export async function createMidtransSnapTransaction(input: {
 }): Promise<{ token: string; redirect_url: string }> {
   const config = getMidtransConfig();
   if (!config.serverKey) {
+    if (isProductionRuntime() || config.isProduction) {
+      throw new Error("MIDTRANS_SERVER_KEY is required for checkout");
+    }
     // Sandbox-local fallback for development without Midtrans keys.
     return {
       token: `sim-snap-${input.orderId}`,

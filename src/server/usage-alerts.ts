@@ -31,13 +31,8 @@ export async function checkUsageAlerts(): Promise<string[]> {
 }
 
 export async function createUsageAlertNotifications() {
-  try {
-    const { requireActiveWorkspace } = await import("./active-workspace");
-    // This is called from worker job — skip for now as it needs workspace. Instead use listRateLimitStatus directly in worker.
-    return;
-  } catch {
-    return;
-  }
+  // Worker-side notification creation is handled by dispatchUsageWarningsForAllWorkspaces.
+  return;
 }
 
 export async function dispatchUsageWarningsForAllWorkspaces() {

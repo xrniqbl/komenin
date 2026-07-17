@@ -1,4 +1,4 @@
-﻿import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
@@ -79,28 +79,30 @@ export default async function AdminVouchersPage() {
       </Card>
       <div className="space-y-2">
         {vouchers.map((voucher) => (
-          <form
-            key={voucher.id}
-            action={async () => {
-              "use server";
-              await adminToggleVoucher({ voucherId: voucher.id, isActive: !voucher.isActive });
-            }}
-            className="flex items-center justify-between rounded-2xl border bg-background p-4 text-sm"
-          >
-            <div>
-              <div className="font-medium">
-                {voucher.code} · {voucher.type} {voucher.value}
+          <Card key={voucher.id}>
+            <CardContent className="flex items-center justify-between p-4 text-sm">
+              <div>
+                <div className="font-medium">
+                  {voucher.code} · {voucher.type} {voucher.value}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  redeemed {voucher.redeemedCount}
+                  {voucher.maxRedemptions != null ? ` / ${voucher.maxRedemptions}` : ""} ·{" "}
+                  {voucher.isActive ? "active" : "disabled"}
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground">
-                redeemed {voucher.redeemedCount}
-                {voucher.maxRedemptions != null ? ` / ${voucher.maxRedemptions}` : ""} ·{" "}
-                {voucher.isActive ? "active" : "disabled"}
-              </div>
-            </div>
-            <Button type="submit" variant="outline" size="sm">
-              {voucher.isActive ? "Disable" : "Enable"}
-            </Button>
-          </form>
+              <form
+                action={async () => {
+                  "use server";
+                  await adminToggleVoucher({ voucherId: voucher.id, isActive: !voucher.isActive });
+                }}
+              >
+                <Button type="submit" variant="outline" size="sm">
+                  {voucher.isActive ? "Disable" : "Enable"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>

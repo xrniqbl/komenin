@@ -1,4 +1,4 @@
-﻿export type RuntimeMode = "simulator" | "live";
+export type RuntimeMode = "simulator" | "live";
 
 export type ConnectorKind = "simulator" | "webhook" | "official" | "none";
 
@@ -21,6 +21,7 @@ export type ConnectorTarget = {
   username?: string | null;
   accountId?: string | null;
   externalId?: string | null;
+  workspaceId?: string | null;
 };
 
 export type ConnectorWebhookConfig = {

@@ -1,4 +1,11 @@
-﻿import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import {
   Table,
   TableBody,
@@ -14,9 +21,14 @@ export default async function AdminSsoPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">SSO configs</h1>
-      <div className="overflow-hidden rounded-2xl border bg-background">
+      <Card className="gap-0 overflow-hidden py-0">
         {rows.length === 0 ? (
-          <div className="px-4 py-10 text-sm text-muted-foreground">No SSO configs yet.</div>
+          <Empty className="py-12">
+            <EmptyHeader>
+              <EmptyTitle>No SSO configs yet</EmptyTitle>
+              <EmptyDescription>Nothing to show yet.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <Table>
             <TableHeader>
@@ -45,7 +57,7 @@ export default async function AdminSsoPage() {
             </TableBody>
           </Table>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

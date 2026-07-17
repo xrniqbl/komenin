@@ -1,4 +1,4 @@
-﻿import {
+import {
   parseConnectorPolicy,
   runConnectorAction,
   type ConnectorOfficialConfig,
@@ -12,6 +12,7 @@ export type PublishTarget = {
   platform: "instagram" | "threads" | "tiktok" | string;
   username?: string | null;
   accountId?: string | null;
+  workspaceId?: string | null;
 };
 
 export type PublishPayload = {
@@ -93,6 +94,7 @@ export async function publishSocialPost(input: {
       platform: input.target.platform,
       username: input.target.username,
       accountId: input.target.accountId,
+      workspaceId: input.target.workspaceId,
     },
     payload: input.payload as ConnectorPublishPayload,
     webhook: input.webhook === undefined ? getDefaultWebhookConfig() : input.webhook,

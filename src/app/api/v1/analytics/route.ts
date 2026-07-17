@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateApiKey, requireScope } from "@/lib/api-auth";
+import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 
 function currentPeriodKey(): string {
@@ -7,6 +8,24 @@ function currentPeriodKey(): string {
 }
 
 export async function GET(req: NextRequest) {
+  const rate = consumeRateLimit({
+    key: getRequestRateKey(req, 'api:v1:analytics'),
+    limit: 60,
+    windowMs: 60_000,
+  });
+  if (!rate.ok) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))),
+          'X-RateLimit-Limit': String(rate.limit),
+          'X-RateLimit-Remaining': '0',
+        },
+      },
+    );
+  }
   const auth = await authenticateApiKey(req);
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

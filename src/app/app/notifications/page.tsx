@@ -1,4 +1,4 @@
-﻿import { ListPagination, paginateItems } from "@/components/app/list-pagination";
+import { ListPagination, paginateItems } from "@/components/app/list-pagination";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,14 +43,14 @@ export default async function NotificationsPage({
       />
       <div className="space-y-3">
         {items.length === 0 ? (
-          <div className="rounded-2xl border bg-background">
+          <Card className="gap-0 py-0">
             <Empty className="py-12">
               <EmptyHeader>
                 <EmptyTitle>No notifications yet</EmptyTitle>
                 <EmptyDescription>Worker events will appear here.</EmptyDescription>
               </EmptyHeader>
             </Empty>
-          </div>
+          </Card>
         ) : (
           <>
             {items.map((item) => (
@@ -87,9 +87,9 @@ export default async function NotificationsPage({
                 </CardContent>
               </Card>
             ))}
-            <div className="overflow-hidden rounded-2xl border bg-background">
+            <Card className="gap-0 overflow-hidden py-0">
               <ListPagination pathname="/app/notifications" window={window} />
-            </div>
+            </Card>
           </>
         )}
       </div>

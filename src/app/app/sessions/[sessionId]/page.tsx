@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { platformLabel } from "@/lib/session-routing";
 import { getSession } from "@/server/sessions";
 
@@ -28,30 +29,34 @@ export default async function SessionDetailPage({
       />
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border bg-background p-5 text-sm">
-          <div className="font-medium">Fingerprint / vault</div>
-          <div className="mt-4 space-y-2 text-muted-foreground">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Fingerprint / vault</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
             <div>Active: {session.isActive ? "yes" : "no"}</div>
             <div>Key version: {session.keyVersion}</div>
             <div>User agent: {session.userAgent}</div>
             <div>Encrypted payload: stored (hidden)</div>
             <div>Proxy: {proxy ? proxy.label : "Unassigned"}</div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-2xl border border bg-background p-5">
-          <div className="font-medium">Recent account signals</div>
-          <div className="mt-3 space-y-2 text-sm">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Recent account signals</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
             {session.socialAccount.healthChecks.map((check) => (
-              <div key={check.id} className="rounded-lg border border px-3 py-2">
+              <div key={check.id} className="rounded-lg border px-3 py-2">
                 {check.ok ? "OK" : "Fail"} · {check.signal}
               </div>
             ))}
             {session.socialAccount.healthChecks.length === 0 ? (
               <div className="text-muted-foreground">No health checks yet.</div>
             ) : null}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

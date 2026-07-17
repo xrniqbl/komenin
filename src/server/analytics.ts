@@ -1,7 +1,7 @@
-﻿"use server";
+"use server";
 
 import { db } from "@/lib/db";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 
 function daysAgo(days: number) {
   const date = new Date();

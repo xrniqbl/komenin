@@ -1,9 +1,11 @@
-﻿import { revalidatePath } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormSelect } from "@/components/ui/form-select";
+import { Label } from "@/components/ui/label";
 import {
   getPublisherStatus,
   testPublishWebhook,
@@ -112,20 +114,21 @@ export default async function PublisherSettingsPage({
         </CardHeader>
         <CardContent>
           <form action={savePolicy} className="flex flex-col gap-3 md:flex-row md:items-end">
-            <label className="text-sm flex-1">
-              Policy
-              <select
+            <div className="flex flex-1 flex-col gap-2">
+              <Label htmlFor="policy">Policy</Label>
+              <FormSelect
+                id="policy"
                 name="policy"
                 defaultValue={status.connectorPolicy}
-                className="mt-1 w-full rounded-lg border px-3 py-2"
-              >
-                <option value="prefer_webhook">prefer_webhook</option>
-                <option value="prefer_official">prefer_official</option>
-                <option value="webhook_only">webhook_only</option>
-                <option value="official_only">official_only</option>
-                <option value="simulator_only">simulator_only</option>
-              </select>
-            </label>
+                options={[
+                  { value: "prefer_webhook", label: "prefer_webhook" },
+                  { value: "prefer_official", label: "prefer_official" },
+                  { value: "webhook_only", label: "webhook_only" },
+                  { value: "official_only", label: "official_only" },
+                  { value: "simulator_only", label: "simulator_only" },
+                ]}
+              />
+            </div>
             <Button type="submit">Save policy</Button>
           </form>
         </CardContent>

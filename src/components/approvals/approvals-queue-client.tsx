@@ -5,7 +5,15 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { bulkDecideApprovals } from "@/server/comment-pipeline";
 import { ApprovalCard } from "./approval-card";
 
@@ -62,27 +70,29 @@ export function ApprovalsQueueClient({ approvals }: { approvals: ApprovalData[] 
 
   if (approvals.length === 0) {
     return (
-      <div className="rounded-2xl border bg-background p-8 text-center">
-        <div className="text-sm font-medium">No pending approvals</div>
-        <div className="mt-1 text-xs text-muted-foreground">
-          New drafts will appear here once campaigns discover target posts.
-        </div>
-      </div>
+      <Card className="gap-0 py-0"><Empty className="py-12">
+        <EmptyHeader>
+          <EmptyTitle>No pending approvals</EmptyTitle>
+          <EmptyDescription>
+            New drafts will appear here once campaigns discover target posts.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty></Card>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-muted/30 px-4 py-3">
+      <Card className="bg-muted/30"><CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm font-medium">
+          <Label className="flex items-center gap-2 text-sm font-medium">
             <Checkbox
               checked={selected.size === approvals.length && approvals.length > 0}
               onCheckedChange={(checked) => toggleAll(checked === true)}
               aria-label="Select all approvals"
             />
             Select all
-          </label>
+          </Label>
           {selected.size > 0 ? (
             <Badge variant="secondary">{selected.size} selected</Badge>
           ) : (
@@ -116,7 +126,8 @@ export function ApprovalsQueueClient({ approvals }: { approvals: ApprovalData[] 
             </Button>
           </div>
         ) : null}
-      </div>
+      </CardContent>
+      </Card>
 
       {bulkPending ? (
         <Alert>

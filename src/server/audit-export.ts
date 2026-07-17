@@ -1,8 +1,8 @@
-﻿"use server";
+"use server";
 
 import { assertCan } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 
 export async function exportAuditLogsCsv(limit = 1000) {

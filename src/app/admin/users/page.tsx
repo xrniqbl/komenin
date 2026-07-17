@@ -1,4 +1,11 @@
-﻿import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { FormSelect } from "@/components/ui/form-select";
 import {
   Table,
@@ -24,9 +31,14 @@ export default async function AdminUsersPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Users</h1>
-      <div className="overflow-hidden rounded-2xl border bg-background">
+      <Card className="gap-0 overflow-hidden py-0">
         {users.length === 0 ? (
-          <div className="px-4 py-10 text-sm text-muted-foreground">No users found.</div>
+          <Empty className="py-12">
+            <EmptyHeader>
+              <EmptyTitle>No users found</EmptyTitle>
+              <EmptyDescription>Nothing to show yet.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <Table>
             <TableHeader>
@@ -67,7 +79,7 @@ export default async function AdminUsersPage() {
             </TableBody>
           </Table>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

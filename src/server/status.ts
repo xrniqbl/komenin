@@ -1,5 +1,3 @@
-"use server";
-
 import { db } from "@/lib/db";
 
 export async function getPublicStatus() {
@@ -77,7 +75,7 @@ export async function getPublicStatus() {
     ],
     uptime: {
       overall: overallUptime,
-     Buckets: uptimeBuckets,
+      buckets: uptimeBuckets,
       successRate24h,
       healthRate,
     },

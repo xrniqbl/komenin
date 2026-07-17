@@ -1,4 +1,4 @@
-﻿import { PageHeader } from "@/components/app/page-header";
+import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -61,10 +61,10 @@ export default async function SkillsPage() {
               <Label htmlFor="triggers">Triggers</Label>
               <Input id="triggers" name="triggers" placeholder="triggers,comma,separated" />
             </div>
-            <label className="flex items-center gap-2 text-sm">
+            <Label className="flex items-center gap-2 text-sm font-normal">
               <Checkbox name="highRisk" />
               High risk (force approval)
-            </label>
+            </Label>
             <div>
               <Button type="submit">Create skill</Button>
             </div>

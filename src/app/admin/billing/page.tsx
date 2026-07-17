@@ -1,4 +1,11 @@
-﻿import { formatIdr } from "@/lib/billing/catalog";
+import { Card } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { formatIdr } from "@/lib/billing/catalog";
 import {
   Table,
   TableBody,
@@ -14,9 +21,14 @@ export default async function AdminBillingPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Billing orders</h1>
-      <div className="overflow-hidden rounded-2xl border bg-background">
+      <Card className="gap-0 overflow-hidden py-0">
         {orders.length === 0 ? (
-          <div className="px-4 py-10 text-sm text-muted-foreground">No orders yet.</div>
+          <Empty className="py-12">
+            <EmptyHeader>
+              <EmptyTitle>No orders yet</EmptyTitle>
+              <EmptyDescription>Nothing to show yet.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <Table>
             <TableHeader>
@@ -46,7 +58,8 @@ export default async function AdminBillingPage() {
             </TableBody>
           </Table>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
+

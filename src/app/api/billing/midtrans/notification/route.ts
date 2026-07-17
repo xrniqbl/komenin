@@ -1,6 +1,7 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getMidtransConfig, verifyMidtransSignature } from "@/lib/billing/midtrans";
 import { applyPaidOrder } from "@/server/billing";
+import { isProductionRuntime } from "@/lib/security";
 
 export const runtime = "nodejs";
 
@@ -21,18 +22,28 @@ export async function POST(request: Request) {
     }
 
     const config = getMidtransConfig();
-    let signatureValid = true;
-    if (config.serverKey) {
-      signatureValid = verifyMidtransSignature({
-        orderId: String(payload.order_id),
-        statusCode: String(payload.status_code || ""),
-        grossAmount: String(payload.gross_amount || ""),
-        signatureKey: String(payload.signature_key || ""),
-        serverKey: config.serverKey,
-      });
-      if (!signatureValid) {
-        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-      }
+    if (!config.serverKey) {
+      return NextResponse.json(
+        { error: "Midtrans server key is not configured" },
+        { status: 503 },
+      );
+    }
+    if (isProductionRuntime() && !config.isProduction) {
+      return NextResponse.json(
+        { error: "MIDTRANS_IS_PRODUCTION must be true in production runtime" },
+        { status: 503 },
+      );
+    }
+
+    const signatureValid = verifyMidtransSignature({
+      orderId: String(payload.order_id),
+      statusCode: String(payload.status_code || ""),
+      grossAmount: String(payload.gross_amount || ""),
+      signatureKey: String(payload.signature_key || ""),
+      serverKey: config.serverKey,
+    });
+    if (!signatureValid) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     const result = await applyPaidOrder(String(payload.order_id), {
@@ -40,7 +51,7 @@ export async function POST(request: Request) {
       paymentType: payload.payment_type,
       transactionStatus: payload.transaction_status,
       payload,
-      signatureValid,
+      signatureValid: true,
     });
 
     return NextResponse.json({ ok: true, result });

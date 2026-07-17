@@ -4,6 +4,7 @@ import path from "node:path";
 export type PublishDeliveryLog = {
   id: string;
   receivedAt: string;
+  workspaceId?: string | null;
   platform: string;
   username: string | null;
   accountId: string | null;
@@ -25,7 +26,7 @@ async function ensureLogFile() {
   try {
     await mkdir(DATA_DIR, { recursive: true });
   } catch {
-    // Read-only FS (serverless) — skip silently
+    // Read-only FS (serverless) - skip silently
   }
   try {
     await access(LOG_FILE);
@@ -33,7 +34,7 @@ async function ensureLogFile() {
     try {
       await appendFile(LOG_FILE, "", "utf8");
     } catch {
-      // Read-only FS — skip
+      // Read-only FS - skip
     }
   }
 }
@@ -51,6 +52,7 @@ export async function appendPublishDelivery(
     id,
     receivedAt,
     externalPostId,
+    workspaceId: entry.workspaceId || null,
     platform: entry.platform,
     username: entry.username,
     accountId: entry.accountId,
@@ -66,12 +68,15 @@ export async function appendPublishDelivery(
   try {
     await appendFile(LOG_FILE, JSON.stringify(row) + "\n", "utf8");
   } catch {
-    // FS not writable — delivery still logged via DB elsewhere
+    // FS not writable - delivery still logged via DB elsewhere
   }
   return row;
 }
 
-export async function listPublishDeliveries(limit = 50): Promise<PublishDeliveryLog[]> {
+export async function listPublishDeliveries(
+  limit = 50,
+  workspaceId?: string | null,
+): Promise<PublishDeliveryLog[]> {
   await ensureLogFile();
   let raw = "";
   try {
@@ -94,5 +99,9 @@ export async function listPublishDeliveries(limit = 50): Promise<PublishDelivery
     })
     .filter((row): row is PublishDeliveryLog => Boolean(row));
 
-  return rows.reverse().slice(0, Math.min(Math.max(limit, 1), 200));
+  const scoped = workspaceId
+    ? rows.filter((row) => row.workspaceId === workspaceId)
+    : rows;
+
+  return scoped.reverse().slice(0, Math.min(Math.max(limit, 1), 200));
 }

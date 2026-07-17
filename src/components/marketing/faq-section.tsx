@@ -7,6 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Card, CardContent } from "@/components/ui/card";
 
 export function FaqSection() {
   const { t } = useLocale();
@@ -22,18 +23,20 @@ export function FaqSection() {
           <p className="max-w-xl text-base text-neutral-600">{t.faq.subtitle}</p>
         </div>
 
-        <Accordion className="w-full rounded-2xl border border-neutral-200 bg-white px-4 shadow-sm">
-          {t.faq.items.map((item, index) => (
-            <AccordionItem key={item.q} value={`item-${index}`}>
-              <AccordionTrigger className="text-left text-neutral-900 hover:no-underline">
-                {item.q}
-              </AccordionTrigger>
-              <AccordionContent className="text-neutral-600">
-                {item.a}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+        <Card className="border-neutral-200 bg-white shadow-sm">
+          <CardContent className="px-4 py-0">
+            <Accordion className="w-full">
+              {t.faq.items.map((item, index) => (
+                <AccordionItem key={item.q} value={`item-${index}`}>
+                  <AccordionTrigger className="text-left text-neutral-900 hover:no-underline">
+                    {item.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-neutral-600">{item.a}</AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </CardContent>
+        </Card>
       </div>
     </section>
   );

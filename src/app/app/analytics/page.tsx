@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/app/page-header";
 import { QuotaMeter } from "@/components/analytics/quota-meter";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,9 +42,9 @@ export default async function AnalyticsPage() {
       {alerts.length > 0 ? (
         <div className="space-y-2">
           {alerts.map((alert, i) => (
-            <div key={i} className="rounded-xl border border-amber-300 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
-              ⚠ {alert}
-            </div>
+            <Alert key={i} variant="warning">
+              <AlertDescription>{alert}</AlertDescription>
+            </Alert>
           ))}
         </div>
       ) : null}

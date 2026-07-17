@@ -1,9 +1,9 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath } from "next/cache";
 import { assertCan } from "@/lib/rbac";
 import { db } from "@/lib/db";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 
 export async function getWorkspaceSsoConfig() {
@@ -75,14 +75,3 @@ export async function saveWorkspaceSsoConfig(input: {
   return config;
 }
 
-export async function getSsoLoginTarget(email: string) {
-  const domain = email.split("@")[1]?.toLowerCase();
-  if (!domain) return null;
-  return db.ssoConfig.findFirst({
-    where: {
-      isActive: true,
-      emailDomain: domain,
-    },
-    include: { workspace: true },
-  });
-}

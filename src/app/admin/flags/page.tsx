@@ -1,5 +1,5 @@
-﻿import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,10 +31,10 @@ export default async function AdminFlagsPage() {
               <Label htmlFor="description">Description</Label>
               <Input id="description" name="description" placeholder="description" />
             </div>
-            <label className="flex items-center gap-2 self-end text-sm">
+            <Label className="flex items-center gap-2 self-end text-sm font-normal">
               <Checkbox name="enabled" />
               enabled
-            </label>
+            </Label>
             <div className="md:col-span-3">
               <Button type="submit">Save flag</Button>
             </div>
@@ -43,12 +43,14 @@ export default async function AdminFlagsPage() {
       </Card>
       <div className="space-y-2">
         {flags.map((flag) => (
-          <div key={flag.id} className="rounded-2xl border bg-background p-4 text-sm">
-            <div className="font-medium">
-              {flag.key} · {flag.enabled ? "on" : "off"}
-            </div>
-            <div className="text-xs text-muted-foreground">{flag.description}</div>
-          </div>
+          <Card key={flag.id}>
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm">
+                {flag.key} · {flag.enabled ? "on" : "off"}
+              </CardTitle>
+              <CardDescription>{flag.description}</CardDescription>
+            </CardHeader>
+          </Card>
         ))}
       </div>
     </div>

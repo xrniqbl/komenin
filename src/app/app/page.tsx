@@ -3,9 +3,10 @@ import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
 import { getRuntimeModeLabel } from "@/lib/runtime-mode";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 
 export default async function AppHomePage() {
   const { workspace } = await requireActiveWorkspace();
@@ -55,10 +56,12 @@ export default async function AppHomePage() {
       />
       <div className="grid gap-4 md:grid-cols-4">
         {metrics.map((metric) => (
-          <div key={metric.label} className="rounded-2xl border bg-background p-4">
-            <div className="text-sm text-muted-foreground">{metric.label}</div>
-            <div className="mt-2 text-3xl font-semibold">{metric.value}</div>
-          </div>
+          <Card key={metric.label}>
+            <CardHeader className="pb-2">
+              <CardDescription>{metric.label}</CardDescription>
+              <CardTitle className="text-3xl">{metric.value}</CardTitle>
+            </CardHeader>
+          </Card>
         ))}
       </div>
       <div className="mt-6 grid gap-4 md:grid-cols-3">
@@ -81,14 +84,16 @@ export default async function AppHomePage() {
           actionLabel="Open audit logs"
         />
       </div>
-      <div className="mt-6 rounded-2xl border bg-background p-4 text-sm text-muted-foreground">
-        Runtime is in <span className="font-medium text-foreground">{mode}</span> mode.
-        Worker jobs available via <code className="text-xs">POST /api/worker/run</code> or{" "}
-        <code className="text-xs">npm run worker</code>.{" "}
-        <Link href="/app/activity" className="font-medium text-primary">
-          Open activity queue
-        </Link>
-      </div>
+      <Card className="mt-6">
+        <CardContent className="p-4 text-sm text-muted-foreground">
+          Runtime is in <span className="font-medium text-foreground">{mode}</span> mode.
+          Worker jobs available via <code className="text-xs">POST /api/worker/run</code> or{" "}
+          <code className="text-xs">npm run worker</code>.{" "}
+          <Link href="/app/activity" className="font-medium text-primary">
+            Open activity queue
+          </Link>
+        </CardContent>
+      </Card>
     </div>
   );
 }

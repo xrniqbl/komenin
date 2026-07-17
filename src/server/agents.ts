@@ -1,11 +1,11 @@
-﻿"use server";
+"use server";
 
 import { revalidatePath } from "next/cache";
 import { assertCan } from "@/lib/rbac";
 import { generateContextualCommentHybrid } from "@/lib/comment-engine";
 import { rankChunks } from "@/lib/knowledge/retrieve";
 import { db } from "@/lib/db";
-import { requireActiveWorkspace } from "@/server/active-workspace";
+import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 
 export async function listAgents() {
