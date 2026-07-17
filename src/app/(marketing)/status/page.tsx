@@ -111,7 +111,7 @@ export default async function StatusPage() {
               {statusData.services.map((svc) => (
                 <div
                   key={svc.name}
-                  className="flex items-center justify-between border-b px-4 py-3 last:border-b-0"
+                  className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 last:border-b-0"
                 >
                   <div>
                     <div className="text-sm font-medium">{svc.name}</div>

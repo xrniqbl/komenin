@@ -150,7 +150,7 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
             </Button>
           </div>
 
-          <div className="mt-8 grid grid-cols-3 gap-4">
+          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3">
             {stats.map((s) => (
               <Card key={s.label} className="py-0 shadow-none">
                 <CardContent className="p-4">
@@ -172,7 +172,7 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
 
       {/* Feature grid */}
       <div id="features-detail" className="scroll-mt-28 border-t py-12">
-        <div className="mb-8 flex items-end justify-between gap-4">
+        <div className="mb-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">Capabilities</h2>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">

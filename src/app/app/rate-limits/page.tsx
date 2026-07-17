@@ -18,7 +18,7 @@ export default async function RateLimitsPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-sm flex items-center justify-between">
+            <CardTitle className="flex items-center justify-between gap-2 text-sm">
               <span>Monthly Sends</span>
               <Badge variant={data.workspace.sendsStatus === "ok" ? "secondary" : "destructive"}>{data.workspace.sendsStatus}</Badge>
             </CardTitle>
@@ -30,7 +30,7 @@ export default async function RateLimitsPage() {
         </Card>
         <Card>
           <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-sm flex items-center justify-between">
+            <CardTitle className="flex items-center justify-between gap-2 text-sm">
               <span>Monthly Publishes</span>
               <Badge variant={data.workspace.publishesStatus === "ok" ? "secondary" : "destructive"}>{data.workspace.publishesStatus}</Badge>
             </CardTitle>

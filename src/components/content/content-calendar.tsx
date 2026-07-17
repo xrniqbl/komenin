@@ -152,21 +152,8 @@ export function ContentCalendar({
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Grid: day view full-width; month/week keep 7 cols via horizontal scroll on mobile */}
       <div className="p-2">
-        {weekHeadersForMonth ? (
-          <div className="grid grid-cols-7 gap-px">
-            {WEEK_HEADERS.map((h) => (
-              <div
-                key={h}
-                className="py-1.5 text-center text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
-              >
-                {h}
-              </div>
-            ))}
-          </div>
-        ) : null}
-
         {view === "day" ? (
           <div
             className={cn(
@@ -220,7 +207,21 @@ export function ContentCalendar({
             </div>
           </div>
         ) : (
-          displayDays.map((week, wi) => (
+          <div className="overflow-x-auto">
+            <div className="min-w-[640px]">
+              {weekHeadersForMonth ? (
+                <div className="grid grid-cols-7 gap-px">
+                  {WEEK_HEADERS.map((h) => (
+                    <div
+                      key={h}
+                      className="py-1.5 text-center text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+                    >
+                      {h}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {displayDays.map((week, wi) => (
             <div key={wi} className="grid grid-cols-7 gap-px">
               {week.map((day, di) => {
                 if (!day) {
@@ -307,7 +308,9 @@ export function ContentCalendar({
                 );
               })}
             </div>
-          ))
+          ))}
+            </div>
+          </div>
         )}
       </div>
 

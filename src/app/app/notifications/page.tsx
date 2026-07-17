@@ -63,7 +63,7 @@ export default async function NotificationsPage({
                     {item.createdAt.toISOString().replace("T", " ").slice(0, 19)} UTC
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="flex items-start justify-between gap-4 text-sm">
+                <CardContent className="flex flex-col gap-3 text-sm sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="text-muted-foreground">{item.body}</div>
                     {item.href ? (

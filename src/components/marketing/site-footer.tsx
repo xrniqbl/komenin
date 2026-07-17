@@ -56,7 +56,7 @@ export function SiteFooter() {
 
   return (
     <footer className="border-t bg-background">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-4 md:px-6">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 md:grid-cols-4 md:px-6">
         <div className="flex flex-col gap-4">
           <div className="inline-flex items-center gap-2">
             <Image src="/brand/aether-mono.svg" alt="Aether" width={24} height={24} />

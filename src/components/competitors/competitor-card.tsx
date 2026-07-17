@@ -74,22 +74,22 @@ export function CompetitorCard({
       <CardContent className="space-y-3 p-4 pt-0">
         {metrics ? (
           <>
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="grid grid-cols-3 gap-1.5 text-center sm:gap-2">
               <Card className="bg-muted/30 py-0 shadow-none">
                 <CardContent className="p-2">
-                  <div className="text-lg font-semibold leading-none">{metrics.count7d}</div>
+                  <div className="truncate text-base font-semibold leading-none sm:text-lg">{metrics.count7d}</div>
                   <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">7d posts</div>
                 </CardContent>
               </Card>
               <Card className="bg-muted/30 py-0 shadow-none">
                 <CardContent className="p-2">
-                  <div className="text-lg font-semibold leading-none">{metrics.count30d}</div>
+                  <div className="truncate text-base font-semibold leading-none sm:text-lg">{metrics.count30d}</div>
                   <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">30d posts</div>
                 </CardContent>
               </Card>
               <Card className="bg-muted/30 py-0 shadow-none">
                 <CardContent className="p-2">
-                  <div className="text-lg font-semibold leading-none">{metrics.avgPerDay}</div>
+                  <div className="truncate text-base font-semibold leading-none sm:text-lg">{metrics.avgPerDay}</div>
                   <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">avg / day</div>
                 </CardContent>
               </Card>

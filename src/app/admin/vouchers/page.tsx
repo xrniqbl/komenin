@@ -80,7 +80,7 @@ export default async function AdminVouchersPage() {
       <div className="space-y-2">
         {vouchers.map((voucher) => (
           <Card key={voucher.id}>
-            <CardContent className="flex items-center justify-between p-4 text-sm">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
               <div>
                 <div className="font-medium">
                   {voucher.code} · {voucher.type} {voucher.value}

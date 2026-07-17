@@ -93,7 +93,7 @@ export function FilterBar({
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <InputGroup className="min-w-[200px] flex-1">
+      <InputGroup className="min-w-0 w-full flex-1 basis-full sm:min-w-[200px] sm:basis-auto">
         <InputGroupAddon align="inline-start">
           <Search className="size-4 opacity-80" />
         </InputGroupAddon>
@@ -106,11 +106,12 @@ export function FilterBar({
       </InputGroup>
 
       {statusOptions && statusOptions.length > 0 ? (
+        <div className="w-full sm:w-auto">
         <Select
           value={defaultStatus || "__all"}
           onValueChange={(v) => updateFilter(statusParam, v === "__all" || !v ? "" : v)}
         >
-          <SelectTrigger className="h-8 w-[140px] text-sm">
+          <SelectTrigger className="h-8 w-full text-sm sm:w-[140px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectPopup>
@@ -122,14 +123,16 @@ export function FilterBar({
             ))}
           </SelectPopup>
         </Select>
+        </div>
       ) : null}
 
       {platformOptions && platformOptions.length > 0 ? (
+        <div className="w-full sm:w-auto">
         <Select
           value={defaultPlatform || "__all"}
           onValueChange={(v) => updateFilter(platformParam, v === "__all" || !v ? "" : v)}
         >
-          <SelectTrigger className="h-8 w-[140px] text-sm">
+          <SelectTrigger className="h-8 w-full text-sm sm:w-[140px]">
             <SelectValue placeholder="Platform" />
           </SelectTrigger>
           <SelectPopup>
@@ -141,6 +144,7 @@ export function FilterBar({
             ))}
           </SelectPopup>
         </Select>
+        </div>
       ) : null}
 
       <Popover>

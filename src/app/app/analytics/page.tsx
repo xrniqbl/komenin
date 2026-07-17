@@ -52,7 +52,7 @@ export default async function AnalyticsPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-sm flex items-center justify-between">
+            <CardTitle className="flex items-center justify-between gap-2 text-sm">
               <span>Monthly Sends</span>
               <Badge variant={quota.workspace.sendsStatus === "ok" ? "secondary" : "destructive"}>{quota.workspace.sendsStatus}</Badge>
             </CardTitle>
@@ -63,7 +63,7 @@ export default async function AnalyticsPage() {
         </Card>
         <Card>
           <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-sm flex items-center justify-between">
+            <CardTitle className="flex items-center justify-between gap-2 text-sm">
               <span>Monthly Publishes</span>
               <Badge variant={quota.workspace.publishesStatus === "ok" ? "secondary" : "destructive"}>{quota.workspace.publishesStatus}</Badge>
             </CardTitle>

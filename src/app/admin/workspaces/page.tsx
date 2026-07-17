@@ -36,7 +36,7 @@ export default async function AdminWorkspacesPage() {
                   members {ws._count.memberships} · accounts {ws._count.socialAccounts} · sub{" "}
                   {ws.subscriptions[0]?.plan.code || "none"}
                 </div>
-                <div className="grid gap-3 md:grid-cols-5">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                   <div className="flex flex-col gap-2">
                     <Label htmlFor={`status-${ws.id}`}>Status</Label>
                     <FormSelect

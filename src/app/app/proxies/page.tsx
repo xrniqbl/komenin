@@ -78,7 +78,7 @@ export default async function ProxiesPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs text-muted-foreground">
                         {proxy.assignments.length} accounts
                       </span>
