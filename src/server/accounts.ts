@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { assertCan } from "@/lib/rbac";
 import { encryptSecret } from "@/lib/encryption";
 import { simulateIp } from "@/lib/session-routing";
+import { assertProductionSessionPayload } from "@/lib/session-payload";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
@@ -83,7 +84,11 @@ export async function createAccount(input: {
 
   const username = input.username.trim().replace(/^@/, "");
   if (!username) throw new Error("Username is required");
-  if (!input.sessionPayload.trim()) throw new Error("Session payload is required");
+
+  const validated = assertProductionSessionPayload(input.sessionPayload, input.platform, {
+    username,
+    userAgent: input.userAgent,
+  });
 
   let proxy = null as null | { id: string; lastIp: string | null };
   if (input.proxyEndpointId) {
@@ -117,12 +122,16 @@ export async function createAccount(input: {
       data: {
         workspaceId: workspace.id,
         socialAccountId: created.id,
-        encryptedBlob: encryptSecret(input.sessionPayload.trim()),
-        userAgent: input.userAgent?.trim() || DEFAULT_UA,
+        encryptedBlob: encryptSecret(validated.serialized),
+        userAgent: validated.payload.ua,
         fingerprintJson: {
           platform: input.platform,
           language: "en-US",
           timezone: "Asia/Jakarta",
+          cookieNames: validated.cookieNames,
+          cookieCount: validated.cookieNames.length,
+          importedAt: validated.payload.capturedAt,
+          source: "session_import",
         },
         isActive: true,
         lastUsedAt: new Date(),
@@ -147,7 +156,7 @@ export async function createAccount(input: {
         ok: true,
         latencyMs: 120,
         signal: "session_imported",
-        details: "Initial session import probe",
+        details: `Imported ${validated.cookieNames.length} cookies for ${input.platform}`,
       },
     });
 
@@ -166,14 +175,116 @@ export async function createAccount(input: {
     metadata: {
       platform: account.platform,
       username: account.username,
-      proxyEndpointId: proxy?.id,
+      proxyEndpointId: proxy?.id ?? null,
+      cookieCount: validated.cookieNames.length,
+      // never log cookie values
+      cookieNames: validated.cookieNames,
     },
   });
 
   revalidatePath("/app/accounts");
+  revalidatePath(`/app/accounts/${account.id}`);
   revalidatePath("/app/sessions");
   revalidatePath("/app");
   return account;
+}
+
+export async function reimportAccountSession(input: {
+  accountId: string;
+  sessionPayload: string;
+  userAgent?: string;
+}) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertCan(workspace.role, "accounts.manage");
+
+  const account = await db.socialAccount.findFirst({
+    where: {
+      id: input.accountId,
+      workspaceId: workspace.id,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      platform: true,
+      username: true,
+    },
+  });
+  if (!account) throw new Error("Account not found");
+
+  const validated = assertProductionSessionPayload(input.sessionPayload, account.platform, {
+    username: account.username,
+    userAgent: input.userAgent,
+  });
+
+  await db.$transaction(async (tx) => {
+    await tx.accountSession.updateMany({
+      where: {
+        workspaceId: workspace.id,
+        socialAccountId: account.id,
+        isActive: true,
+      },
+      data: { isActive: false },
+    });
+
+    await tx.accountSession.create({
+      data: {
+        workspaceId: workspace.id,
+        socialAccountId: account.id,
+        encryptedBlob: encryptSecret(validated.serialized),
+        userAgent: validated.payload.ua,
+        fingerprintJson: {
+          platform: account.platform,
+          language: "en-US",
+          timezone: "Asia/Jakarta",
+          cookieNames: validated.cookieNames,
+          cookieCount: validated.cookieNames.length,
+          importedAt: validated.payload.capturedAt,
+          source: "session_reimport",
+        },
+        isActive: true,
+        lastUsedAt: new Date(),
+      },
+    });
+
+    await tx.sessionHealthCheck.create({
+      data: {
+        workspaceId: workspace.id,
+        socialAccountId: account.id,
+        ok: true,
+        latencyMs: 90,
+        signal: "session_reimported",
+        details: `Re-imported ${validated.cookieNames.length} cookies for ${account.platform}`,
+      },
+    });
+
+    await tx.socialAccount.update({
+      where: { id: account.id },
+      data: {
+        status: "healthy",
+        healthScore: 95,
+        lastActionAt: new Date(),
+      },
+    });
+  });
+
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "social_account.session_reimported",
+    resourceType: "social_account",
+    resourceId: account.id,
+    metadata: {
+      platform: account.platform,
+      username: account.username,
+      cookieCount: validated.cookieNames.length,
+      cookieNames: validated.cookieNames,
+    },
+  });
+
+  revalidatePath("/app/accounts");
+  revalidatePath(`/app/accounts/${account.id}`);
+  revalidatePath("/app/sessions");
+  return { ok: true as const, accountId: account.id, cookieCount: validated.cookieNames.length };
 }
 
 export async function runAccountHealthCheck(accountId: string) {

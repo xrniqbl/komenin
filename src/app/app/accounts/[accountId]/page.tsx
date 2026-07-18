@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { StatusPill } from "@/components/session-routing/status-pill";
 import { platformLabel, statusTone } from "@/lib/session-routing";
 import { getAccount, rotateAccountIp, runAccountHealthCheck } from "@/server/accounts";
+import { ReimportSessionForm } from "@/components/accounts/reimport-session-form";
 
 export default async function AccountDetailPage({
   params,
@@ -93,18 +94,27 @@ export default async function AccountDetailPage({
               Cookies/tokens are stored encrypted at rest. Raw secrets are never rendered in the UI.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="space-y-4 text-sm">
             {activeSession ? (
-              <>
+              <div className="space-y-2">
                 <div>
-                  UA: <span className="text-muted-foreground">{activeSession.userAgent.slice(0, 48)}…</span>
+                  UA:{" "}
+                  <span className="text-muted-foreground">
+                    {activeSession.userAgent.slice(0, 48)}…
+                  </span>
                 </div>
                 <div>Key version: {activeSession.keyVersion}</div>
                 <div>Active: {activeSession.isActive ? "yes" : "no"}</div>
-              </>
+              </div>
             ) : (
               <div className="text-muted-foreground">No active session.</div>
             )}
+            <div className="border-t pt-4">
+              <div className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Re-import production session
+              </div>
+              <ReimportSessionForm accountId={account.id} platform={account.platform} />
+            </div>
           </CardContent>
         </Card>
       </div>
