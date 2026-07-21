@@ -32,4 +32,16 @@ describe("billing commerce", () => {
       }),
     ).toBe(true);
   });
+
+  it("rejects invalid midtrans signatures", () => {
+    expect(
+      verifyMidtransSignature({
+        orderId: "AETH-1",
+        statusCode: "200",
+        grossAmount: "499000.00",
+        signatureKey: "deadbeef",
+        serverKey: "SB-Mid-server-xxx",
+      }),
+    ).toBe(false);
+  });
 });

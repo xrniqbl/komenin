@@ -2,11 +2,27 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { ensureBuiltinSkills, runSkill } from "@/lib/skills/runtime";
+import { assertSafeOutboundUrl, UnsafeUrlError } from "@/lib/url-safety";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
+
+function assertSkillWebhookConfig(
+  executor: "builtin" | "webhook" | undefined,
+  configJson?: Record<string, unknown>,
+) {
+  if ((executor || "builtin") !== "webhook") return;
+  const url = typeof configJson?.url === "string" ? configJson.url : "";
+  if (!url.trim()) throw new Error("Webhook skill requires configJson.url");
+  try {
+    assertSafeOutboundUrl(url);
+  } catch (error) {
+    if (error instanceof UnsafeUrlError) throw new Error(error.message);
+    throw new Error("Invalid webhook skill URL");
+  }
+}
 
 export async function listSkills() {
   const { workspace } = await requireActiveWorkspace();
@@ -31,7 +47,8 @@ export async function createSkill(input: {
   configJson?: Record<string, unknown>;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "skills.manage");
+  assertWorkspacePermission(workspace, "skills.manage");
+  assertSkillWebhookConfig(input.executor, input.configJson);
 
   const skill = await db.skill.create({
     data: {
@@ -83,7 +100,7 @@ export async function executeSkillNow(input: {
   agentId?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "skills.manage");
+  assertWorkspacePermission(workspace, "skills.manage");
   const skill = await db.skill.findFirst({
     where: { id: input.skillId, workspaceId: workspace.id },
     include: { triggers: true },

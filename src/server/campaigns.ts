@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
@@ -64,7 +64,7 @@ export async function createCampaign(input: {
   listenerQuery?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const name = input.name.trim();
   if (!name) throw new Error("Campaign name is required");

@@ -72,6 +72,8 @@ export function canWithCustom(
   customPermissions: string[] | null | undefined,
   permission: Permission,
 ): boolean {
+  // Owner always retains full system permissions.
+  if (role === "owner") return can(role, permission);
   if (customPermissions && customPermissions.length > 0) {
     return customPermissions.includes(permission);
   }
@@ -94,10 +96,19 @@ export function assertCanWithCustom(
   }
 }
 
+/** Prefer this for workspace-scoped server actions — honors custom role permissions. */
+export function assertWorkspacePermission(
+  workspace: { role: WorkspaceRole; customPermissions?: string[] | null },
+  permission: Permission,
+): void {
+  assertCanWithCustom(workspace.role, workspace.customPermissions, permission);
+}
+
 export function resolvePermissions(
   role: WorkspaceRole,
   customPermissions?: string[] | null,
 ): Permission[] {
+  if (role === "owner") return ROLE_PERMISSIONS.owner;
   if (customPermissions && customPermissions.length > 0) {
     return customPermissions as Permission[];
   }

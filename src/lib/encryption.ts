@@ -1,5 +1,15 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
+/**
+ * Envelope format: `v1:iv:tag:ciphertext` (hex parts).
+ *
+ * Rotation plan (future):
+ * - Encrypt with current ENCRYPTION_KEY as v1 (or v2 once introduced).
+ * - Keep ENCRYPTION_KEY_PREVIOUS temporarily to decrypt old blobs.
+ * - Re-encrypt sessions/proxies/webhook secrets, then drop previous key.
+ * Never rotate ENCRYPTION_KEY in production without a re-encrypt job.
+ */
+
 function getKey(): Buffer {
   const hex = process.env.ENCRYPTION_KEY;
   if (!hex || hex.length !== 64) {

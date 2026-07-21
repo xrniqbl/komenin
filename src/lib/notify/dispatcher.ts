@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/encryption";
+import { safeOutboundFetch, UnsafeUrlError } from "@/lib/url-safety";
 import type { NotificationEvent } from "./channels";
 import { detectFormatter, formatDiscordEmbed, formatGeneric, formatSlackPayload } from "./formatters";
 
@@ -66,12 +67,21 @@ export async function dispatchExternal(event: NotificationEvent, workspaceId: st
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
 
-      const res = await fetch(ep.url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
+      let res: Response;
+      try {
+        res = await safeOutboundFetch(ep.url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } catch (error) {
+        clearTimeout(timeout);
+        if (error instanceof UnsafeUrlError) {
+          throw new Error(`Blocked unsafe webhook URL: ${error.message}`);
+        }
+        throw error;
+      }
 
       clearTimeout(timeout);
       results.push({ id: ep.id, ok: res.ok, error: res.ok ? undefined : `${res.status} ${res.statusText}` });

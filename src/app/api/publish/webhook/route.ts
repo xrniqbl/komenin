@@ -18,6 +18,12 @@ type WebhookBody = {
   publishedAt?: string | null;
 };
 
+/** Open publish webhook only with explicit ALLOW_SECURITY_STUBS (never in production). */
+function allowInsecurePublishWebhook(): boolean {
+  if (isProductionRuntime()) return false;
+  return process.env.ALLOW_SECURITY_STUBS === "true";
+}
+
 export async function POST(request: Request) {
   const rate = consumeRateLimit({
     key: getRequestRateKey(request, "api:publish:webhook"),
@@ -28,10 +34,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
   const expected = process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN?.trim();
+  // Fail closed: token required unless ALLOW_SECURITY_STUBS=true in non-production.
   if (!expected) {
-    if (isProductionRuntime()) {
+    if (!allowInsecurePublishWebhook()) {
       return NextResponse.json(
-        { error: "SOCIAL_PUBLISH_WEBHOOK_TOKEN must be configured in production" },
+        {
+          error:
+            "SOCIAL_PUBLISH_WEBHOOK_TOKEN must be configured (set ALLOW_SECURITY_STUBS=true only for local insecure stubs)",
+        },
         { status: 503 },
       );
     }
@@ -79,11 +89,12 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
+  const tokenConfigured = Boolean(process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN?.trim());
   return NextResponse.json({
     ok: true,
     endpoint: "/api/publish/webhook",
-    auth: Boolean(process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN?.trim()),
+    authRequired: tokenConfigured || !allowInsecurePublishWebhook(),
     usage:
-      "POST JSON { platform, username, accountId, title, body, hashtags, caption, scheduledFor, publishedAt }",
+      "POST JSON { platform, username, accountId, title, body, hashtags, caption, scheduledFor, publishedAt } with Authorization: Bearer <SOCIAL_PUBLISH_WEBHOOK_TOKEN>",
   });
 }

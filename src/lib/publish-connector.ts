@@ -44,8 +44,16 @@ export function getDefaultWebhookConfig(): ConnectorWebhookConfig | null {
 export function getDefaultOfficialConfig(
   platform?: string,
 ): ConnectorOfficialConfig | null {
+  const provider = (platform || "instagram").toLowerCase();
   const token =
     process.env.SOCIAL_OFFICIAL_API_TOKEN?.trim() ||
+    (provider.includes("instagram")
+      ? process.env.INSTAGRAM_ACCESS_TOKEN?.trim()
+      : provider.includes("threads")
+        ? process.env.THREADS_ACCESS_TOKEN?.trim()
+        : provider.includes("tiktok")
+          ? process.env.TIKTOK_ACCESS_TOKEN?.trim()
+          : "") ||
     process.env.INSTAGRAM_ACCESS_TOKEN?.trim() ||
     process.env.THREADS_ACCESS_TOKEN?.trim() ||
     process.env.TIKTOK_ACCESS_TOKEN?.trim() ||
@@ -61,6 +69,40 @@ export function getDefaultOfficialConfig(
       process.env.TIKTOK_API_BASE_URL?.trim() ||
       null,
   };
+}
+
+/** Prefer workspace vault credentials, then env-based official tokens. */
+export async function resolveOfficialConfigForPublish(input: {
+  platform?: string | null;
+  workspaceId?: string | null;
+  accountId?: string | null;
+  official?: ConnectorOfficialConfig | null;
+}): Promise<ConnectorOfficialConfig | null> {
+  if (input.official) return input.official;
+
+  if (input.workspaceId) {
+    try {
+      const { resolveOfficialCredential } = await import(
+        "@/server/connector-credentials"
+      );
+      const vault = await resolveOfficialCredential({
+        workspaceId: input.workspaceId,
+        provider: (input.platform || "instagram").toLowerCase(),
+        socialAccountId: input.accountId,
+      });
+      if (vault) {
+        return {
+          provider: vault.provider,
+          accessToken: vault.accessToken,
+          apiBaseUrl: vault.apiBaseUrl,
+        };
+      }
+    } catch {
+      // fall through to env config
+    }
+  }
+
+  return getDefaultOfficialConfig(input.platform || undefined);
 }
 
 export function getDefaultConnectorPolicy(
@@ -98,10 +140,12 @@ export async function publishSocialPost(input: {
     },
     payload: input.payload as ConnectorPublishPayload,
     webhook: input.webhook === undefined ? getDefaultWebhookConfig() : input.webhook,
-    official:
-      input.official === undefined
-        ? getDefaultOfficialConfig(input.target.platform)
-        : input.official,
+    official: await resolveOfficialConfigForPublish({
+      platform: input.target.platform,
+      workspaceId: input.target.workspaceId,
+      accountId: input.target.accountId,
+      official: input.official,
+    }),
   });
 
   return {

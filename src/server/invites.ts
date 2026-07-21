@@ -3,7 +3,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { assertCan } from "@/lib/rbac";
+import { assertCanWithCustom } from "@/lib/rbac";
 import { requireMembership } from "@/server/memberships";
 import { cookies } from "next/headers";
 import { ACTIVE_WORKSPACE_COOKIE } from "@/lib/workspace-cookie";
@@ -20,7 +20,11 @@ export async function createInvite(input: {
   role: WorkspaceRole;
 }) {
   const membership = await requireMembership(input.workspaceId);
-  assertCan(membership.role, "members.manage");
+  assertCanWithCustom(
+    membership.role,
+    membership.customRole?.permissions,
+    "members.manage",
+  );
 
   const token = randomBytes(24).toString("hex");
   const tokenHash = hashToken(token);
@@ -81,6 +85,16 @@ export async function acceptInvite(token: string) {
       where: { id: invite.id },
       data: { acceptedAt: new Date() },
     });
+  });
+
+  // Land the user in the invited workspace on next app load.
+  const jar = await cookies();
+  jar.set(ACTIVE_WORKSPACE_COOKIE, invite.workspaceId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
   });
 
   await writeAuditLog({

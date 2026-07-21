@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assertCan, PERMISSION_DEFINITIONS, type Permission } from "@/lib/rbac";
+import { assertWorkspacePermission, PERMISSION_DEFINITIONS, type Permission } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
@@ -40,7 +40,7 @@ export async function createCustomRole(input: {
   permissions: string[];
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
 
   const name = input.name.trim();
   if (!name) throw new Error("Role name required");
@@ -85,7 +85,7 @@ export async function updateCustomRole(
   input: { name?: string; description?: string; permissions?: string[] },
 ) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
 
   const existing = await db.customRole.findFirst({
     where: { id, workspaceId: workspace.id },
@@ -124,7 +124,7 @@ export async function updateCustomRole(
 
 export async function deleteCustomRole(id: string) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
 
   const existing = await db.customRole.findFirst({
     where: { id, workspaceId: workspace.id },

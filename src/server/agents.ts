@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { generateContextualCommentHybrid } from "@/lib/comment-engine";
 import { rankChunks } from "@/lib/knowledge/retrieve";
 import { db } from "@/lib/db";
@@ -82,7 +82,7 @@ export async function createAgent(input: {
   systemPrompt?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "agents.manage");
+  assertWorkspacePermission(workspace, "agents.manage");
 
   const agent = await db.agent.create({
     data: {
@@ -118,7 +118,7 @@ export async function updateAgent(input: {
   status?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "agents.manage");
+  assertWorkspacePermission(workspace, "agents.manage");
   const existing = await db.agent.findFirst({
     where: { id: input.agentId, workspaceId: workspace.id },
   });
@@ -156,7 +156,7 @@ export async function addKnowledgeDocument(input: {
   sourceUrl?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "agents.manage");
+  assertWorkspacePermission(workspace, "agents.manage");
 
   const doc = await db.knowledgeDocument.create({
     data: {
@@ -191,7 +191,7 @@ export async function addMemoryEntry(input: {
   confidence?: number;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "agents.manage");
+  assertWorkspacePermission(workspace, "agents.manage");
 
   const entry = await db.memoryEntry.create({
     data: {
@@ -221,7 +221,7 @@ export async function runAgentPlayground(input: {
   postContent: string;
 }) {
   const { workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "agents.manage");
+  assertWorkspacePermission(workspace, "agents.manage");
   const agent = await db.agent.findFirst({
     where: { id: input.agentId, workspaceId: workspace.id },
   });

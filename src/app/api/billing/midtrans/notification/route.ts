@@ -52,13 +52,14 @@ export async function POST(request: Request) {
       transactionStatus: payload.transaction_status,
       payload,
       signatureValid: true,
+      // Bind Midtrans gross_amount to order.totalIdr inside applyPaidOrder.
+      expectedGrossAmount: payload.gross_amount,
     });
 
     return NextResponse.json({ ok: true, result });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Notification failed" },
-      { status: 400 },
-    );
+    const message = error instanceof Error ? error.message : "Notification failed";
+    const status = message.includes("amount mismatch") ? 409 : 400;
+    return NextResponse.json({ error: message }, { status });
   }
 }

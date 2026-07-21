@@ -18,6 +18,9 @@ export type WorkspaceSummary = {
   name: string;
   slug: string;
   role: WorkspaceRole;
+  /** Custom role permission keys when membership.customRoleId is set. */
+  customPermissions?: string[] | null;
+  customRoleId?: string | null;
   connectorPolicy: ConnectorPolicy;
   planCode: string;
   monthlySendLimit: number;

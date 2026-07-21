@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { encryptSecret } from "@/lib/encryption";
 import { simulateIp } from "@/lib/session-routing";
 import { db } from "@/lib/db";
@@ -9,14 +9,46 @@ import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 import type { ProxyProtocol, ProxyType, RotationMode } from "@prisma/client";
 
+/** List/detail fields without encrypted credentials. */
+const proxySafeSelect = {
+  id: true,
+  workspaceId: true,
+  label: true,
+  protocol: true,
+  host: true,
+  port: true,
+  provider: true,
+  type: true,
+  country: true,
+  rotationMode: true,
+  rotateEveryMin: true,
+  isHealthy: true,
+  lastCheckedAt: true,
+  lastIp: true,
+  createdAt: true,
+  updatedAt: true,
+  // usernameEnc / passwordEnc intentionally omitted
+} as const;
+
 export async function listProxies() {
   const { workspace } = await requireActiveWorkspace();
   return db.proxyEndpoint.findMany({
     where: { workspaceId: workspace.id, deletedAt: null },
-    include: {
+    select: {
+      ...proxySafeSelect,
       assignments: {
         where: { isActive: true },
-        include: { socialAccount: true },
+        select: {
+          id: true,
+          socialAccount: {
+            select: {
+              id: true,
+              username: true,
+              platform: true,
+              status: true,
+            },
+          },
+        },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -37,7 +69,7 @@ export async function createProxy(input: {
   rotateEveryMin?: number;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "accounts.manage");
+  assertWorkspacePermission(workspace, "accounts.manage");
 
   const label = input.label.trim();
   const host = input.host.trim();
@@ -63,6 +95,7 @@ export async function createProxy(input: {
       lastCheckedAt: new Date(),
       lastIp: simulateIp(`${host}:${input.port}`),
     },
+    select: proxySafeSelect,
   });
 
   await writeAuditLog({
@@ -81,7 +114,7 @@ export async function createProxy(input: {
 
 export async function checkProxyHealth(proxyId: string) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "accounts.manage");
+  assertWorkspacePermission(workspace, "accounts.manage");
 
   const proxy = await db.proxyEndpoint.findFirst({
     where: { id: proxyId, workspaceId: workspace.id, deletedAt: null },
@@ -98,6 +131,7 @@ export async function checkProxyHealth(proxyId: string) {
       lastCheckedAt: new Date(),
       lastIp,
     },
+    select: proxySafeSelect,
   });
 
   await writeAuditLog({

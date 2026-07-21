@@ -32,6 +32,7 @@ type Endpoint = {
   actions: string[];
   isActive: boolean;
   createdAt: Date | string;
+  hasSecret?: boolean;
 };
 
 export function WebhooksManager({ initial }: { initial: Endpoint[] }) {
@@ -201,6 +202,11 @@ export function WebhooksManager({ initial }: { initial: Endpoint[] }) {
                       <Badge variant={ep.isActive ? "secondary" : "outline"} className="text-[10px]">
                         {ep.isActive ? "active" : "inactive"}
                       </Badge>
+                      {ep.hasSecret ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          secret set
+                        </Badge>
+                      ) : null}
                     </div>
                     <div className="mt-1 truncate font-mono text-xs text-muted-foreground">{ep.url}</div>
                     <div className="mt-2 flex flex-wrap gap-1">

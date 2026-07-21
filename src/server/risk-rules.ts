@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
+import { validateRiskPattern } from "@/lib/risk-scanner";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
@@ -21,11 +22,11 @@ export async function createRiskRule(input: {
   agentId?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
 
   const pattern = input.pattern.trim();
-  if (!pattern) throw new Error("Pattern is required");
-  if (pattern.length > 2000) throw new Error("Pattern too long");
+  const patternError = validateRiskPattern(pattern);
+  if (patternError) throw new Error(patternError);
 
   const rule = await db.riskRule.create({
     data: {
@@ -57,12 +58,18 @@ export async function updateRiskRule(
   data: { pattern?: string; severity?: string; isActive?: boolean; type?: string },
 ) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
 
   const existing = await db.riskRule.findFirst({
     where: { id, workspaceId: workspace.id },
   });
   if (!existing) throw new Error("Risk rule not found");
+
+  if (data.pattern !== undefined) {
+    const nextPattern = data.pattern.trim();
+    const patternError = validateRiskPattern(nextPattern);
+    if (patternError) throw new Error(patternError);
+  }
 
   const updated = await db.riskRule.update({
     where: { id },
@@ -89,7 +96,7 @@ export async function updateRiskRule(
 
 export async function deleteRiskRule(id: string) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
 
   const existing = await db.riskRule.findFirst({
     where: { id, workspaceId: workspace.id },

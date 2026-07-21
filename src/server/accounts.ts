@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { encryptSecret } from "@/lib/encryption";
 import { simulateIp } from "@/lib/session-routing";
 import { assertProductionSessionPayload } from "@/lib/session-payload";
@@ -34,20 +34,64 @@ export async function listAccounts(input?: {
 
   return db.socialAccount.findMany({
     where,
-    include: {
+    select: {
+      id: true,
+      workspaceId: true,
+      platform: true,
+      username: true,
+      displayName: true,
+      status: true,
+      healthScore: true,
+      currentIp: true,
+      notes: true,
+      createdAt: true,
+      updatedAt: true,
+      lastActionAt: true,
       sessions: {
         where: { isActive: true },
         orderBy: { createdAt: "desc" },
         take: 1,
+        select: {
+          id: true,
+          isActive: true,
+          userAgent: true,
+          keyVersion: true,
+          lastUsedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          // encryptedBlob omitted
+        },
       },
       proxyAssignments: {
         where: { isActive: true },
-        include: { proxyEndpoint: true },
         take: 1,
+        select: {
+          id: true,
+          proxyEndpoint: {
+            select: {
+              id: true,
+              label: true,
+              protocol: true,
+              host: true,
+              port: true,
+              isHealthy: true,
+              lastIp: true,
+              // usernameEnc / passwordEnc omitted
+            },
+          },
+        },
       },
       healthChecks: {
         orderBy: { createdAt: "desc" },
         take: 1,
+        select: {
+          id: true,
+          ok: true,
+          signal: true,
+          latencyMs: true,
+          details: true,
+          createdAt: true,
+        },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -58,14 +102,77 @@ export async function getAccount(accountId: string) {
   const { workspace } = await requireActiveWorkspace();
   return db.socialAccount.findFirst({
     where: { id: accountId, workspaceId: workspace.id, deletedAt: null },
-    include: {
-      sessions: { orderBy: { createdAt: "desc" }, take: 5 },
+    select: {
+      id: true,
+      workspaceId: true,
+      platform: true,
+      username: true,
+      displayName: true,
+      status: true,
+      healthScore: true,
+      currentIp: true,
+      notes: true,
+      createdAt: true,
+      updatedAt: true,
+      lastActionAt: true,
+      sessions: {
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          isActive: true,
+          userAgent: true,
+          keyVersion: true,
+          lastUsedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          // encryptedBlob omitted
+        },
+      },
       proxyAssignments: {
         where: { isActive: true },
-        include: { proxyEndpoint: true },
+        select: {
+          id: true,
+          proxyEndpoint: {
+            select: {
+              id: true,
+              label: true,
+              protocol: true,
+              host: true,
+              port: true,
+              isHealthy: true,
+              lastIp: true,
+              provider: true,
+              type: true,
+              rotationMode: true,
+              // usernameEnc / passwordEnc omitted
+            },
+          },
+        },
       },
-      healthChecks: { orderBy: { createdAt: "desc" }, take: 10 },
-      rotationLogs: { orderBy: { createdAt: "desc" }, take: 10 },
+      healthChecks: {
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: {
+          id: true,
+          ok: true,
+          signal: true,
+          latencyMs: true,
+          details: true,
+          createdAt: true,
+        },
+      },
+      rotationLogs: {
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: {
+          id: true,
+          fromIp: true,
+          toIp: true,
+          reason: true,
+          createdAt: true,
+        },
+      },
     },
   });
 }
@@ -80,7 +187,7 @@ export async function createAccount(input: {
   notes?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "accounts.manage");
+  assertWorkspacePermission(workspace, "accounts.manage");
 
   const username = input.username.trim().replace(/^@/, "");
   if (!username) throw new Error("Username is required");
@@ -149,20 +256,21 @@ export async function createAccount(input: {
       });
     }
 
+    // Import validates cookie shape only — do not claim healthy until a real probe runs.
     await tx.sessionHealthCheck.create({
       data: {
         workspaceId: workspace.id,
         socialAccountId: created.id,
         ok: true,
-        latencyMs: 120,
+        latencyMs: null,
         signal: "session_imported",
-        details: `Imported ${validated.cookieNames.length} cookies for ${input.platform}`,
+        details: `Imported ${validated.cookieNames.length} cookies for ${input.platform}; pending live health probe`,
       },
     });
 
     return tx.socialAccount.update({
       where: { id: created.id },
-      data: { status: "healthy", healthScore: 95 },
+      data: { status: "connecting", healthScore: 60 },
     });
   });
 
@@ -195,7 +303,7 @@ export async function reimportAccountSession(input: {
   userAgent?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "accounts.manage");
+  assertWorkspacePermission(workspace, "accounts.manage");
 
   const account = await db.socialAccount.findFirst({
     where: {
@@ -251,17 +359,17 @@ export async function reimportAccountSession(input: {
         workspaceId: workspace.id,
         socialAccountId: account.id,
         ok: true,
-        latencyMs: 90,
+        latencyMs: null,
         signal: "session_reimported",
-        details: `Re-imported ${validated.cookieNames.length} cookies for ${account.platform}`,
+        details: `Re-imported ${validated.cookieNames.length} cookies for ${account.platform}; pending live health probe`,
       },
     });
 
     await tx.socialAccount.update({
       where: { id: account.id },
       data: {
-        status: "healthy",
-        healthScore: 95,
+        status: "connecting",
+        healthScore: 60,
         lastActionAt: new Date(),
       },
     });
@@ -289,16 +397,26 @@ export async function reimportAccountSession(input: {
 
 export async function runAccountHealthCheck(accountId: string) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "accounts.manage");
+  assertWorkspacePermission(workspace, "accounts.manage");
 
   const account = await db.socialAccount.findFirst({
     where: { id: accountId, workspaceId: workspace.id, deletedAt: null },
-    include: {
-      sessions: { where: { isActive: true }, take: 1 },
+    select: {
+      id: true,
+      healthScore: true,
+      sessions: {
+        where: { isActive: true },
+        take: 1,
+        select: { id: true },
+      },
       proxyAssignments: {
         where: { isActive: true },
-        include: { proxyEndpoint: true },
         take: 1,
+        select: {
+          proxyEndpoint: {
+            select: { id: true, isHealthy: true },
+          },
+        },
       },
     },
   });
@@ -307,13 +425,14 @@ export async function runAccountHealthCheck(accountId: string) {
   const hasSession = account.sessions.length > 0;
   const proxy = account.proxyAssignments[0]?.proxyEndpoint;
   const proxyOk = !proxy || proxy.isHealthy;
+  // Presence-only probe until live connector health is wired; do not invent high confidence.
   const ok = hasSession && proxyOk;
   const status: SocialAccountStatus = ok
     ? "healthy"
     : !hasSession
       ? "limited"
       : "degraded";
-  const healthScore = ok ? Math.min(100, account.healthScore + 5) : Math.max(10, account.healthScore - 15);
+  const healthScore = ok ? Math.min(90, Math.max(account.healthScore, 70)) : Math.max(10, account.healthScore - 15);
 
   await db.$transaction(async (tx) => {
     await tx.sessionHealthCheck.create({
@@ -321,10 +440,10 @@ export async function runAccountHealthCheck(accountId: string) {
         workspaceId: workspace.id,
         socialAccountId: account.id,
         ok,
-        latencyMs: ok ? 90 + Math.floor(Math.random() * 80) : 800,
-        signal: ok ? "healthy" : !hasSession ? "session_missing" : "proxy_degraded",
+        latencyMs: null,
+        signal: ok ? "session_present" : !hasSession ? "session_missing" : "proxy_degraded",
         details: ok
-          ? "Probe succeeded"
+          ? "Active encrypted session present (live platform probe not yet enabled)"
           : !hasSession
             ? "No active session"
             : "Assigned proxy unhealthy",
@@ -358,15 +477,22 @@ export async function runAccountHealthCheck(accountId: string) {
 
 export async function rotateAccountIp(accountId: string, reason = "manual_rotate") {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "accounts.manage");
+  assertWorkspacePermission(workspace, "accounts.manage");
 
   const account = await db.socialAccount.findFirst({
     where: { id: accountId, workspaceId: workspace.id, deletedAt: null },
-    include: {
+    select: {
+      id: true,
+      currentIp: true,
+      status: true,
       proxyAssignments: {
         where: { isActive: true },
-        include: { proxyEndpoint: true },
         take: 1,
+        select: {
+          proxyEndpoint: {
+            select: { id: true },
+          },
+        },
       },
     },
   });

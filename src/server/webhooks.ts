@@ -1,18 +1,44 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { encryptSecret } from "@/lib/encryption";
+import { assertSafeOutboundUrl, UnsafeUrlError } from "@/lib/url-safety";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 
+async function normalizeWebhookUrl(raw: string): Promise<string> {
+  try {
+    const url = assertSafeOutboundUrl(raw);
+    return url.toString();
+  } catch (error) {
+    if (error instanceof UnsafeUrlError) throw new Error(error.message);
+    throw new Error("Invalid URL");
+  }
+}
+
 export async function listWebhookEndpoints() {
   const { workspace } = await requireActiveWorkspace();
-  return db.webhookEndpoint.findMany({
+  const rows = await db.webhookEndpoint.findMany({
     where: { workspaceId: workspace.id },
+    select: {
+      id: true,
+      workspaceId: true,
+      name: true,
+      url: true,
+      actions: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      secretEnc: true, // used only to derive hasSecret, stripped below
+    },
     orderBy: { createdAt: "desc" },
   });
+  return rows.map(({ secretEnc, ...endpoint }) => ({
+    ...endpoint,
+    hasSecret: Boolean(secretEnc),
+  }));
 }
 
 export async function createWebhookEndpoint(input: {
@@ -22,18 +48,11 @@ export async function createWebhookEndpoint(input: {
   secret?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
 
   const name = input.name.trim();
-  const url = input.url.trim();
   if (!name) throw new Error("Name required");
-  if (!url) throw new Error("URL required");
-  try {
-    const parsed = new URL(url);
-    if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("URL must be http(s)");
-  } catch {
-    throw new Error("Invalid URL");
-  }
+  const url = await normalizeWebhookUrl(input.url);
 
   const endpoint = await db.webhookEndpoint.create({
     data: {
@@ -43,6 +62,16 @@ export async function createWebhookEndpoint(input: {
       actions: input.actions || [],
       secretEnc: input.secret ? encryptSecret(input.secret) : null,
       isActive: true,
+    },
+    select: {
+      id: true,
+      workspaceId: true,
+      name: true,
+      url: true,
+      actions: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
     },
   });
 
@@ -56,7 +85,7 @@ export async function createWebhookEndpoint(input: {
   });
 
   revalidatePath("/app/settings/webhooks");
-  return endpoint;
+  return { ...endpoint, hasSecret: Boolean(input.secret) };
 }
 
 export async function updateWebhookEndpoint(
@@ -64,7 +93,7 @@ export async function updateWebhookEndpoint(
   data: { name?: string; url?: string; actions?: string[]; isActive?: boolean; secret?: string },
 ) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
 
   const existing = await db.webhookEndpoint.findFirst({
     where: { id, workspaceId: workspace.id },
@@ -74,13 +103,7 @@ export async function updateWebhookEndpoint(
   const updateData: Record<string, unknown> = {};
   if (data.name !== undefined) updateData.name = data.name.trim();
   if (data.url !== undefined) {
-    const u = data.url.trim();
-    try {
-      new URL(u);
-    } catch {
-      throw new Error("Invalid URL");
-    }
-    updateData.url = u;
+    updateData.url = await normalizeWebhookUrl(data.url);
   }
   if (data.actions !== undefined) updateData.actions = data.actions;
   if (data.isActive !== undefined) updateData.isActive = data.isActive;
@@ -88,7 +111,21 @@ export async function updateWebhookEndpoint(
     updateData.secretEnc = data.secret ? encryptSecret(data.secret) : null;
   }
 
-  const updated = await db.webhookEndpoint.update({ where: { id }, data: updateData });
+  const updated = await db.webhookEndpoint.update({
+    where: { id },
+    data: updateData,
+    select: {
+      id: true,
+      workspaceId: true,
+      name: true,
+      url: true,
+      actions: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      secretEnc: true,
+    },
+  });
 
   await writeAuditLog({
     workspaceId: workspace.id,
@@ -99,12 +136,13 @@ export async function updateWebhookEndpoint(
   });
 
   revalidatePath("/app/settings/webhooks");
-  return updated;
+  const { secretEnc, ...safe } = updated;
+  return { ...safe, hasSecret: Boolean(secretEnc) };
 }
 
 export async function deleteWebhookEndpoint(id: string) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
 
   const existing = await db.webhookEndpoint.findFirst({
     where: { id, workspaceId: workspace.id },
@@ -127,7 +165,7 @@ export async function deleteWebhookEndpoint(id: string) {
 
 export async function testWebhookEndpoint(id: string) {
   const { workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
 
   const endpoint = await db.webhookEndpoint.findFirst({
     where: { id, workspaceId: workspace.id },

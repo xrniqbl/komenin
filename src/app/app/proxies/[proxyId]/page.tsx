@@ -17,12 +17,38 @@ export default async function ProxyDetailPage({
   const { workspace } = await requireActiveWorkspace();
   const proxy = await db.proxyEndpoint.findFirst({
     where: { id: proxyId, workspaceId: workspace.id, deletedAt: null },
-    include: {
+    select: {
+      id: true,
+      label: true,
+      protocol: true,
+      host: true,
+      port: true,
+      provider: true,
+      type: true,
+      rotationMode: true,
+      isHealthy: true,
+      lastIp: true,
+      // usernameEnc / passwordEnc omitted from UI query
       assignments: {
         where: { isActive: true },
-        include: { socialAccount: true },
+        select: {
+          id: true,
+          socialAccount: {
+            select: { id: true, username: true, platform: true, status: true },
+          },
+        },
       },
-      rotationLogs: { orderBy: { createdAt: "desc" }, take: 10 },
+      rotationLogs: {
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: {
+          id: true,
+          fromIp: true,
+          toIp: true,
+          reason: true,
+          createdAt: true,
+        },
+      },
     },
   });
   if (!proxy) notFound();

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { scanContentRisk } from "@/lib/risk-scanner";
+import {
+  MAX_RISK_PATTERN_LENGTH,
+  scanContentRisk,
+  validateRiskPattern,
+} from "@/lib/risk-scanner";
 
 describe("risk-scanner", () => {
   it("detects banned phrase", () => {
@@ -45,5 +49,27 @@ describe("risk-scanner", () => {
       ],
     });
     expect(result.flags.length).toBeGreaterThan(0);
+  });
+
+  it("rejects oversized or dangerous patterns", () => {
+    expect(validateRiskPattern("a".repeat(MAX_RISK_PATTERN_LENGTH + 1))).toMatch(/too long/i);
+    expect(validateRiskPattern("/(a+)+$/")).toMatch(/complex|Invalid/i);
+    expect(validateRiskPattern("/safe\\s+pattern/i")).toBeNull();
+  });
+
+  it("ignores unsafe custom regex at scan time", () => {
+    const result = scanContentRisk({
+      text: "normal comment without flags",
+      customRules: [
+        {
+          id: "bad",
+          type: "custom",
+          pattern: "/(a+)+$/",
+          severity: "high",
+          isActive: true,
+        },
+      ],
+    });
+    expect(result.blocked).toBe(false);
   });
 });

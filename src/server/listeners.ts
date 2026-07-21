@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
@@ -26,7 +26,7 @@ export async function createListener(input: {
   campaignId?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const query = input.query.trim();
   if (!query) throw new Error("Listener query is required");
@@ -57,7 +57,7 @@ export async function createListener(input: {
 
 export async function pollListener(listenerId: string) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const listener = await db.listener.findFirst({
     where: { id: listenerId, workspaceId: workspace.id },

@@ -26,19 +26,19 @@ export async function GET(request: Request) {
     const data = await getPublicStatus();
     // Gate is evaluated for overall health, but details stay private.
     const gateOk = isProductionRuntime() ? evaluateProductionGate().ok : true;
+    const degraded = data.services.some((s) => s.status !== "operational");
     return NextResponse.json({
-      ok:
-        data.incidents.length === 0 &&
-        data.uptime.overall >= 95 &&
-        gateOk,
+      ok: data.incidents.length === 0 && data.uptime.overall >= 95 && gateOk && !degraded,
       checkedAt: data.checkedAt,
-      uptime: data.uptime,
+      // Coarse public surface only — no job messages, delivery breakdowns, or raw counts.
+      uptime: {
+        overall: data.uptime.overall,
+      },
       services: data.services.map((s) => ({
         name: s.name,
         status: s.status,
-        uptime: (s as { uptime?: number }).uptime ?? null,
       })),
-      counts: data.counts,
+      incidentCount: data.incidents.length,
     });
   } catch {
     return NextResponse.json(

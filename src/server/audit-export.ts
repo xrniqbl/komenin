@@ -1,13 +1,13 @@
 "use server";
 
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 
 export async function exportAuditLogsCsv(limit = 1000) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "audit.export");
+  assertWorkspacePermission(workspace, "audit.export");
 
   const rows = await db.auditLog.findMany({
     where: { workspaceId: workspace.id },

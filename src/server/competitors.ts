@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
@@ -21,7 +21,7 @@ export async function createCompetitorProfile(input: {
   displayName?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   let handle = input.handle.trim().replace(/^@/, "");
   if (!handle) throw new Error("Handle is required");
@@ -67,7 +67,7 @@ export async function createCompetitorProfile(input: {
 
 export async function deleteCompetitorProfile(id: string) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const existing = await db.competitorProfile.findFirst({
     where: { id, workspaceId: workspace.id },

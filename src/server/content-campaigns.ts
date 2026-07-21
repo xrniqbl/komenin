@@ -5,7 +5,7 @@ import type { CampaignMode, ContentIntervalUnit, Platform } from "@prisma/client
 
 import { buildContentSchedule, generateContentPosts } from "@/lib/content-engine";
 import { publishSocialPost } from "@/lib/publish-connector";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { getRuntimeModeLabel } from "@/lib/runtime-mode";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
@@ -76,7 +76,7 @@ export async function createContentCampaign(input: {
   notes?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const name = input.name.trim();
   const topic = input.topic.trim();
@@ -136,7 +136,7 @@ export async function createContentCampaign(input: {
 
 export async function generateContentCampaignDrafts(campaignId: string) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const campaign = await db.contentCampaign.findFirst({
     where: { id: campaignId, workspaceId: workspace.id },
@@ -226,7 +226,7 @@ export async function decideContentDraft(input: {
   editedTitle?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const draft = await db.contentDraft.findFirst({
     where: { id: input.draftId, workspaceId: workspace.id },
@@ -275,7 +275,7 @@ export async function decideContentDraft(input: {
 
 export async function publishDueContentDrafts(limit = 30) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const due = await db.contentDraft.findMany({
     where: {
@@ -413,7 +413,7 @@ export async function rescheduleContentDraft(input: {
   scheduledFor: Date;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   if (Number.isNaN(input.scheduledFor.getTime())) {
     throw new Error("Invalid schedule datetime");
@@ -468,7 +468,7 @@ export async function bulkApproveContentDrafts(input: {
   draftIds?: string[];
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const campaign = await db.contentCampaign.findFirst({
     where: { id: input.campaignId, workspaceId: workspace.id },

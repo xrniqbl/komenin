@@ -1,4 +1,5 @@
 ﻿import { db } from "@/lib/db";
+import { assertSafeOutboundUrl, safeOutboundFetch, UnsafeUrlError } from "@/lib/url-safety";
 
 export type SkillRecord = {
   id: string;
@@ -136,8 +137,16 @@ export async function runSkill(input: {
     } else if (input.skill.executor === "webhook") {
       const config = input.skill.configJson as { url?: string; token?: string } | null;
       if (!config?.url) throw new Error("Webhook skill missing url");
+      try {
+        assertSafeOutboundUrl(config.url);
+      } catch (error) {
+        if (error instanceof UnsafeUrlError) {
+          throw new Error(`Blocked unsafe skill webhook URL: ${error.message}`);
+        }
+        throw error;
+      }
       steps.push({ title: "Call webhook skill", detail: config.url });
-      const response = await fetch(config.url, {
+      const response = await safeOutboundFetch(config.url, {
         method: "POST",
         headers: {
           "content-type": "application/json",

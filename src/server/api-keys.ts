@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { SCOPES, generateApiKey, isValidScope } from "@/lib/api-keys";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
@@ -21,7 +21,7 @@ export async function createApiKey(input: {
   expiresAt?: string | null;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
 
   const name = input.name.trim();
   if (!name) throw new Error("Name required");
@@ -69,7 +69,7 @@ export async function createApiKey(input: {
 
 export async function revokeApiKey(id: string) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
 
   const existing = await db.apiKey.findFirst({
     where: { id, workspaceId: workspace.id },
@@ -95,7 +95,7 @@ export async function revokeApiKey(id: string) {
 
 export async function deleteApiKey(id: string) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
 
   const existing = await db.apiKey.findFirst({
     where: { id, workspaceId: workspace.id },

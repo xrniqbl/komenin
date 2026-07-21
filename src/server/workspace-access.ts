@@ -11,7 +11,10 @@ export async function listWorkspacesForUser(): Promise<WorkspaceSummary[]> {
 
   const memberships = await db.membership.findMany({
     where: { userId: session.user.id, status: "active" },
-    include: { workspace: true },
+    include: {
+      workspace: true,
+      customRole: { select: { id: true, permissions: true } },
+    },
     orderBy: { createdAt: "asc" },
   });
 
@@ -22,6 +25,8 @@ export async function listWorkspacesForUser(): Promise<WorkspaceSummary[]> {
       name: m.workspace.name,
       slug: m.workspace.slug,
       role: m.role,
+      customRoleId: m.customRoleId,
+      customPermissions: m.customRole?.permissions ?? null,
       connectorPolicy: m.workspace.connectorPolicy,
       planCode: m.workspace.planCode,
       monthlySendLimit: m.workspace.monthlySendLimit,

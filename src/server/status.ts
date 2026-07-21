@@ -5,7 +5,7 @@ export async function getPublicStatus() {
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const [recentJobs, recentHealth, deliveryStats, failedJobs] = await Promise.all([
+  const [recentJobs, recentHealth, failedJobCount] = await Promise.all([
     db.jobRun.findMany({
       where: { startedAt: { gte: dayAgo } },
       select: { job: true, status: true, startedAt: true },
@@ -18,16 +18,8 @@ export async function getPublicStatus() {
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
-    db.deliveryLog.groupBy({
-      by: ["kind"],
-      where: { createdAt: { gte: dayAgo } },
-      _count: true,
-    }),
-    db.jobRun.findMany({
+    db.jobRun.count({
       where: { status: "failed", startedAt: { gte: monthAgo } },
-      select: { job: true, message: true, startedAt: true },
-      orderBy: { startedAt: "desc" },
-      take: 20,
     }),
   ]);
 
@@ -69,21 +61,37 @@ export async function getPublicStatus() {
     checkedAt: now.toISOString(),
     services: [
       { name: "Web App", status: "operational" as const, latency: null },
-      { name: "Worker", status: successRate24h > 80 ? ("operational" as const) : ("degraded" as const), uptime: successRate24h, latency: null },
-      { name: "Session Probes", status: healthRate > 80 ? ("operational" as const) : ("degraded" as const), uptime: healthRate, latency: null },
-      { name: "Delivery", status: "operational" as const, stats: deliveryStats.map((d) => ({ kind: d.kind, count: d._count })), latency: null },
+      {
+        name: "Worker",
+        status: successRate24h > 80 ? ("operational" as const) : ("degraded" as const),
+        uptime: successRate24h,
+        latency: null,
+      },
+      {
+        name: "Session Probes",
+        status: healthRate > 80 ? ("operational" as const) : ("degraded" as const),
+        uptime: healthRate,
+        latency: null,
+      },
+      { name: "Delivery", status: "operational" as const, latency: null },
     ],
     uptime: {
       overall: overallUptime,
-      buckets: uptimeBuckets,
+      buckets: uptimeBuckets.map(({ date, uptime }) => ({ date, uptime })),
       successRate24h,
       healthRate,
     },
-    incidents: failedJobs.map((j) => ({
-      title: `${j.job} failed`,
-      message: j.message || "Worker job failed",
-      at: j.startedAt.toISOString(),
-    })),
+    // Coarse incident signal only — no job names or error messages.
+    incidents:
+      failedJobCount > 0
+        ? [
+            {
+              title: "Background jobs degraded",
+              message: "One or more worker jobs failed in the last 30 days",
+              at: now.toISOString(),
+            },
+          ]
+        : [],
     counts: {
       jobs24h: totalJobs,
       succeeded24h: succeededJobs,

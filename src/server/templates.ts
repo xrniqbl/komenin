@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { parseVariables } from "@/lib/template-engine";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
@@ -44,7 +44,7 @@ export async function createCommentTemplate(input: {
   category?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const name = input.name.trim();
   const body = input.body.trim();
@@ -84,7 +84,7 @@ export async function updateCommentTemplate(
   input: { name?: string; body?: string; category?: string; isActive?: boolean },
 ) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const existing = await db.commentTemplate.findFirst({
     where: { id, workspaceId: workspace.id },
@@ -126,7 +126,7 @@ export async function updateCommentTemplate(
 
 export async function deleteCommentTemplate(id: string) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const existing = await db.commentTemplate.findFirst({
     where: { id, workspaceId: workspace.id },

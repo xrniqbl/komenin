@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { generateContextualCommentHybrid, pickDelaySeconds } from "@/lib/comment-engine";
 import { describeSendResult } from "@/lib/runtime-mode";
 import { db } from "@/lib/db";
@@ -51,7 +51,7 @@ export async function listActivity() {
 
 export async function generateDraftsForCampaign(campaignId: string) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const campaign = await db.campaign.findFirst({
     where: { id: campaignId, workspaceId: workspace.id },
@@ -135,7 +135,7 @@ export async function decideApproval(input: {
   note?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const approval = await db.approval.findFirst({
     where: { id: input.approvalId, workspaceId: workspace.id },
@@ -229,7 +229,7 @@ export async function bulkDecideApprovals(input: {
   note?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   if (input.approvalIds.length === 0) return { processed: 0 };
   if (input.approvalIds.length > 100) throw new Error("Bulk limit is 100");
@@ -328,7 +328,7 @@ export async function bulkDecideApprovals(input: {
 
 export async function executeDueSends() {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "campaigns.manage");
+  assertWorkspacePermission(workspace, "campaigns.manage");
 
   const due = await db.commentAction.findMany({
     where: {

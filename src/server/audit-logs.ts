@@ -1,12 +1,12 @@
 "use server";
 
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 
 export async function listAuditLogs(input?: { q?: string; action?: string; limit?: number }) {
   const { workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "audit.view");
+  assertWorkspacePermission(workspace, "audit.view");
 
   const limit = input?.limit ?? 100;
   const where: Record<string, unknown> & { workspaceId: string } = {

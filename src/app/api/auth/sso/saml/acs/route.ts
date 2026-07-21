@@ -1,20 +1,42 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { allowDevStubs, isProductionRuntime } from "@/lib/security";
+import { isProductionRuntime } from "@/lib/security";
+import {
+  completeSsoIdentityLogin,
+  loginFromSamlResponse,
+} from "@/server/sso-login";
 
 export const runtime = "nodejs";
 
+/** Explicit opt-in only — do not enable via SIMULATOR_MODE alone. */
+function allowUnsignedSamlDev(): boolean {
+  if (isProductionRuntime()) return false;
+  return process.env.ALLOW_SECURITY_STUBS === "true";
+}
+
 /**
  * SAML ACS endpoint.
- * Full XML signature validation is required for production IdP integration.
- * The development stub is disabled unless ALLOW_SECURITY_STUBS=true and not production.
+ *
+ * Production: refuses until XML signature validation is implemented.
+ * Dev (ALLOW_SECURITY_STUBS=true): accepts SAMLResponse parse or email form stub,
+ * mints a short-lived SSO ticket, redirects to Auth.js session complete.
  */
 export async function POST(request: Request) {
-  if (isProductionRuntime() || !allowDevStubs()) {
+  if (isProductionRuntime()) {
     return NextResponse.json(
       {
         error:
-          "SAML ACS stub is disabled. Configure full IdP assertion signature validation before enabling SSO login.",
+          "SAML ACS signature validation is not implemented for production. Do not enable SSO login yet.",
+      },
+      { status: 501 },
+    );
+  }
+
+  if (!allowUnsignedSamlDev()) {
+    return NextResponse.json(
+      {
+        error:
+          "SAML ACS is disabled. Set ALLOW_SECURITY_STUBS=true for local unsigned testing only.",
       },
       { status: 501 },
     );
@@ -22,85 +44,63 @@ export async function POST(request: Request) {
 
   try {
     const form = await request.formData().catch(() => null);
-    const body = form
-      ? {
-          email: String(form.get("email") || ""),
-          name: String(form.get("name") || ""),
-          workspaceId: String(form.get("RelayState") || form.get("workspaceId") || ""),
-        }
-      : ((await request.json().catch(() => ({}))) as {
-          email?: string;
-          name?: string;
-          workspaceId?: string;
-        });
+    const samlResponse = form ? String(form.get("SAMLResponse") || "") : "";
+    const relayState = form
+      ? String(form.get("RelayState") || form.get("workspaceId") || "")
+      : "";
 
-    const email = (body.email || "").trim().toLowerCase();
-    if (!email) {
-      return NextResponse.json({ error: "email required" }, { status: 400 });
-    }
-    const domain = email.split("@")[1];
-    const config = await db.ssoConfig.findFirst({
-      where: {
-        isActive: true,
-        OR: [
-          body.workspaceId ? { workspaceId: body.workspaceId } : undefined,
-          domain ? { emailDomain: domain } : undefined,
-        ].filter(Boolean) as object[],
-      },
-    });
-    if (!config) {
-      return NextResponse.json({ error: "SSO config not found" }, { status: 404 });
-    }
+    let result;
+    if (samlResponse) {
+      result = await loginFromSamlResponse({
+        samlResponse,
+        relayStateWorkspaceId: relayState || null,
+        allowUnsigned: true,
+      });
+    } else {
+      // Legacy dev form: email + optional name/workspace
+      const body = form
+        ? {
+            email: String(form.get("email") || ""),
+            name: String(form.get("name") || ""),
+            workspaceId: relayState,
+          }
+        : ((await request.json().catch(() => ({}))) as {
+            email?: string;
+            name?: string;
+            workspaceId?: string;
+          });
 
-    const user = await db.user.upsert({
-      where: { email },
-      create: {
-        email,
-        name: body.name || email.split("@")[0],
-        emailVerified: new Date(),
-      },
-      update: {
-        name: body.name || undefined,
-        lastLoginAt: new Date(),
-      },
-    });
-
-    await db.membership.upsert({
-      where: {
-        workspaceId_userId: {
-          workspaceId: config.workspaceId,
-          userId: user.id,
+      const email = (body.email || "").trim().toLowerCase();
+      if (!email) {
+        return NextResponse.json({ error: "email or SAMLResponse required" }, { status: 400 });
+      }
+      const domain = email.split("@")[1];
+      const config = await db.ssoConfig.findFirst({
+        where: {
+          isActive: true,
+          OR: [
+            body.workspaceId ? { workspaceId: body.workspaceId } : undefined,
+            domain ? { emailDomain: domain } : undefined,
+          ].filter(Boolean) as object[],
         },
-      },
-      create: {
-        workspaceId: config.workspaceId,
-        userId: user.id,
-        role: config.defaultRole,
-        status: "active",
-      },
-      update: {
-        status: "active",
-      },
-    });
+      });
+      if (!config) {
+        return NextResponse.json({ error: "SSO config not found" }, { status: 404 });
+      }
 
-    await db.auditLog.create({
-      data: {
+      result = await completeSsoIdentityLogin({
+        email,
+        name: body.name,
         workspaceId: config.workspaceId,
-        actorUserId: user.id,
-        action: "sso.login_jit_stub",
-        resourceType: "membership",
-        resourceId: user.id,
-        metadata: { protocol: config.protocol, email, stub: true },
-      },
-    });
+        defaultRole: config.defaultRole,
+        protocol: config.protocol,
+        auditAction: "sso.login_jit_stub",
+      });
+    }
 
-    return NextResponse.json({
-      ok: true,
-      userId: user.id,
-      workspaceId: config.workspaceId,
-      next: "/login?sso=1",
-      warning: "Development SSO stub only. Not safe for production.",
-    });
+    const completeUrl = new URL("/api/auth/sso/complete", request.url);
+    completeUrl.searchParams.set("ticket", result.ticket);
+    return NextResponse.redirect(completeUrl);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "ACS failed" },

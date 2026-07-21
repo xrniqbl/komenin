@@ -7,6 +7,7 @@ import type {
   PublishPayload,
   RotatePayload,
 } from "@/lib/connectors/types";
+import { safeOutboundFetch, UnsafeUrlError } from "@/lib/url-safety";
 
 function asDiscover(payload: ConnectorActionInput["payload"]): DiscoverPayload {
   return payload as DiscoverPayload;
@@ -48,7 +49,7 @@ async function postWebhook(
   }
 
   try {
-    const response = await fetch(webhook.url, {
+    const response = await safeOutboundFetch(webhook.url, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -106,9 +107,11 @@ async function postWebhook(
       mode: "live",
       connector: "webhook",
       message:
-        error instanceof Error
-          ? `Webhook error: ${error.message}`
-          : "Webhook error",
+        error instanceof UnsafeUrlError
+          ? `Webhook blocked: ${error.message}`
+          : error instanceof Error
+            ? `Webhook error: ${error.message}`
+            : "Webhook error",
     };
   }
 }

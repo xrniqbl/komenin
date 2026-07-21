@@ -14,7 +14,10 @@ export async function getActiveMembership(workspaceId: string) {
       userId: session.user.id,
       status: "active",
     },
-    include: { workspace: true },
+    include: {
+      workspace: true,
+      customRole: { select: { id: true, permissions: true } },
+    },
   });
 }
 

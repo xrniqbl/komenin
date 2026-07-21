@@ -1,4 +1,4 @@
-import { isProductionRuntime } from "@/lib/security";
+import { isProductionRuntime, safeEqual } from "@/lib/security";
 import { createHash } from "node:crypto";
 
 export type MidtransConfig = {
@@ -35,7 +35,8 @@ export function verifyMidtransSignature(input: {
 }): boolean {
   const payload = `${input.orderId}${input.statusCode}${input.grossAmount}${input.serverKey}`;
   const digest = createHash("sha512").update(payload).digest("hex");
-  return digest === input.signatureKey;
+  // Constant-time compare when lengths match (safeEqual returns false on length mismatch).
+  return safeEqual(digest, String(input.signatureKey || ""));
 }
 
 export async function createMidtransSnapTransaction(input: {

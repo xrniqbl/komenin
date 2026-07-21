@@ -65,7 +65,7 @@ export default async function StatusPage() {
                       height: `${Math.max(8, b.uptime)}%`,
                       background: b.uptime >= 95 ? "#16a34a" : b.uptime >= 80 ? "#eab308" : "#dc2626",
                     }}
-                    title={`${b.date}: ${b.uptime}% (${b.total} jobs)`}
+                    title={`${b.date}: ${b.uptime}%`}
                   />
                 ))}
               </div>
@@ -115,15 +115,6 @@ export default async function StatusPage() {
                 >
                   <div>
                     <div className="text-sm font-medium">{svc.name}</div>
-                    {svc.stats ? (
-                      <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
-                        {svc.stats.map((s: { kind: string; count: number }) => (
-                          <span key={s.kind} className="rounded-full border px-2 py-0.5">
-                            {s.kind}: {s.count}
-                          </span>
-                        ))}
-                      </div>
-                    ) : null}
                   </div>
                   <div className="flex items-center gap-2">
                     {svc.uptime != null ? (

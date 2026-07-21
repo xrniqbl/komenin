@@ -1,11 +1,16 @@
 import { revalidatePath } from "next/cache";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import {
   DEFAULT_PLANS,
   addMonths,
   computeVoucherDiscount,
   formatIdr,
 } from "@/lib/billing/catalog";
+import {
+  amountsMatchOrder,
+  extractGrossAmount,
+  parseMidtransGrossAmount,
+} from "@/lib/billing/amount";
 import { createMidtransSnapTransaction } from "@/lib/billing/midtrans";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
@@ -154,7 +159,7 @@ export async function createCheckoutSnap(input: {
   voucherCode?: string;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "billing.manage");
+  assertWorkspacePermission(workspace, "billing.manage");
   await ensureBillingCatalog();
 
   const plan = await db.plan.findFirst({
@@ -180,6 +185,8 @@ export async function createCheckoutSnap(input: {
   // Midtrans rejects gross_amount of 0 — if fully discounted, skip Snap and mark paid directly.
   const isFreeOrder = totalIdr === 0;
 
+  // Free (fully discounted) orders stay pending until applyPaidOrder marks them paid
+  // inside a transaction that also atomically redeems the voucher.
   const order = await db.subscriptionOrder.create({
     data: {
       workspaceId: workspace.id,
@@ -187,12 +194,11 @@ export async function createCheckoutSnap(input: {
       userId,
       voucherId,
       orderCode,
-      status: isFreeOrder ? "paid" : "pending",
+      status: "pending",
       subtotalIdr: plan.priceIdr,
       discountIdr,
       totalIdr,
       midtransOrderId: orderCode,
-      ...(isFreeOrder ? { paidAt: new Date() } : {}),
     },
   });
 
@@ -203,7 +209,8 @@ export async function createCheckoutSnap(input: {
       paymentType: "voucher_free",
       transactionId: `free_${orderCode}`,
       signatureValid: true,
-      payload: { free_order: true, discountIdr },
+      payload: { free_order: true, discountIdr, gross_amount: "0" },
+      expectedGrossAmount: 0,
     });
   }
 
@@ -259,6 +266,8 @@ export async function applyPaidOrder(orderCode: string, payment?: {
   transactionStatus?: string;
   payload?: unknown;
   signatureValid?: boolean;
+  /** Explicit Midtrans gross_amount (or free order 0). When set, must match order.totalIdr. */
+  expectedGrossAmount?: number | string | null;
 }) {
   const order = await db.subscriptionOrder.findFirst({
     where: {
@@ -272,16 +281,49 @@ export async function applyPaidOrder(orderCode: string, payment?: {
     throw new Error("Payment signature invalid");
   }
 
-  if (payment?.payload) {
+  // Bind Midtrans amount to order total when a gross_amount is present on the payload
+  // or provided explicitly. Free/sim paths should pass expectedGrossAmount matching total.
+  const grossFromPayload = extractGrossAmount(payment?.payload);
+  const grossCandidate =
+    payment?.expectedGrossAmount !== undefined && payment?.expectedGrossAmount !== null
+      ? payment.expectedGrossAmount
+      : grossFromPayload;
+
+  let amountMismatch = false;
+  if (grossCandidate !== undefined) {
+    if (!amountsMatchOrder(grossCandidate, order.totalIdr)) {
+      amountMismatch = true;
+    }
+  }
+
+  if (payment?.payload || amountMismatch) {
     await db.paymentEvent.create({
       data: {
         orderId: order.id,
-        eventType: payment.transactionStatus || "notification",
-        transactionStatus: payment.transactionStatus,
-        payload: payment.payload as object,
-        signatureValid: Boolean(payment.signatureValid),
+        eventType: amountMismatch
+          ? "amount_mismatch"
+          : payment?.transactionStatus || "notification",
+        transactionStatus: payment?.transactionStatus,
+        payload: {
+          ...(typeof payment?.payload === "object" && payment?.payload
+            ? (payment.payload as object)
+            : { raw: payment?.payload }),
+          ...(amountMismatch
+            ? {
+                expectedTotalIdr: order.totalIdr,
+                receivedGrossAmount: parseMidtransGrossAmount(grossCandidate),
+              }
+            : {}),
+        } as object,
+        signatureValid: Boolean(payment?.signatureValid),
       },
     });
+  }
+
+  if (amountMismatch) {
+    throw new Error(
+      `Payment amount mismatch: expected ${order.totalIdr}, got ${parseMidtransGrossAmount(grossCandidate)}`,
+    );
   }
 
   if (order.status === "paid") {
@@ -309,11 +351,68 @@ export async function applyPaidOrder(orderCode: string, payment?: {
     return { ok: false, orderId: order.id, status };
   }
 
+  // Only treat settlement/capture/success/simulation as paid transitions.
+  if (!["settlement", "capture", "success", "simulation"].includes(status)) {
+    throw new Error(`Unsupported payment status: ${status}`);
+  }
+
   // settlement / capture / success / simulation
   const now = new Date();
   const endsAt = addMonths(now, order.plan.durationMonths);
 
   const result = await db.$transaction(async (tx) => {
+    // Re-check status inside the transaction to avoid double-pay races.
+    const fresh = await tx.subscriptionOrder.findUnique({ where: { id: order.id } });
+    if (!fresh) throw new Error("Order not found");
+    if (fresh.status === "paid") {
+      return { paid: fresh, subscription: null as null, alreadyPaid: true as const };
+    }
+
+    if (order.voucherId) {
+      const voucher = await tx.voucher.findUnique({ where: { id: order.voucherId } });
+      if (!voucher || !voucher.isActive) {
+        throw new Error("Voucher not found");
+      }
+
+      // Atomic capacity reservation under maxRedemptions (null = unlimited).
+      if (voucher.maxRedemptions != null) {
+        const capacity = await tx.voucher.updateMany({
+          where: {
+            id: order.voucherId,
+            isActive: true,
+            redeemedCount: { lt: voucher.maxRedemptions },
+          },
+          data: { redeemedCount: { increment: 1 } },
+        });
+        if (capacity.count === 0) {
+          throw new Error("Voucher fully redeemed");
+        }
+      } else {
+        await tx.voucher.update({
+          where: { id: order.voucherId },
+          data: { redeemedCount: { increment: 1 } },
+        });
+      }
+
+      const workspaceRedeems = await tx.voucherRedemption.count({
+        where: { voucherId: order.voucherId, workspaceId: order.workspaceId },
+      });
+      if (workspaceRedeems >= voucher.perWorkspaceLimit) {
+        // Transaction aborts → redeemedCount increment is rolled back.
+        throw new Error("Voucher already used by this workspace");
+      }
+
+      await tx.voucherRedemption.create({
+        data: {
+          voucherId: order.voucherId,
+          workspaceId: order.workspaceId,
+          userId: order.userId,
+          orderId: order.id,
+          discountIdr: order.discountIdr,
+        },
+      });
+    }
+
     const paid = await tx.subscriptionOrder.update({
       where: { id: order.id },
       data: {
@@ -348,24 +447,12 @@ export async function applyPaidOrder(orderCode: string, payment?: {
       },
     });
 
-    if (order.voucherId) {
-      await tx.voucherRedemption.create({
-        data: {
-          voucherId: order.voucherId,
-          workspaceId: order.workspaceId,
-          userId: order.userId,
-          orderId: order.id,
-          discountIdr: order.discountIdr,
-        },
-      });
-      await tx.voucher.update({
-        where: { id: order.voucherId },
-        data: { redeemedCount: { increment: 1 } },
-      });
-    }
-
-    return { paid, subscription };
+    return { paid, subscription, alreadyPaid: false as const };
   });
+
+  if (result.alreadyPaid || !result.subscription) {
+    return { ok: true, alreadyPaid: true, orderId: order.id };
+  }
 
   await writeAuditLog({
     workspaceId: order.workspaceId,

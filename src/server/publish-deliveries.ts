@@ -3,7 +3,7 @@
 import { listPublishDeliveries } from "@/lib/publish-delivery-log";
 import { publishSocialPost } from "@/lib/publish-connector";
 import { getRuntimeModeLabel } from "@/lib/runtime-mode";
-import { assertCan } from "@/lib/rbac";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 
@@ -27,7 +27,7 @@ export async function getPublisherStatus() {
 
 export async function testPublishWebhook() {
   const { userId, workspace } = await requireActiveWorkspace();
-  assertCan(workspace.role, "settings.manage");
+  assertWorkspacePermission(workspace, "settings.manage");
   const mode = getRuntimeModeLabel();
 
   // Always exercise the configured live webhook path so the local receiver
