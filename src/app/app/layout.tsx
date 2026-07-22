@@ -1,9 +1,18 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/app/app-sidebar";
 import { AppTopbar } from "@/components/app/app-topbar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
+import { buildMetadata } from "@/lib/seo";
 import { requireActiveWorkspace } from "@/server/workspace-access";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Workspace",
+  description: "Aether workspace command center.",
+  path: "/app",
+  noIndex: true,
+});
 
 export default async function AppLayout({
   children,

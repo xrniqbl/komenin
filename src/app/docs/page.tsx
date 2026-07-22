@@ -1,7 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { BookOpen, Boxes, Bot, Cable, Rocket, Shield, Webhook, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PAGE_SEO, buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata(PAGE_SEO.docs);
 
 const cards = [
   {

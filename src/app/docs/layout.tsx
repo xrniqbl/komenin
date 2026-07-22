@@ -1,6 +1,10 @@
-﻿import { DocsMobileNav } from "@/components/docs/docs-mobile-nav";
+import type { Metadata } from "next";
+import { DocsMobileNav } from "@/components/docs/docs-mobile-nav";
 import { DocsSidebar } from "@/components/docs/docs-sidebar";
 import { DocsTopNav } from "@/components/docs/docs-top-nav";
+import { PAGE_SEO, buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata(PAGE_SEO.docs);
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
