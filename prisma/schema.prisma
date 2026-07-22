@@ -139,6 +139,13 @@ model Workspace {
   competitorProfiles CompetitorProfile[]
   apiKeys           ApiKey[]
   customRoles       CustomRole[]
+  aiProviders       WorkspaceAiProvider[]
+  // Workspace-level AI defaults (provider keys live on WorkspaceAiProvider)
+  aiDefaultProviderId String?
+  aiDefaultModel      String?
+  aiFallbackModels    String[] @default([])
+  aiTemperature       Float    @default(0.5)
+  aiMaxTokens         Int      @default(280)
 }
 
 
@@ -417,14 +424,29 @@ model Agent {
   language     String   @default("id")
   systemPrompt String   @db.Text
   status       String   @default("active")
+  // Optional model routing override (workspace provider + model id)
+  aiProviderId String?
+  model        String?
+  temperature  Float?
+  maxTokens    Int?
+  // Personality / characteristics pack for comment bots
+  style        String   @default("balanced") // concise | balanced | detailed | expert
+  formality    String   @default("neutral") // casual | neutral | formal
+  emojiPolicy  String   @default("light") // none | light | ok
+  ctaStyle     String   @default("soft") // none | soft | direct
+  maxSentences Int      @default(3)
+  bannedTopics String[] @default([])
+  mustInclude  String[] @default([])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  campaigns Campaign[]
-  drafts    CommentDraft[]
+  workspace  Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  aiProvider WorkspaceAiProvider? @relation(fields: [aiProviderId], references: [id], onDelete: SetNull)
+  campaigns  Campaign[]
+  drafts     CommentDraft[]
 
   @@index([workspaceId, status])
+  @@index([aiProviderId])
   contentCampaigns ContentCampaign[]
   contentDrafts ContentDraft[]
   guardrails AgentGuardrail[]
@@ -432,6 +454,32 @@ model Agent {
   memoryEntries MemoryEntry[]
   skillRuns SkillRun[]
   riskRules RiskRule[]
+}
+
+enum AiProviderKind {
+  ninerouter
+  openai
+  anthropic
+  openai_compatible
+}
+
+model WorkspaceAiProvider {
+  id         String         @id @default(cuid())
+  workspaceId String
+  kind       AiProviderKind
+  label      String
+  baseUrl    String?
+  apiKeyEnc  String?        @db.Text
+  models     String[]
+  isEnabled  Boolean        @default(true)
+  priority   Int            @default(100)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agents    Agent[]
+
+  @@index([workspaceId, isEnabled, priority])
 }
 
 

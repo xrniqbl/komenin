@@ -159,12 +159,18 @@ export default async function PublisherSettingsPage({
           <div className="flex flex-wrap items-center gap-2">
             <CardTitle className="text-base">Official OAuth / credential vault</CardTitle>
             <Badge variant={status.instagramOAuthConfigured ? "default" : "secondary"}>
-              {status.instagramOAuthConfigured ? "Instagram ready" : "Instagram env missing"}
+              IG {status.instagramOAuthConfigured ? "ready" : "env"}
+            </Badge>
+            <Badge variant={status.threadsOAuthConfigured ? "default" : "secondary"}>
+              Threads {status.threadsOAuthConfigured ? "ready" : "env"}
+            </Badge>
+            <Badge variant={status.tiktokOAuthConfigured ? "default" : "secondary"}>
+              TikTok {status.tiktokOAuthConfigured ? "ready" : "env"}
             </Badge>
           </div>
           <CardDescription>
-            Tokens are stored encrypted in <code>ConnectorCredential</code>. Threads/TikTok OAuth
-            authorize flows are still not shipped. Session import remains the primary account path.
+            Tokens are stored encrypted in <code>ConnectorCredential</code>. Cookie session import
+            remains available under Accounts and now runs live HTTP health probes on check/worker.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -178,19 +184,30 @@ export default async function PublisherSettingsPage({
                 Connect Instagram OAuth
               </Button>
             )}
-            <Button type="button" disabled variant="outline">
-              Threads (soon)
-            </Button>
-            <Button type="button" disabled variant="outline">
-              TikTok (soon)
-            </Button>
+            {status.threadsOAuthConfigured ? (
+              <Button render={<a href="/api/connectors/threads/authorize" />} nativeButton={false}>
+                Connect Threads OAuth
+              </Button>
+            ) : (
+              <Button type="button" disabled variant="outline">
+                Connect Threads OAuth
+              </Button>
+            )}
+            {status.tiktokOAuthConfigured ? (
+              <Button render={<a href="/api/connectors/tiktok/authorize" />} nativeButton={false}>
+                Connect TikTok OAuth
+              </Button>
+            ) : (
+              <Button type="button" disabled variant="outline">
+                Connect TikTok OAuth
+              </Button>
+            )}
           </div>
-          {!status.instagramOAuthConfigured ? (
-            <p className="text-xs text-muted-foreground">
-              Set <code>INSTAGRAM_APP_ID</code>, <code>INSTAGRAM_APP_SECRET</code>, and{" "}
-              <code>APP_URL</code> to enable authorize + token exchange.
-            </p>
-          ) : null}
+          <p className="text-xs text-muted-foreground">
+            IG: <code>INSTAGRAM_APP_ID/SECRET</code> · Threads:{" "}
+            <code>THREADS_APP_ID/SECRET</code> (or IG app) · TikTok:{" "}
+            <code>TIKTOK_CLIENT_KEY/SECRET</code> · plus <code>APP_URL</code>.
+          </p>
           {status.credentials.length === 0 ? (
             <p className="text-sm text-muted-foreground">No vault credentials stored yet.</p>
           ) : (

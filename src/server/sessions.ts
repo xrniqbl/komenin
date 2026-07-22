@@ -86,8 +86,8 @@ export async function getSession(sessionId: string) {
             take: 5,
             select: {
               id: true,
-              fromIp: true,
-              toIp: true,
+              oldIp: true,
+              newIp: true,
               reason: true,
               createdAt: true,
             },

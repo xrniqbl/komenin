@@ -1,9 +1,18 @@
+export type AiProviderKind =
+  | "ninerouter"
+  | "openai"
+  | "anthropic"
+  | "openai_compatible";
+
 export type AiProviderConfig = {
   id: string;
+  kind: AiProviderKind;
   baseUrl: string;
   apiKey?: string;
   models: string[];
   timeoutMs?: number;
+  /** Lower runs first when resolving workspace providers. */
+  priority?: number;
 };
 
 export type AiChatMessage = {
@@ -15,6 +24,14 @@ export type AiChatRequest = {
   messages: AiChatMessage[];
   temperature?: number;
   maxTokens?: number;
+  /** Prefer this model id when present on a provider. */
+  preferredModel?: string | null;
+  /** Prefer this provider id (workspace or env). */
+  preferredProviderId?: string | null;
+  /** Ordered fallback model ids. */
+  fallbackModels?: string[];
+  /** Optional workspace context for vault providers (resolved by caller). */
+  providers?: AiProviderConfig[];
 };
 
 export type AiChatResult = {
@@ -35,9 +52,14 @@ export type AiRouterStatus = {
   providerCount: number;
   providers: Array<{
     id: string;
+    kind?: AiProviderKind;
     baseUrl: string;
     models: string[];
     hasApiKey: boolean;
   }>;
   localFallback: true;
+  source?: "workspace" | "env" | "mixed";
 };
+
+export const DEFAULT_OPENAI_BASE = "https://api.openai.com/v1";
+export const DEFAULT_ANTHROPIC_BASE = "https://api.anthropic.com";

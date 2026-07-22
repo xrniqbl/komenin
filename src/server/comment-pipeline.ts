@@ -78,6 +78,18 @@ export async function generateDraftsForCampaign(campaignId: string) {
       agentName: campaign.agent?.name,
       systemPrompt: campaign.agent?.systemPrompt,
       language: campaign.agent?.language,
+      workspaceId: workspace.id,
+      preferredProviderId: campaign.agent?.aiProviderId,
+      preferredModel: campaign.agent?.model,
+      temperature: campaign.agent?.temperature,
+      maxTokens: campaign.agent?.maxTokens,
+      style: campaign.agent?.style,
+      formality: campaign.agent?.formality,
+      emojiPolicy: campaign.agent?.emojiPolicy,
+      ctaStyle: campaign.agent?.ctaStyle,
+      maxSentences: campaign.agent?.maxSentences,
+      bannedTopics: campaign.agent?.bannedTopics,
+      mustInclude: campaign.agent?.mustInclude,
     });
 
     await db.$transaction(async (tx) => {

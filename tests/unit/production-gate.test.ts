@@ -1,25 +1,27 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { evaluateProductionGate } from "@/lib/production-gate";
 
-const originalEnv = { ...process.env };
-
 function setEnv(key: string, value: string | undefined) {
-  if (value === undefined) delete process.env[key];
-  else process.env[key] = value;
+  if (value === undefined) vi.stubEnv(key, undefined as unknown as string);
+  else vi.stubEnv(key, value);
 }
 
 function setBaseEnv(overrides: Record<string, string | undefined> = {}) {
-  process.env.NODE_ENV = "production";
-  process.env.DATABASE_URL =
-    overrides.DATABASE_URL ?? "postgresql://user:pass@localhost:5432/db";
-  process.env.AUTH_SECRET = overrides.AUTH_SECRET ?? "auth-secret-at-least-16";
-  process.env.AUTH_GOOGLE_ID = overrides.AUTH_GOOGLE_ID ?? "google-id";
-  process.env.AUTH_GOOGLE_SECRET = overrides.AUTH_GOOGLE_SECRET ?? "google-secret";
-  process.env.ENCRYPTION_KEY =
+  vi.stubEnv("NODE_ENV", "production");
+  vi.stubEnv(
+    "DATABASE_URL",
+    overrides.DATABASE_URL ?? "postgresql://user:pass@localhost:5432/db",
+  );
+  vi.stubEnv("AUTH_SECRET", overrides.AUTH_SECRET ?? "auth-secret-at-least-16");
+  vi.stubEnv("AUTH_GOOGLE_ID", overrides.AUTH_GOOGLE_ID ?? "google-id");
+  vi.stubEnv("AUTH_GOOGLE_SECRET", overrides.AUTH_GOOGLE_SECRET ?? "google-secret");
+  vi.stubEnv(
+    "ENCRYPTION_KEY",
     overrides.ENCRYPTION_KEY ??
-    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-  process.env.WORKER_SECRET = overrides.WORKER_SECRET ?? "worker-secret-16xx";
-  process.env.SIMULATOR_MODE = overrides.SIMULATOR_MODE ?? "false";
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  );
+  vi.stubEnv("WORKER_SECRET", overrides.WORKER_SECRET ?? "worker-secret-16xx");
+  vi.stubEnv("SIMULATOR_MODE", overrides.SIMULATOR_MODE ?? "false");
   setEnv(
     "SOCIAL_PUBLISH_WEBHOOK_TOKEN",
     "SOCIAL_PUBLISH_WEBHOOK_TOKEN" in overrides
@@ -29,15 +31,12 @@ function setBaseEnv(overrides: Record<string, string | undefined> = {}) {
   setEnv("MIDTRANS_IS_PRODUCTION", overrides.MIDTRANS_IS_PRODUCTION);
   setEnv("MIDTRANS_SERVER_KEY", overrides.MIDTRANS_SERVER_KEY);
   setEnv("MIDTRANS_CLIENT_KEY", overrides.MIDTRANS_CLIENT_KEY);
-  process.env.APP_URL = overrides.APP_URL ?? "https://app.example.com";
-  process.env.AUTH_URL = overrides.AUTH_URL ?? "https://app.example.com";
+  vi.stubEnv("APP_URL", overrides.APP_URL ?? "https://app.example.com");
+  vi.stubEnv("AUTH_URL", overrides.AUTH_URL ?? "https://app.example.com");
 }
 
 afterEach(() => {
-  for (const key of Object.keys(process.env)) {
-    if (!(key in originalEnv)) delete process.env[key];
-  }
-  Object.assign(process.env, originalEnv);
+  vi.unstubAllEnvs();
 });
 
 describe("production gate", () => {
@@ -53,6 +52,7 @@ describe("production gate", () => {
       SIMULATOR_MODE: "false",
       SOCIAL_PUBLISH_WEBHOOK_TOKEN: "",
     });
+    vi.stubEnv("SOCIAL_PUBLISH_WEBHOOK_TOKEN", undefined as unknown as string);
     delete process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN;
     const gate = evaluateProductionGate();
     expect(gate.ok).toBe(false);

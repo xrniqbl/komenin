@@ -1,9 +1,11 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { isProductionRuntime } from "@/lib/security";
 
+export type OAuthProvider = "instagram" | "threads" | "tiktok";
+
 export type OAuthStatePayload = {
   workspaceId: string;
-  provider: "instagram" | "threads" | "tiktok";
+  provider: OAuthProvider;
   socialAccountId?: string | null;
   nonce: string;
   exp: number; // unix seconds
@@ -62,7 +64,7 @@ export function verifyOAuthState(raw: string): OAuthStatePayload | null {
 
 export function createOAuthState(input: {
   workspaceId: string;
-  provider: OAuthStatePayload["provider"];
+  provider: OAuthProvider;
   socialAccountId?: string | null;
   ttlSeconds?: number;
 }): string {
@@ -76,23 +78,51 @@ export function createOAuthState(input: {
   });
 }
 
-/** True when Instagram OAuth env is complete enough to start authorize. */
+export function appBaseUrl(): string {
+  return (process.env.APP_URL || process.env.AUTH_URL || "").replace(/\/$/, "");
+}
+
+export function oauthCallbackUrl(provider: OAuthProvider): string {
+  return `${appBaseUrl()}/api/connectors/${provider}/callback`;
+}
+
+/** @deprecated use oauthCallbackUrl('instagram') */
+export function instagramOAuthCallbackUrl(): string {
+  return oauthCallbackUrl("instagram");
+}
+
 export function isInstagramOAuthConfigured(): boolean {
   return Boolean(
     process.env.INSTAGRAM_APP_ID?.trim() &&
       process.env.INSTAGRAM_APP_SECRET?.trim() &&
-      (process.env.APP_URL?.trim() || process.env.AUTH_URL?.trim()),
+      appBaseUrl(),
   );
 }
 
-export function instagramOAuthCallbackUrl(): string {
-  const base = (process.env.APP_URL || process.env.AUTH_URL || "").replace(/\/$/, "");
-  return `${base}/api/connectors/instagram/callback`;
+export function isThreadsOAuthConfigured(): boolean {
+  // Threads uses Meta app credentials (can share IG app or dedicated).
+  return Boolean(
+    (process.env.THREADS_APP_ID?.trim() || process.env.INSTAGRAM_APP_ID?.trim()) &&
+      (process.env.THREADS_APP_SECRET?.trim() || process.env.INSTAGRAM_APP_SECRET?.trim()) &&
+      appBaseUrl(),
+  );
+}
+
+export function isTikTokOAuthConfigured(): boolean {
+  return Boolean(
+    process.env.TIKTOK_CLIENT_KEY?.trim() &&
+      process.env.TIKTOK_CLIENT_SECRET?.trim() &&
+      appBaseUrl(),
+  );
+}
+
+export function isOAuthProviderConfigured(provider: OAuthProvider): boolean {
+  if (provider === "instagram") return isInstagramOAuthConfigured();
+  if (provider === "threads") return isThreadsOAuthConfigured();
+  return isTikTokOAuthConfigured();
 }
 
 export function assertOAuthAllowedInRuntime(): void {
-  // OAuth code exchange is only safe when app secrets are present.
-  // Production always requires full config; non-prod also requires config (no fake connect).
   if (!isInstagramOAuthConfigured() && isProductionRuntime()) {
     throw new Error("Instagram OAuth is not configured");
   }

@@ -1,4 +1,6 @@
+import { buildAgentSystemPrompt } from "@/lib/ai/agent-prompt";
 import { routeChatCompletion } from "@/lib/ai";
+import type { AiProviderConfig } from "@/lib/ai/types";
 import {
   scanContentRisk,
   DEFAULT_BANNED,
@@ -20,6 +22,22 @@ export type CommentGenerationInput = {
   platform?: string | null;
   templateBody?: string | null;
   riskRules?: RiskRuleInput[];
+  // Personality
+  style?: string | null;
+  formality?: string | null;
+  emojiPolicy?: string | null;
+  ctaStyle?: string | null;
+  maxSentences?: number | null;
+  bannedTopics?: string[] | null;
+  mustInclude?: string[] | null;
+  // Routing
+  workspaceId?: string | null;
+  preferredProviderId?: string | null;
+  preferredModel?: string | null;
+  temperature?: number | null;
+  maxTokens?: number | null;
+  providers?: AiProviderConfig[];
+  fallbackModels?: string[];
 };
 
 export type CommentGenerationResult = {
@@ -33,7 +51,6 @@ export type CommentGenerationResult = {
 };
 
 function localGenerate(input: CommentGenerationInput): CommentGenerationResult {
-  // If template body provided, try to render via template engine inline
   if (input.templateBody) {
     try {
       const { renderTemplate } = require("@/lib/template-engine") as typeof import("@/lib/template-engine");
@@ -54,7 +71,8 @@ function localGenerate(input: CommentGenerationInput): CommentGenerationResult {
         });
         if (scan.blocked) {
           return {
-            content: "Komentar ditahan guardrail karena mengandung topik sensitif. Mohon review manual sebelum dikirim.",
+            content:
+              "Komentar ditahan guardrail karena mengandung topik sensitif. Mohon review manual sebelum dikirim.",
             riskFlags: scan.flags,
             riskScore: scan.riskScore,
             blocked: true,
@@ -69,7 +87,7 @@ function localGenerate(input: CommentGenerationInput): CommentGenerationResult {
         };
       }
     } catch {
-      // fall through to local
+      // fall through
     }
   }
 
@@ -96,7 +114,6 @@ function localGenerate(input: CommentGenerationInput): CommentGenerationResult {
     content += ` ${skill}`;
   }
 
-  // Risk scan v2
   const scan = scanContentRisk({
     text: content,
     postContent: input.postContent,
@@ -104,25 +121,20 @@ function localGenerate(input: CommentGenerationInput): CommentGenerationResult {
   });
 
   if (scan.blocked) {
-    content = "Komentar ditahan guardrail karena mengandung topik sensitif. Mohon review manual sebelum dikirim.";
+    content =
+      "Komentar ditahan guardrail karena mengandung topik sensitif. Mohon review manual sebelum dikirim.";
   }
 
   return {
     content,
-    riskFlags: scan.flags.length > 0 ? scan.flags : BANNED.filter((word) => `${content} ${text}`.toLowerCase().includes(word)),
+    riskFlags:
+      scan.flags.length > 0
+        ? scan.flags
+        : BANNED.filter((word) => `${content} ${text}`.toLowerCase().includes(word)),
     riskScore: scan.riskScore,
     blocked: scan.blocked,
     source: "local_fallback",
   };
-}
-
-function scoreRisk(content: string, postContent: string, riskRules?: RiskRuleInput[]): string[] {
-  const scan = scanContentRisk({
-    text: content,
-    postContent,
-    customRules: riskRules,
-  });
-  return scan.flags;
 }
 
 export function generateContextualComment(
@@ -134,36 +146,71 @@ export function generateContextualComment(
 export async function generateContextualCommentHybrid(
   input: CommentGenerationInput,
 ): Promise<CommentGenerationResult> {
-  const language = input.language || "id";
-  const tone = input.tone || "professional";
-  const goal = input.goal || "bangun engagement relevan";
-  const agentName = input.agentName || "Aether Agent";
-  const systemPrompt =
-    input.systemPrompt?.trim() ||
-    `You are ${agentName}, an enterprise social operator. Write concise, natural comments. Respect brand safety. Never invent discounts, legal claims, or medical advice.`;
+  const systemPrompt = buildAgentSystemPrompt({
+    name: input.agentName,
+    tone: input.tone,
+    language: input.language,
+    systemPrompt: input.systemPrompt,
+    style: input.style,
+    formality: input.formality,
+    emojiPolicy: input.emojiPolicy,
+    ctaStyle: input.ctaStyle,
+    maxSentences: input.maxSentences,
+    bannedTopics: input.bannedTopics,
+    mustInclude: input.mustInclude,
+  });
+
+  let providers = input.providers;
+  let preferredProviderId = input.preferredProviderId;
+  let preferredModel = input.preferredModel;
+  let fallbackModels = input.fallbackModels;
+  let temperature = input.temperature ?? 0.5;
+  let maxTokens = input.maxTokens ?? 220;
+
+  if (input.workspaceId && (!providers || providers.length === 0)) {
+    try {
+      const { loadRuntimeAiProviders } = await import("@/server/ai-providers");
+      const runtime = await loadRuntimeAiProviders(input.workspaceId);
+      providers = runtime.providers;
+      preferredProviderId = preferredProviderId || runtime.defaultProviderId;
+      preferredModel = preferredModel || runtime.defaultModel;
+      fallbackModels = fallbackModels?.length ? fallbackModels : runtime.fallbackModels;
+      if (input.temperature == null) temperature = runtime.temperature;
+      if (input.maxTokens == null) maxTokens = Math.min(runtime.maxTokens, 400);
+    } catch {
+      // env-only fallback via router
+    }
+  }
 
   const knowledgeBlock = (input.knowledgeContext || [])
     .slice(0, 3)
     .map((item, index) => `${index + 1}. ${item}`)
     .join("\n");
   const skillBlock = (input.skillContext || []).join("\n");
+  const goal = input.goal || "bangun engagement relevan";
 
   const routed = await routeChatCompletion({
-    temperature: 0.5,
-    maxTokens: 220,
+    providers,
+    preferredProviderId,
+    preferredModel,
+    fallbackModels,
+    temperature,
+    maxTokens,
     messages: [
       {
         role: "system",
-        content: `${systemPrompt}\nLanguage: ${language}\nTone: ${tone}\nOutput only the final comment text.`,
+        content: systemPrompt,
       },
       {
         role: "user",
         content: [
           `Campaign goal: ${goal}`,
+          input.authorHandle ? `Author: @${input.authorHandle}` : "",
+          input.platform ? `Platform: ${input.platform}` : "",
           `Target post: ${input.postContent}`,
           knowledgeBlock ? `Knowledge context:\n${knowledgeBlock}` : "",
           skillBlock ? `Skill results:\n${skillBlock}` : "",
-          "Write one short social comment (1-3 sentences).",
+          "Write one short social comment.",
         ]
           .filter(Boolean)
           .join("\n"),
@@ -180,7 +227,8 @@ export async function generateContextualCommentHybrid(
     });
     if (scan.blocked) {
       return {
-        content: "Komentar ditahan guardrail karena mengandung topik sensitif. Mohon review manual sebelum dikirim.",
+        content:
+          "Komentar ditahan guardrail karena mengandung topik sensitif. Mohon review manual sebelum dikirim.",
         riskFlags: scan.flags,
         riskScore: scan.riskScore,
         blocked: true,

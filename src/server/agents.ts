@@ -33,6 +33,15 @@ export async function getAgent(agentId: string) {
       guardrails: true,
       knowledgeDocuments: { orderBy: { createdAt: "desc" }, take: 20 },
       memoryEntries: { orderBy: { updatedAt: "desc" }, take: 20 },
+      aiProvider: {
+        select: {
+          id: true,
+          label: true,
+          kind: true,
+          models: true,
+          isEnabled: true,
+        },
+      },
     },
   });
 }
@@ -75,14 +84,42 @@ export async function ensureDefaultAgent() {
   return agent;
 }
 
+function parseStringList(raw?: string | string[] | null): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map((v) => v.trim()).filter(Boolean);
+  return raw
+    .split(/[\n,]/)
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
 export async function createAgent(input: {
   name: string;
   tone?: string;
   language?: string;
   systemPrompt?: string;
+  aiProviderId?: string | null;
+  model?: string | null;
+  temperature?: number | null;
+  maxTokens?: number | null;
+  style?: string;
+  formality?: string;
+  emojiPolicy?: string;
+  ctaStyle?: string;
+  maxSentences?: number;
+  bannedTopics?: string | string[];
+  mustInclude?: string | string[];
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
   assertWorkspacePermission(workspace, "agents.manage");
+
+  if (input.aiProviderId) {
+    const provider = await db.workspaceAiProvider.findFirst({
+      where: { id: input.aiProviderId, workspaceId: workspace.id },
+      select: { id: true },
+    });
+    if (!provider) throw new Error("AI provider not found in workspace");
+  }
 
   const agent = await db.agent.create({
     data: {
@@ -94,6 +131,17 @@ export async function createAgent(input: {
         input.systemPrompt?.trim() ||
         "Kamu asisten engagement brand. Tulis komentar relevan, sopan, dan tidak spam.",
       status: "active",
+      aiProviderId: input.aiProviderId || null,
+      model: input.model?.trim() || null,
+      temperature: input.temperature ?? null,
+      maxTokens: input.maxTokens ?? null,
+      style: input.style?.trim() || "balanced",
+      formality: input.formality?.trim() || "neutral",
+      emojiPolicy: input.emojiPolicy?.trim() || "light",
+      ctaStyle: input.ctaStyle?.trim() || "soft",
+      maxSentences: input.maxSentences ?? 3,
+      bannedTopics: parseStringList(input.bannedTopics),
+      mustInclude: parseStringList(input.mustInclude),
     },
   });
 
@@ -116,6 +164,17 @@ export async function updateAgent(input: {
   language?: string;
   systemPrompt?: string;
   status?: string;
+  aiProviderId?: string | null;
+  model?: string | null;
+  temperature?: number | null;
+  maxTokens?: number | null;
+  style?: string;
+  formality?: string;
+  emojiPolicy?: string;
+  ctaStyle?: string;
+  maxSentences?: number;
+  bannedTopics?: string | string[];
+  mustInclude?: string | string[];
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
   assertWorkspacePermission(workspace, "agents.manage");
@@ -123,6 +182,14 @@ export async function updateAgent(input: {
     where: { id: input.agentId, workspaceId: workspace.id },
   });
   if (!existing) throw new Error("Agent not found");
+
+  if (input.aiProviderId) {
+    const provider = await db.workspaceAiProvider.findFirst({
+      where: { id: input.aiProviderId, workspaceId: workspace.id },
+      select: { id: true },
+    });
+    if (!provider) throw new Error("AI provider not found in workspace");
+  }
 
   const agent = await db.agent.update({
     where: { id: existing.id },
@@ -132,6 +199,25 @@ export async function updateAgent(input: {
       language: input.language?.trim() || existing.language,
       systemPrompt: input.systemPrompt?.trim() || existing.systemPrompt,
       status: input.status?.trim() || existing.status,
+      aiProviderId:
+        input.aiProviderId === undefined ? existing.aiProviderId : input.aiProviderId,
+      model: input.model === undefined ? existing.model : input.model?.trim() || null,
+      temperature:
+        input.temperature === undefined ? existing.temperature : input.temperature,
+      maxTokens: input.maxTokens === undefined ? existing.maxTokens : input.maxTokens,
+      style: input.style?.trim() || existing.style,
+      formality: input.formality?.trim() || existing.formality,
+      emojiPolicy: input.emojiPolicy?.trim() || existing.emojiPolicy,
+      ctaStyle: input.ctaStyle?.trim() || existing.ctaStyle,
+      maxSentences: input.maxSentences ?? existing.maxSentences,
+      bannedTopics:
+        input.bannedTopics === undefined
+          ? existing.bannedTopics
+          : parseStringList(input.bannedTopics),
+      mustInclude:
+        input.mustInclude === undefined
+          ? existing.mustInclude
+          : parseStringList(input.mustInclude),
     },
   });
 
@@ -250,6 +336,18 @@ export async function runAgentPlayground(input: {
     systemPrompt: agent.systemPrompt,
     agentName: agent.name,
     knowledgeContext: ranked.map((item) => item.content),
+    workspaceId: workspace.id,
+    preferredProviderId: agent.aiProviderId,
+    preferredModel: agent.model,
+    temperature: agent.temperature,
+    maxTokens: agent.maxTokens,
+    style: agent.style,
+    formality: agent.formality,
+    emojiPolicy: agent.emojiPolicy,
+    ctaStyle: agent.ctaStyle,
+    maxSentences: agent.maxSentences,
+    bannedTopics: agent.bannedTopics,
+    mustInclude: agent.mustInclude,
   });
 
   return {

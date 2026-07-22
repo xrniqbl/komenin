@@ -43,8 +43,8 @@ export default async function ProxyDetailPage({
         take: 10,
         select: {
           id: true,
-          fromIp: true,
-          toIp: true,
+          oldIp: true,
+          newIp: true,
           reason: true,
           createdAt: true,
         },
@@ -106,7 +106,7 @@ export default async function ProxyDetailPage({
               proxy.assignments.map((assignment) => (
                 <Link
                   key={assignment.id}
-                  href={`/app/accounts/${assignment.socialAccountId}`}
+                  href={`/app/accounts/${assignment.socialAccount.id}`}
                   className="block rounded-lg border px-3 py-2 hover:border-brand"
                 >
                   @{assignment.socialAccount.username}

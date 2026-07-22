@@ -43,6 +43,8 @@ export async function listAccounts(input?: {
       status: true,
       healthScore: true,
       currentIp: true,
+      dailyQuota: true,
+      actionsToday: true,
       notes: true,
       createdAt: true,
       updatedAt: true,
@@ -111,6 +113,8 @@ export async function getAccount(accountId: string) {
       status: true,
       healthScore: true,
       currentIp: true,
+      dailyQuota: true,
+      actionsToday: true,
       notes: true,
       createdAt: true,
       updatedAt: true,
@@ -167,8 +171,8 @@ export async function getAccount(accountId: string) {
         take: 10,
         select: {
           id: true,
-          fromIp: true,
-          toIp: true,
+          oldIp: true,
+          newIp: true,
           reason: true,
           createdAt: true,
         },
@@ -403,11 +407,14 @@ export async function runAccountHealthCheck(accountId: string) {
     where: { id: accountId, workspaceId: workspace.id, deletedAt: null },
     select: {
       id: true,
+      platform: true,
+      username: true,
       healthScore: true,
       sessions: {
         where: { isActive: true },
         take: 1,
-        select: { id: true },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, encryptedBlob: true },
       },
       proxyAssignments: {
         where: { isActive: true },
@@ -422,17 +429,42 @@ export async function runAccountHealthCheck(accountId: string) {
   });
   if (!account) throw new Error("Account not found");
 
-  const hasSession = account.sessions.length > 0;
+  const activeSession = account.sessions[0];
   const proxy = account.proxyAssignments[0]?.proxyEndpoint;
   const proxyOk = !proxy || proxy.isHealthy;
-  // Presence-only probe until live connector health is wired; do not invent high confidence.
-  const ok = hasSession && proxyOk;
-  const status: SocialAccountStatus = ok
-    ? "healthy"
-    : !hasSession
-      ? "limited"
-      : "degraded";
-  const healthScore = ok ? Math.min(90, Math.max(account.healthScore, 70)) : Math.max(10, account.healthScore - 15);
+
+  let ok = false;
+  let status: SocialAccountStatus = "limited";
+  let healthScore = Math.max(10, account.healthScore - 15);
+  let signal = "session_missing";
+  let details = "No active session";
+  let latencyMs: number | null = null;
+  let mode = "missing";
+
+  if (!activeSession?.encryptedBlob) {
+    status = "limited";
+  } else if (!proxyOk) {
+    signal = "proxy_degraded";
+    details = "Assigned proxy marked unhealthy";
+    status = "degraded";
+    healthScore = Math.max(10, account.healthScore - 20);
+  } else {
+    const { probeEncryptedSession } = await import("@/lib/session-health");
+    const probe = await probeEncryptedSession({
+      encryptedBlob: activeSession.encryptedBlob,
+      platform: account.platform,
+      username: account.username,
+    });
+    ok = probe.ok;
+    signal = probe.signal;
+    details = probe.details;
+    latencyMs = probe.latencyMs;
+    mode = probe.mode;
+    healthScore = probe.ok
+      ? Math.max(probe.healthScore, 70)
+      : Math.min(probe.healthScore, Math.max(10, account.healthScore - 10));
+    status = probe.ok ? "healthy" : probe.signal.includes("expired") ? "limited" : "degraded";
+  }
 
   await db.$transaction(async (tx) => {
     await tx.sessionHealthCheck.create({
@@ -440,13 +472,9 @@ export async function runAccountHealthCheck(accountId: string) {
         workspaceId: workspace.id,
         socialAccountId: account.id,
         ok,
-        latencyMs: null,
-        signal: ok ? "session_present" : !hasSession ? "session_missing" : "proxy_degraded",
-        details: ok
-          ? "Active encrypted session present (live platform probe not yet enabled)"
-          : !hasSession
-            ? "No active session"
-            : "Assigned proxy unhealthy",
+        latencyMs,
+        signal,
+        details,
       },
     });
 
@@ -466,13 +494,13 @@ export async function runAccountHealthCheck(accountId: string) {
     action: "social_account.health_checked",
     resourceType: "social_account",
     resourceId: account.id,
-    metadata: { ok, status, healthScore },
+    metadata: { ok, status, healthScore, signal, mode },
   });
 
   revalidatePath("/app/accounts");
   revalidatePath(`/app/accounts/${account.id}`);
   revalidatePath("/app/sessions");
-  return { ok, status, healthScore };
+  return { ok, status, healthScore, signal, details, latencyMs, mode };
 }
 
 export async function rotateAccountIp(accountId: string, reason = "manual_rotate") {

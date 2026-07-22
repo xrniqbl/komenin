@@ -40,8 +40,9 @@ export function DocsSearch() {
       >
         <AutocompleteInput
           placeholder="Search docs..."
+          size="sm"
           showClear={query.length > 0}
-          startAddon={<Search className="size-4" />}
+          startAddon={<Search className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
         />
         <AutocompletePopup>
           <AutocompleteEmpty>No matches</AutocompleteEmpty>

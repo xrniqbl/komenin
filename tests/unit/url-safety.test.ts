@@ -1,16 +1,12 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   assertSafeOutboundUrl,
   isBlockedIpAddress,
   UnsafeUrlError,
 } from "@/lib/url-safety";
 
-const originalEnv = { ...process.env };
-
 afterEach(() => {
-  process.env.NODE_ENV = originalEnv.NODE_ENV;
-  process.env.ALLOW_SECURITY_STUBS = originalEnv.ALLOW_SECURITY_STUBS;
-  process.env.SIMULATOR_MODE = originalEnv.SIMULATOR_MODE;
+  vi.unstubAllEnvs();
 });
 
 describe("url-safety", () => {
@@ -25,17 +21,17 @@ describe("url-safety", () => {
   });
 
   it("allows public HTTPS URLs", () => {
-    process.env.NODE_ENV = "production";
-    process.env.ALLOW_SECURITY_STUBS = "false";
-    process.env.SIMULATOR_MODE = "false";
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_SECURITY_STUBS", "false");
+    vi.stubEnv("SIMULATOR_MODE", "false");
     const url = assertSafeOutboundUrl("https://hooks.slack.com/services/T/B/X");
     expect(url.protocol).toBe("https:");
   });
 
   it("rejects localhost and private targets in production", () => {
-    process.env.NODE_ENV = "production";
-    process.env.ALLOW_SECURITY_STUBS = "true";
-    process.env.SIMULATOR_MODE = "true";
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_SECURITY_STUBS", "true");
+    vi.stubEnv("SIMULATOR_MODE", "true");
     expect(() => assertSafeOutboundUrl("http://127.0.0.1/hook")).toThrow(UnsafeUrlError);
     expect(() => assertSafeOutboundUrl("https://169.254.169.254/latest")).toThrow(UnsafeUrlError);
     expect(() => assertSafeOutboundUrl("https://10.0.0.8/internal")).toThrow(UnsafeUrlError);
@@ -43,16 +39,16 @@ describe("url-safety", () => {
   });
 
   it("allows localhost HTTP only when non-prod stubs enabled", () => {
-    process.env.NODE_ENV = "development";
-    process.env.ALLOW_SECURITY_STUBS = "true";
-    process.env.SIMULATOR_MODE = "true";
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("ALLOW_SECURITY_STUBS", "true");
+    vi.stubEnv("SIMULATOR_MODE", "true");
     const url = assertSafeOutboundUrl("http://localhost:3000/api/publish/webhook");
     expect(url.hostname).toBe("localhost");
   });
 
   it("rejects URL credentials", () => {
-    process.env.NODE_ENV = "development";
-    process.env.ALLOW_SECURITY_STUBS = "true";
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("ALLOW_SECURITY_STUBS", "true");
     expect(() => assertSafeOutboundUrl("https://user:pass@example.com/x")).toThrow(
       /credentials/i,
     );

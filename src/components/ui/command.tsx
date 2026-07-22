@@ -117,7 +117,7 @@ export function CommandInput({
   ...props
 }: React.ComponentProps<typeof AutocompleteInput>): React.ReactElement {
   return (
-    <div className="px-2.5 py-1.5">
+    <div className="border-b px-2.5 py-1.5">
       <AutocompleteInput
         autoFocus
         className={cn(
@@ -126,7 +126,9 @@ export function CommandInput({
         )}
         placeholder={placeholder}
         size="lg"
-        startAddon={<SearchIcon />}
+        startAddon={
+          <SearchIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        }
         {...props}
       />
     </div>

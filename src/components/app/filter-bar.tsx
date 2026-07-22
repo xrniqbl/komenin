@@ -93,57 +93,61 @@ export function FilterBar({
 
   return (
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <InputGroup className="min-w-0 w-full flex-1 basis-full sm:min-w-[200px] sm:basis-auto">
-        <InputGroupAddon align="inline-start">
-          <Search className="size-4 opacity-80" />
+      <InputGroup className="h-8 min-w-0 w-full flex-1 basis-full sm:min-w-[200px] sm:basis-auto">
+        <InputGroupAddon
+          align="inline-start"
+          className="pointer-events-none h-full shrink-0 self-stretch ps-2.5 pe-0 text-muted-foreground"
+        >
+          <Search className="size-3.5 shrink-0 opacity-80" aria-hidden="true" />
         </InputGroupAddon>
         <InputGroupInput
           placeholder={placeholder}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="h-8 text-sm"
+          size="sm"
+          className="h-full min-w-0 flex-1 border-0 bg-transparent py-0 pe-2.5 ps-1.5 text-sm shadow-none focus-visible:ring-0"
         />
       </InputGroup>
 
       {statusOptions && statusOptions.length > 0 ? (
         <div className="w-full sm:w-auto">
-        <Select
-          value={defaultStatus || "__all"}
-          onValueChange={(v) => updateFilter(statusParam, v === "__all" || !v ? "" : v)}
-        >
-          <SelectTrigger className="h-8 w-full text-sm sm:w-[140px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectPopup>
-            <SelectItem value="__all">All status</SelectItem>
-            {statusOptions.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectPopup>
-        </Select>
+          <Select
+            value={defaultStatus || "__all"}
+            onValueChange={(v) => updateFilter(statusParam, v === "__all" || !v ? "" : v)}
+          >
+            <SelectTrigger className="h-8 w-full text-sm sm:w-[140px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectPopup>
+              <SelectItem value="__all">All status</SelectItem>
+              {statusOptions.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
         </div>
       ) : null}
 
       {platformOptions && platformOptions.length > 0 ? (
         <div className="w-full sm:w-auto">
-        <Select
-          value={defaultPlatform || "__all"}
-          onValueChange={(v) => updateFilter(platformParam, v === "__all" || !v ? "" : v)}
-        >
-          <SelectTrigger className="h-8 w-full text-sm sm:w-[140px]">
-            <SelectValue placeholder="Platform" />
-          </SelectTrigger>
-          <SelectPopup>
-            <SelectItem value="__all">All platforms</SelectItem>
-            {platformOptions.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectPopup>
-        </Select>
+          <Select
+            value={defaultPlatform || "__all"}
+            onValueChange={(v) => updateFilter(platformParam, v === "__all" || !v ? "" : v)}
+          >
+            <SelectTrigger className="h-8 w-full text-sm sm:w-[140px]">
+              <SelectValue placeholder="Platform" />
+            </SelectTrigger>
+            <SelectPopup>
+              <SelectItem value="__all">All platforms</SelectItem>
+              {platformOptions.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
         </div>
       ) : null}
 
@@ -162,8 +166,8 @@ export function FilterBar({
       </Popover>
 
       {hasFilters ? (
-        <Button size="sm" variant="ghost" className="h-8" onClick={clearAll}>
-          <X className="mr-1 h-3.5 w-3.5" />
+        <Button size="sm" variant="ghost" className="h-8 gap-1" onClick={clearAll}>
+          <X className="size-3.5 shrink-0" />
           Clear
         </Button>
       ) : null}

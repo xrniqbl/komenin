@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { assertWorkspacePermission } from "@/lib/rbac";
 import { parseConnectorPolicy } from "@/lib/connectors";
-import { isInstagramOAuthConfigured } from "@/lib/oauth-state";
+import {
+  isInstagramOAuthConfigured,
+  isThreadsOAuthConfigured,
+  isTikTokOAuthConfigured,
+} from "@/lib/oauth-state";
 import { db } from "@/lib/db";
 import { listConnectorCredentials } from "@/server/connector-credentials";
 import { requireActiveWorkspace } from "@/server/workspace-access";
@@ -24,6 +28,8 @@ export async function getPublisherStatus() {
     monthlySendLimit: workspace.monthlySendLimit,
     monthlyPublishLimit: workspace.monthlyPublishLimit,
     instagramOAuthConfigured: isInstagramOAuthConfigured(),
+    threadsOAuthConfigured: isThreadsOAuthConfigured(),
+    tiktokOAuthConfigured: isTikTokOAuthConfigured(),
     credentials,
   };
 }

@@ -90,6 +90,11 @@ export async function generateContentPosts(input: {
   tone?: string | null;
   systemPrompt?: string | null;
   agentName?: string | null;
+  workspaceId?: string | null;
+  preferredProviderId?: string | null;
+  preferredModel?: string | null;
+  temperature?: number | null;
+  maxTokens?: number | null;
 }): Promise<GeneratedContentPost[]> {
   const count = Math.max(1, Math.min(input.postCount, 50));
   const language = input.language || "id";
@@ -99,9 +104,33 @@ export async function generateContentPosts(input: {
     input.systemPrompt?.trim() ||
     `You are ${agentName}, an enterprise social content strategist. Write concise original posts. Avoid spammy claims.`;
 
+  let providers = undefined as Awaited<
+    ReturnType<typeof import("@/server/ai-providers").loadRuntimeAiProviders>
+  >["providers"] | undefined;
+  let preferredProviderId = input.preferredProviderId;
+  let preferredModel = input.preferredModel;
+  let temperature = input.temperature ?? 0.7;
+  let maxTokens = input.maxTokens ?? 1800;
+  if (input.workspaceId) {
+    try {
+      const { loadRuntimeAiProviders } = await import("@/server/ai-providers");
+      const runtime = await loadRuntimeAiProviders(input.workspaceId);
+      providers = runtime.providers;
+      preferredProviderId = preferredProviderId || runtime.defaultProviderId;
+      preferredModel = preferredModel || runtime.defaultModel;
+      if (input.temperature == null) temperature = runtime.temperature;
+      if (input.maxTokens == null) maxTokens = Math.max(runtime.maxTokens, 800);
+    } catch {
+      // env bootstrap
+    }
+  }
+
   const routed = await routeChatCompletion({
-    temperature: 0.7,
-    maxTokens: 1800,
+    providers,
+    preferredProviderId,
+    preferredModel,
+    temperature,
+    maxTokens,
     messages: [
       {
         role: "system",

@@ -82,14 +82,27 @@ async function createNotification(input: {
 }
 
 async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
+  const { probeEncryptedSession } = await import("@/lib/session-health");
   const accounts = await db.socialAccount.findMany({
     where: { deletedAt: null },
-    include: {
-      sessions: { where: { isActive: true }, take: 1 },
+    select: {
+      id: true,
+      workspaceId: true,
+      platform: true,
+      username: true,
+      healthScore: true,
+      sessions: {
+        where: { isActive: true },
+        take: 1,
+        orderBy: { createdAt: "desc" },
+        select: { encryptedBlob: true },
+      },
       proxyAssignments: {
         where: { isActive: true },
-        include: { proxyEndpoint: true },
         take: 1,
+        select: {
+          proxyEndpoint: { select: { isHealthy: true } },
+        },
       },
     },
     orderBy: { updatedAt: "asc" },
@@ -97,28 +110,48 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
   });
 
   let checked = 0;
+  let liveOk = 0;
   for (const account of accounts) {
-    const hasSession = account.sessions.length > 0;
+    const activeSession = account.sessions[0];
     const proxy = account.proxyAssignments[0]?.proxyEndpoint;
     const proxyOk = !proxy || proxy.isHealthy;
-    const probe = await executeSocialAction({
-      action: "healthProbe",
-      target: {
+
+    let ok = false;
+    let signal = "session_missing";
+    let details = "No active session";
+    let latencyMs: number | null = null;
+    let healthScore = Math.max(10, account.healthScore - 8);
+    let status: "healthy" | "limited" | "degraded" = "limited";
+    let mode = "missing";
+
+    if (!activeSession?.encryptedBlob) {
+      status = "limited";
+    } else if (!proxyOk) {
+      signal = "proxy_degraded";
+      details = "Assigned proxy marked unhealthy";
+      status = "degraded";
+      mode = "proxy";
+    } else {
+      const probe = await probeEncryptedSession({
+        encryptedBlob: activeSession.encryptedBlob,
         platform: account.platform,
         username: account.username,
-        accountId: account.id,
-      },
-      payload: {
-        hasSession,
-        proxyHealthy: proxyOk,
-      },
-    });
-
-    const ok = probe.ok && probe.healthy !== false && hasSession && proxyOk;
-    const status = ok ? "healthy" : !hasSession ? "limited" : "degraded";
-    const healthScore = ok
-      ? Math.min(100, account.healthScore + 2)
-      : Math.max(10, account.healthScore - 8);
+      });
+      ok = probe.ok;
+      signal = probe.signal;
+      details = probe.details;
+      latencyMs = probe.latencyMs;
+      mode = probe.mode;
+      healthScore = probe.ok
+        ? Math.min(100, Math.max(probe.healthScore, account.healthScore))
+        : Math.max(10, Math.min(probe.healthScore, account.healthScore - 5));
+      status = probe.ok
+        ? "healthy"
+        : probe.signal.includes("expired")
+          ? "limited"
+          : "degraded";
+      if (probe.ok) liveOk += 1;
+    }
 
     await db.$transaction(async (tx) => {
       await tx.sessionHealthCheck.create({
@@ -126,9 +159,9 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
           workspaceId: account.workspaceId,
           socialAccountId: account.id,
           ok,
-          latencyMs: ok ? 80 + Math.floor(Math.random() * 60) : 700,
-          signal: ok ? "healthy" : !hasSession ? "session_missing" : "proxy_degraded",
-          details: probe.message,
+          latencyMs,
+          signal,
+          details,
         },
       });
       await tx.socialAccount.update({
@@ -144,11 +177,11 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
           workspaceId: account.workspaceId,
           socialAccountId: account.id,
           kind: "health_probe",
-          connector: probe.connector,
-          mode: probe.mode,
+          connector: "session_cookie",
+          mode,
           ok,
-          message: probe.message,
-          payload: (probe.details ?? {}) as Prisma.InputJsonValue,
+          message: details,
+          payload: { signal, latencyMs } as Prisma.InputJsonValue,
         },
       });
     });
@@ -157,17 +190,19 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
       await createNotification({
         workspaceId: account.workspaceId,
         title: `Account @${account.username} degraded`,
-        body: probe.message,
+        body: details,
         href: `/app/accounts/${account.id}`,
       });
       try {
         const { dispatchExternal } = await import("@/lib/notify/dispatcher");
         await dispatchExternal("account.degraded", account.workspaceId, {
           title: `Account @${account.username} degraded — ${status}`,
-          body: probe.message,
+          body: details,
           href: `/app/accounts/${account.id}`,
         });
-      } catch {}
+      } catch {
+        // non-fatal
+      }
     }
     checked += 1;
   }
@@ -175,8 +210,9 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
   return {
     job: "session.health_check",
     ok: true,
-    message: `Checked ${checked} accounts`,
+    message: `Checked ${checked} accounts (${liveOk} live-ok)`,
     count: checked,
+    details: { liveOk },
   };
 }
 
@@ -398,6 +434,18 @@ async function runCommentGenerate(limit = 20): Promise<WorkerJobResult> {
       agentName: agent?.name,
       knowledgeContext,
       skillContext,
+      workspaceId: post.workspaceId,
+      preferredProviderId: agent?.aiProviderId,
+      preferredModel: agent?.model,
+      temperature: agent?.temperature,
+      maxTokens: agent?.maxTokens,
+      style: agent?.style,
+      formality: agent?.formality,
+      emojiPolicy: agent?.emojiPolicy,
+      ctaStyle: agent?.ctaStyle,
+      maxSentences: agent?.maxSentences,
+      bannedTopics: agent?.bannedTopics,
+      mustInclude: agent?.mustInclude,
     });
 
     await db.$transaction(async (tx) => {
@@ -606,6 +654,11 @@ async function runContentGenerate(limit = 10): Promise<WorkerJobResult> {
       tone: campaign.agent?.tone,
       systemPrompt: campaign.agent?.systemPrompt,
       agentName: campaign.agent?.name,
+      workspaceId: campaign.workspaceId,
+      preferredProviderId: campaign.agent?.aiProviderId,
+      preferredModel: campaign.agent?.model,
+      temperature: campaign.agent?.temperature,
+      maxTokens: campaign.agent?.maxTokens,
     });
     const schedule = buildContentSchedule({
       startAt: campaign.startAt,

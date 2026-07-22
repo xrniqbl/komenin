@@ -38,7 +38,11 @@ export function AutocompleteInput({
       {startAddon && (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 start-px z-10 flex items-center ps-[calc(--spacing(3)-1px)] opacity-80 has-[+[data-size=sm]]:ps-[calc(--spacing(2.5)-1px)] [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:-mx-0.5"
+          className={cn(
+            "pointer-events-none absolute inset-y-0 start-0 z-10 flex items-center justify-center text-muted-foreground",
+            sizeValue === "sm" ? "w-8" : sizeValue === "lg" ? "w-10" : "w-9",
+            "[&_svg]:size-3.5 sm:[&_svg]:size-4 [&_svg]:shrink-0",
+          )}
           data-slot="autocomplete-start-addon"
         >
           {startAddon}
@@ -46,11 +50,16 @@ export function AutocompleteInput({
       )}
       <AutocompletePrimitive.Input
         className={cn(
+          // Keep text clear of the absolute start/end addons.
           startAddon &&
-            "data-[size=sm]:*:data-[slot=autocomplete-input]:ps-[calc(--spacing(7.5)-1px)] *:data-[slot=autocomplete-input]:ps-[calc(--spacing(8.5)-1px)] sm:data-[size=sm]:*:data-[slot=autocomplete-input]:ps-[calc(--spacing(7)-1px)] sm:*:data-[slot=autocomplete-input]:ps-[calc(--spacing(8)-1px)]",
+            (sizeValue === "sm"
+              ? "ps-8! data-[slot=input]:ps-8! *:data-[slot=input]:ps-8! *:data-[slot=autocomplete-input]:ps-8!"
+              : sizeValue === "lg"
+                ? "ps-10! data-[slot=input]:ps-10! *:data-[slot=input]:ps-10! *:data-[slot=autocomplete-input]:ps-10!"
+                : "ps-9! data-[slot=input]:ps-9! *:data-[slot=input]:ps-9! *:data-[slot=autocomplete-input]:ps-9!"),
           sizeValue === "sm"
-            ? "has-[+[data-slot=autocomplete-trigger],+[data-slot=autocomplete-clear]]:*:data-[slot=autocomplete-input]:pe-6.5"
-            : "has-[+[data-slot=autocomplete-trigger],+[data-slot=autocomplete-clear]]:*:data-[slot=autocomplete-input]:pe-7",
+            ? "has-[+[data-slot=autocomplete-trigger],+[data-slot=autocomplete-clear]]:pe-8! has-[+[data-slot=autocomplete-trigger],+[data-slot=autocomplete-clear]]:*:data-[slot=input]:pe-8! has-[+[data-slot=autocomplete-trigger],+[data-slot=autocomplete-clear]]:*:data-[slot=autocomplete-input]:pe-8!"
+            : "has-[+[data-slot=autocomplete-trigger],+[data-slot=autocomplete-clear]]:pe-9! has-[+[data-slot=autocomplete-trigger],+[data-slot=autocomplete-clear]]:*:data-[slot=input]:pe-9! has-[+[data-slot=autocomplete-trigger],+[data-slot=autocomplete-clear]]:*:data-[slot=autocomplete-input]:pe-9!",
           className,
         )}
         data-slot="autocomplete-input"
@@ -60,8 +69,8 @@ export function AutocompleteInput({
       {showTrigger && (
         <AutocompleteTrigger
           className={cn(
-            "absolute top-1/2 inline-flex size-8 shrink-0 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md border border-transparent opacity-80 outline-none transition-colors pointer-coarse:after:absolute pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:opacity-100 has-[+[data-slot=autocomplete-clear]]:hidden sm:size-7 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-            sizeValue === "sm" ? "end-0" : "end-0.5",
+            "absolute top-1/2 inline-flex shrink-0 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md border border-transparent text-muted-foreground opacity-80 outline-none transition-colors pointer-coarse:after:absolute pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:opacity-100 has-[+[data-slot=autocomplete-clear]]:hidden [&_svg]:pointer-events-none [&_svg]:size-3.5 sm:[&_svg]:size-4 [&_svg]:shrink-0",
+            sizeValue === "sm" ? "end-0.5 size-7" : sizeValue === "lg" ? "end-1 size-8" : "end-0.5 size-8 sm:size-7",
           )}
           {...triggerProps}
         >
@@ -73,8 +82,8 @@ export function AutocompleteInput({
       {showClear && (
         <AutocompleteClear
           className={cn(
-            "absolute top-1/2 inline-flex size-8 shrink-0 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md border border-transparent opacity-80 outline-none transition-colors pointer-coarse:after:absolute pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:opacity-100 has-[+[data-slot=autocomplete-clear]]:hidden sm:size-7 [&_svg:not([class*='size-'])]:size-4.5 sm:[&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
-            sizeValue === "sm" ? "end-0" : "end-0.5",
+            "absolute top-1/2 inline-flex shrink-0 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md border border-transparent text-muted-foreground opacity-80 outline-none transition-colors pointer-coarse:after:absolute pointer-coarse:after:min-h-11 pointer-coarse:after:min-w-11 hover:opacity-100 [&_svg]:pointer-events-none [&_svg]:size-3.5 sm:[&_svg]:size-4 [&_svg]:shrink-0",
+            sizeValue === "sm" ? "end-0.5 size-7" : sizeValue === "lg" ? "end-1 size-8" : "end-0.5 size-8 sm:size-7",
           )}
           {...clearProps}
         >

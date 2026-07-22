@@ -1,5 +1,6 @@
 ﻿"use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -145,11 +146,20 @@ export async function adminCreateVoucher(input: {
   expiresAt?: string;
 }) {
   const { userId } = await requireSuperAdmin();
+  const code = input.code.trim().toUpperCase();
+  if (!code) throw new Error("Voucher code required");
+  if (!Number.isFinite(input.value) || input.value <= 0) {
+    throw new Error("Voucher value must be greater than 0");
+  }
+  if (input.type === "percent" && input.value > 100) {
+    throw new Error("Percent vouchers cannot exceed 100");
+  }
+
   const voucher = await db.voucher.create({
     data: {
-      code: input.code.trim().toUpperCase(),
+      code,
       type: input.type,
-      value: input.value,
+      value: Math.floor(input.value),
       maxRedemptions: input.maxRedemptions,
       perWorkspaceLimit: input.perWorkspaceLimit ?? 1,
       minSubtotalIdr: input.minSubtotalIdr,
@@ -167,15 +177,88 @@ export async function adminCreateVoucher(input: {
       metadata: { code: voucher.code },
     },
   });
+  revalidatePath("/admin/vouchers");
+  revalidatePath("/admin");
   return voucher;
 }
 
 export async function adminToggleVoucher(input: { voucherId: string; isActive: boolean }) {
-  await requireSuperAdmin();
-  return db.voucher.update({
+  const { userId } = await requireSuperAdmin();
+  const voucher = await db.voucher.update({
     where: { id: input.voucherId },
     data: { isActive: input.isActive },
   });
+  await db.auditLog.create({
+    data: {
+      actorUserId: userId,
+      action: "admin.voucher_toggled",
+      resourceType: "voucher",
+      resourceId: voucher.id,
+      metadata: { isActive: input.isActive, code: voucher.code },
+    },
+  });
+  revalidatePath("/admin/vouchers");
+  revalidatePath("/admin");
+  return voucher;
+}
+
+export async function adminUpdateVoucher(input: {
+  voucherId: string;
+  value?: number;
+  maxRedemptions?: number | null;
+  perWorkspaceLimit?: number;
+  minSubtotalIdr?: number | null;
+  allowedPlanCodes?: string[];
+  expiresAt?: string | null;
+  isActive?: boolean;
+}) {
+  const { userId } = await requireSuperAdmin();
+  const existing = await db.voucher.findUnique({ where: { id: input.voucherId } });
+  if (!existing) throw new Error("Voucher not found");
+
+  const nextValue = input.value != null ? Math.floor(input.value) : existing.value;
+  if (!Number.isFinite(nextValue) || nextValue <= 0) {
+    throw new Error("Voucher value must be greater than 0");
+  }
+  if (existing.type === "percent" && nextValue > 100) {
+    throw new Error("Percent vouchers cannot exceed 100");
+  }
+
+  const data: {
+    value?: number;
+    maxRedemptions?: number | null;
+    perWorkspaceLimit?: number;
+    minSubtotalIdr?: number | null;
+    allowedPlanCodes?: string[];
+    expiresAt?: Date | null;
+    isActive?: boolean;
+  } = {};
+  if (input.value != null) data.value = nextValue;
+  if (input.maxRedemptions !== undefined) data.maxRedemptions = input.maxRedemptions;
+  if (input.perWorkspaceLimit != null) data.perWorkspaceLimit = input.perWorkspaceLimit;
+  if (input.minSubtotalIdr !== undefined) data.minSubtotalIdr = input.minSubtotalIdr;
+  if (input.allowedPlanCodes) data.allowedPlanCodes = input.allowedPlanCodes;
+  if (input.expiresAt !== undefined) {
+    data.expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
+  }
+  if (input.isActive != null) data.isActive = input.isActive;
+
+  const voucher = await db.voucher.update({
+    where: { id: input.voucherId },
+    data,
+  });
+  await db.auditLog.create({
+    data: {
+      actorUserId: userId,
+      action: "admin.voucher_updated",
+      resourceType: "voucher",
+      resourceId: voucher.id,
+      metadata: { code: voucher.code, ...data },
+    },
+  });
+  revalidatePath("/admin/vouchers");
+  revalidatePath("/admin");
+  return voucher;
 }
 
 export async function listAdminJobs() {

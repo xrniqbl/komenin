@@ -1,7 +1,22 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  CreditCard,
+  Flag,
+  Globe2,
+  KeyRound,
+  LayoutDashboard,
+  ScrollText,
+  ServerCog,
+  TicketPercent,
+  Users,
+  Workflow,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,18 +34,18 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 
-const links = [
-  { href: "/admin", label: "Overview" },
-  { href: "/admin/workspaces", label: "Workspaces" },
-  { href: "/admin/users", label: "Users" },
-  { href: "/admin/billing", label: "Billing" },
-  { href: "/admin/vouchers", label: "Vouchers" },
-  { href: "/admin/connectors", label: "Connectors" },
-  { href: "/admin/jobs", label: "Jobs" },
-  { href: "/admin/sso", label: "SSO" },
-  { href: "/admin/regions", label: "Regions" },
-  { href: "/admin/flags", label: "Flags" },
-  { href: "/admin/audit", label: "Audit" },
+const links: Array<{ href: string; label: string; icon: LucideIcon }> = [
+  { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/workspaces", label: "Workspaces", icon: Building2 },
+  { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/billing", label: "Billing", icon: CreditCard },
+  { href: "/admin/vouchers", label: "Vouchers", icon: TicketPercent },
+  { href: "/admin/connectors", label: "Connectors", icon: Workflow },
+  { href: "/admin/jobs", label: "Jobs", icon: ServerCog },
+  { href: "/admin/sso", label: "SSO", icon: KeyRound },
+  { href: "/admin/regions", label: "Regions", icon: Globe2 },
+  { href: "/admin/flags", label: "Flags", icon: Flag },
+  { href: "/admin/audit", label: "Audit", icon: ScrollText },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -43,6 +58,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" tooltip="Aether Admin" render={<Link href="/admin" />}>
+                <LayoutDashboard className="size-4" />
                 <span className="text-sm font-semibold tracking-tight">Aether Admin</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -53,6 +69,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <SidebarGroupContent>
               <SidebarMenu>
                 {links.map((link) => {
+                  const Icon = link.icon;
                   const isActive =
                     link.href === "/admin"
                       ? pathname === "/admin"
@@ -64,6 +81,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                         tooltip={link.label}
                         render={<Link href={link.href} />}
                       >
+                        <Icon className="size-4" />
                         <span>{link.label}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -77,6 +95,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton tooltip="Back to app" render={<Link href="/app" />}>
+                <ArrowLeft className="size-4" />
                 <span>Back to app</span>
               </SidebarMenuButton>
             </SidebarMenuItem>

@@ -12,6 +12,7 @@ import {
   runAgentPlayground,
   updateAgent,
 } from "@/server/agents";
+import { listWorkspaceAiProviders } from "@/server/ai-providers";
 
 export default async function AgentDetailPage({
   params,
@@ -22,7 +23,10 @@ export default async function AgentDetailPage({
 }) {
   const { agentId } = await params;
   const sp = await searchParams;
-  const agent = await getAgent(agentId);
+  const [agent, providers] = await Promise.all([
+    getAgent(agentId),
+    listWorkspaceAiProviders(),
+  ]);
   if (!agent) notFound();
 
   async function saveAgent(formData: FormData) {
@@ -34,6 +38,19 @@ export default async function AgentDetailPage({
       language: String(formData.get("language") || ""),
       systemPrompt: String(formData.get("systemPrompt") || ""),
       status: String(formData.get("status") || "active"),
+      style: String(formData.get("style") || "balanced"),
+      formality: String(formData.get("formality") || "neutral"),
+      emojiPolicy: String(formData.get("emojiPolicy") || "light"),
+      ctaStyle: String(formData.get("ctaStyle") || "soft"),
+      maxSentences: Number(formData.get("maxSentences") || 3),
+      bannedTopics: String(formData.get("bannedTopics") || ""),
+      mustInclude: String(formData.get("mustInclude") || ""),
+      aiProviderId: String(formData.get("aiProviderId") || "") || null,
+      model: String(formData.get("model") || "") || null,
+      temperature: formData.get("temperature")
+        ? Number(formData.get("temperature"))
+        : null,
+      maxTokens: formData.get("maxTokens") ? Number(formData.get("maxTokens")) : null,
     });
   }
 
@@ -96,9 +113,125 @@ export default async function AgentDetailPage({
               <Label htmlFor="language">Language</Label>
               <Input id="language" name="language" defaultValue={agent.language} />
             </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="style">Style</Label>
+              <select
+                id="style"
+                name="style"
+                defaultValue={agent.style || "balanced"}
+                className="h-9 rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="concise">concise</option>
+                <option value="balanced">balanced</option>
+                <option value="detailed">detailed</option>
+                <option value="expert">expert</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="formality">Formality</Label>
+              <select
+                id="formality"
+                name="formality"
+                defaultValue={agent.formality || "neutral"}
+                className="h-9 rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="casual">casual</option>
+                <option value="neutral">neutral</option>
+                <option value="formal">formal</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="emojiPolicy">Emoji policy</Label>
+              <select
+                id="emojiPolicy"
+                name="emojiPolicy"
+                defaultValue={agent.emojiPolicy || "light"}
+                className="h-9 rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="none">none</option>
+                <option value="light">light</option>
+                <option value="ok">ok</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="ctaStyle">CTA style</Label>
+              <select
+                id="ctaStyle"
+                name="ctaStyle"
+                defaultValue={agent.ctaStyle || "soft"}
+                className="h-9 rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="none">none</option>
+                <option value="soft">soft</option>
+                <option value="direct">direct</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="maxSentences">Max sentences</Label>
+              <Input
+                id="maxSentences"
+                name="maxSentences"
+                type="number"
+                defaultValue={agent.maxSentences ?? 3}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="aiProviderId">AI provider override</Label>
+              <select
+                id="aiProviderId"
+                name="aiProviderId"
+                defaultValue={agent.aiProviderId || ""}
+                className="h-9 rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="">Workspace default</option>
+                {providers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label} ({p.kind})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="model">Custom model ID</Label>
+              <Input id="model" name="model" defaultValue={agent.model || ""} placeholder="gpt-4o-mini" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="temperature">Temperature</Label>
+              <Input
+                id="temperature"
+                name="temperature"
+                defaultValue={agent.temperature ?? ""}
+                placeholder="workspace default"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="maxTokens">Max tokens</Label>
+              <Input
+                id="maxTokens"
+                name="maxTokens"
+                defaultValue={agent.maxTokens ?? ""}
+                placeholder="workspace default"
+              />
+            </div>
             <div className="flex flex-col gap-2 md:col-span-2">
               <Label htmlFor="systemPrompt">System prompt</Label>
               <Textarea id="systemPrompt" name="systemPrompt" rows={4} defaultValue={agent.systemPrompt} />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="bannedTopics">Banned topics</Label>
+              <Input
+                id="bannedTopics"
+                name="bannedTopics"
+                defaultValue={(agent.bannedTopics || []).join(", ")}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="mustInclude">Must include</Label>
+              <Input
+                id="mustInclude"
+                name="mustInclude"
+                defaultValue={(agent.mustInclude || []).join(", ")}
+              />
             </div>
             <div>
               <Button type="submit">Save persona</Button>
