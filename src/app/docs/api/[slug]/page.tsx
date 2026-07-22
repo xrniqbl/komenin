@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DocsArticle } from "@/components/docs/docs-article";
+import { JsonLd } from "@/components/seo/json-ld";
 import { getApiPage } from "@/data/docs";
-import { buildMetadata } from "@/lib/seo";
+import { breadcrumbJsonLd, buildMetadata } from "@/lib/seo";
 
 export function generateStaticParams() {
   return [{ slug: "worker" }, { slug: "billing" }, { slug: "publish-webhook" }];
@@ -32,5 +33,19 @@ export default async function DocsApiSlugPage({
   const { slug } = await params;
   const page = getApiPage(slug);
   if (!page || slug === "index") notFound();
-  return <DocsArticle page={page} href={`/docs/api/${slug}`} />;
+  const href = `/docs/api/${slug}`;
+
+  return (
+    <>
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Docs", path: "/docs" },
+          { name: "API", path: "/docs/api" },
+          { name: page.title, path: href },
+        ])}
+      />
+      <DocsArticle page={page} href={href} />
+    </>
+  );
 }

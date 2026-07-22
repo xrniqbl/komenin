@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "@/styles/globals.css";
 import { AppProviders } from "@/components/providers/app-providers";
 import {
+  DEFAULT_OG_IMAGE,
   SITE_DESCRIPTION,
   SITE_KEYWORDS,
   SITE_NAME,
@@ -44,10 +45,10 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [
       {
-        url: absoluteUrl("/brand/aether-logo-512.png"),
-        width: 512,
-        height: 512,
-        alt: `${SITE_NAME} logo`,
+        url: absoluteUrl(DEFAULT_OG_IMAGE.path),
+        width: DEFAULT_OG_IMAGE.width,
+        height: DEFAULT_OG_IMAGE.height,
+        alt: DEFAULT_OG_IMAGE.alt,
       },
     ],
   },
@@ -55,7 +56,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: `${SITE_NAME} | Enterprise Social Operations Control Plane`,
     description: SITE_DESCRIPTION,
-    images: [absoluteUrl("/brand/aether-logo-512.png")],
+    images: [absoluteUrl(DEFAULT_OG_IMAGE.path)],
   },
   robots: {
     index: true,

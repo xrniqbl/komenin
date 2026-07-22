@@ -46,10 +46,20 @@ export type PageSeoInput = {
   description: string;
   path?: string;
   keywords?: string[];
+  /** Defaults to the generated 1200×630 Open Graph image route. */
   image?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   noIndex?: boolean;
   type?: "website" | "article";
 };
+
+export const DEFAULT_OG_IMAGE = {
+  path: "/opengraph-image",
+  width: 1200,
+  height: 630,
+  alt: `${SITE_NAME} — ${SITE_TAGLINE}`,
+} as const;
 
 function normalizeBaseUrl(raw?: string | null): string {
   const fallback = "http://localhost:3000";
@@ -86,7 +96,9 @@ export function buildMetadata({
   description,
   path = "/",
   keywords = [...SITE_KEYWORDS],
-  image = "/brand/aether-logo-512.png",
+  image = DEFAULT_OG_IMAGE.path,
+  imageWidth = DEFAULT_OG_IMAGE.width,
+  imageHeight = DEFAULT_OG_IMAGE.height,
   noIndex = false,
   type = "website",
 }: PageSeoInput): Metadata {
@@ -121,9 +133,9 @@ export function buildMetadata({
       images: [
         {
           url: imageUrl,
-          width: 512,
-          height: 512,
-          alt: `${SITE_NAME} logo`,
+          width: imageWidth,
+          height: imageHeight,
+          alt: DEFAULT_OG_IMAGE.alt,
         },
       ],
     },
@@ -203,14 +215,51 @@ export function softwareApplicationJsonLd() {
     operatingSystem: "Web",
     description: SITE_DESCRIPTION,
     url: getSiteUrl(),
-    image: absoluteUrl("/brand/aether-logo-512.png"),
+    image: absoluteUrl(DEFAULT_OG_IMAGE.path),
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: "USD",
       lowPrice: "29",
       highPrice: "49",
       offerCount: "3",
+      url: absoluteUrl("/pricing"),
     },
+  };
+}
+
+export function pricingProductJsonLd(
+  plans: ReadonlyArray<{
+    id: string;
+    months: number;
+    priceMonthly: number;
+    priceTotal: number;
+  }>,
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: `${SITE_NAME} subscription`,
+    description: PAGE_SEO.pricing.description,
+    brand: {
+      "@type": "Brand",
+      name: SITE_NAME,
+    },
+    image: absoluteUrl(DEFAULT_OG_IMAGE.path),
+    url: absoluteUrl("/pricing"),
+    category: "BusinessApplication",
+    offers: plans.map((plan) => ({
+      "@type": "Offer",
+      name: `${plan.months}-month plan`,
+      sku: `aether-${plan.id}`,
+      price: String(plan.priceTotal),
+      priceCurrency: "USD",
+      url: absoluteUrl("/signup"),
+      availability: "https://schema.org/InStock",
+      priceValidUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365)
+        .toISOString()
+        .slice(0, 10),
+      description: `$${plan.priceMonthly}/month billed every ${plan.months} month${plan.months > 1 ? "s" : ""}`,
+    })),
   };
 }
 

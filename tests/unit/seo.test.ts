@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_OG_IMAGE,
   PAGE_SEO,
   absoluteUrl,
   buildMetadata,
   faqJsonLd,
   getSiteUrl,
+  pricingProductJsonLd,
 } from "@/lib/seo";
 
 describe("seo helpers", () => {
@@ -44,4 +46,25 @@ describe("seo helpers", () => {
     expect(data["@type"]).toBe("FAQPage");
     expect(data.mainEntity).toHaveLength(1);
   });
+
+  it("defaults to 1200x630 open graph image route", () => {
+    const meta = buildMetadata(PAGE_SEO.home);
+    const image = meta.openGraph?.images;
+    const first = Array.isArray(image) ? image[0] : image;
+    expect(first).toMatchObject({
+      url: absoluteUrl(DEFAULT_OG_IMAGE.path),
+      width: 1200,
+      height: 630,
+    });
+  });
+
+  it("builds pricing product offers", () => {
+    const data = pricingProductJsonLd([
+      { id: "1m", months: 1, priceMonthly: 49, priceTotal: 49 },
+      { id: "6m", months: 6, priceMonthly: 39, priceTotal: 234 },
+    ]);
+    expect(data["@type"]).toBe("Product");
+    expect(data.offers).toHaveLength(2);
+  });
 });
+

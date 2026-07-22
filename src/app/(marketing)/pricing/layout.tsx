@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
-import { PAGE_SEO, buildMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/json-ld";
+import { billingPlans } from "@/data/pricing";
+import { PAGE_SEO, buildMetadata, pricingProductJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata(PAGE_SEO.pricing);
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <JsonLd data={pricingProductJsonLd(billingPlans)} />
+      {children}
+    </>
+  );
 }
