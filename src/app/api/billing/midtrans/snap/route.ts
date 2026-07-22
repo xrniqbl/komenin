@@ -1,4 +1,5 @@
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
+import { jsonErrorFromUnknown } from "@/lib/api-route";
 import { NextResponse } from "next/server";
 import { createCheckoutSnap } from "@/server/billing";
 
@@ -6,17 +7,17 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const rate = consumeRateLimit({
-    key: getRequestRateKey(request, 'api:billing:snap'),
+    key: getRequestRateKey(request, "api:billing:snap"),
     limit: 20,
     windowMs: 60_000,
   });
   if (!rate.ok) {
     return NextResponse.json(
-      { error: 'Rate limit exceeded' },
+      { error: "Rate limit exceeded" },
       {
         status: 429,
         headers: {
-          'Retry-After': String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))),
+          "Retry-After": String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))),
         },
       },
     );
@@ -35,9 +36,6 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Checkout failed" },
-      { status: 400 },
-    );
+    return jsonErrorFromUnknown(error, "Checkout failed");
   }
 }
