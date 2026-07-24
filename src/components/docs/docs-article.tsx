@@ -1,9 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import type { DocsPage } from "@/data/docs";
 import { getDocsNeighbors } from "@/data/docs";
 import { DocsCopyButton } from "@/components/docs/docs-copy-button";
-import { Card, CardContent } from "@/components/ui/card";
 import { DocsPager } from "@/components/docs/docs-pager";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { Card, CardContent } from "@/components/ui/card";
 
 export function DocsArticle({
   page,
@@ -12,7 +15,8 @@ export function DocsArticle({
   page: DocsPage;
   href: string;
 }) {
-  const { prev, next } = getDocsNeighbors(href);
+  const { locale, t } = useLocale();
+  const { prev, next } = getDocsNeighbors(href, locale);
 
   return (
     <article className="min-w-0 flex-1 px-4 py-8 md:px-8 md:py-10">
@@ -74,35 +78,12 @@ export function DocsArticle({
           <DocsPager prev={prev} next={next} />
 
           <div className="mt-8 text-sm text-muted-foreground">
-            Need the product UI?{" "}
+            {t.docsUi.needProductUi}{" "}
             <Link href="/app" className="font-medium text-foreground underline-offset-4 hover:underline">
-              Open command center
-            </Link>
-            {" · "}
-            <Link href="/docs/tutorial/faq" className="font-medium text-foreground underline-offset-4 hover:underline">
-              FAQ
+              {t.docsUi.openCommandCenter}
             </Link>
           </div>
         </div>
-
-        <aside className="hidden w-52 shrink-0 lg:block">
-          <div className="sticky top-28">
-            <div className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              On this page
-            </div>
-            <div className="mt-3 space-y-2">
-              {page.sections.map((section) => (
-                <a
-                  key={section.id}
-                  href={`#${section.id}`}
-                  className="block text-sm text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  {section.title}
-                </a>
-              ))}
-            </div>
-          </div>
-        </aside>
       </div>
     </article>
   );

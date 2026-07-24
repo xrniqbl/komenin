@@ -17,12 +17,14 @@ import { FormSelect } from "@/components/ui/form-select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { evaluateSsoReadiness } from "@/lib/sso-readiness";
 import { getWorkspaceSsoConfig, saveWorkspaceSsoConfig } from "@/server/sso";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 
 export default async function SecuritySettingsPage() {
   const { workspace } = await requireActiveWorkspace();
   const config = await getWorkspaceSsoConfig();
+  const sso = evaluateSsoReadiness();
 
   async function save(formData: FormData) {
     "use server";
@@ -55,14 +57,30 @@ export default async function SecuritySettingsPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <CardTitle className="text-base">SSO is experimental</CardTitle>
-            <Badge variant="secondary">Not production-ready</Badge>
+            <Badge variant="secondary">
+              {sso.readyForProductionLogin ? "Ready" : "Not production-ready"}
+            </Badge>
           </div>
           <CardDescription>
-            SAML ACS is not session-integrated yet (production returns 501). Login remains Google-only.
+            SAML ACS is not production-login ready. Login remains Google-only.
             Saving IdP settings stores config for a future release — <strong>Require SSO is not enforced</strong>{" "}
             on the current auth path.
           </CardDescription>
         </CardHeader>
+        <CardContent className="space-y-2 text-sm text-muted-foreground">
+          {sso.blockers.map((item) => (
+            <div key={item} className="flex items-start gap-2">
+              <span className="mt-1.5 inline-block size-1.5 shrink-0 rounded-full bg-amber-600" />
+              <span>{item}</span>
+            </div>
+          ))}
+          {sso.notes.map((item) => (
+            <div key={item} className="flex items-start gap-2">
+              <span className="mt-1.5 inline-block size-1.5 shrink-0 rounded-full bg-neutral-400" />
+              <span>{item}</span>
+            </div>
+          ))}
+        </CardContent>
       </Card>
 
       <Card className="max-w-2xl">

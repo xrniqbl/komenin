@@ -140,12 +140,16 @@ model Workspace {
   apiKeys           ApiKey[]
   customRoles       CustomRole[]
   aiProviders       WorkspaceAiProvider[]
+  clientProfiles    ClientProfile[]
+  engagementLeads   EngagementLead[]
   // Workspace-level AI defaults (provider keys live on WorkspaceAiProvider)
   aiDefaultProviderId String?
   aiDefaultModel      String?
   aiFallbackModels    String[] @default([])
   aiTemperature       Float    @default(0.5)
   aiMaxTokens         Int      @default(280)
+  /** Optional agency mode label shown in UI (e.g. "Acme Agency"). */
+  agencyLabel         String?
 }
 
 
@@ -491,6 +495,7 @@ model Campaign {
   mode          CampaignMode   @default(approval_required)
   status        CampaignStatus @default(draft)
   agentId       String?
+  clientId      String?
   dailyLimit    Int            @default(30)
   minDelaySec   Int            @default(45)
   maxDelaySec   Int            @default(180)
@@ -500,14 +505,17 @@ model Campaign {
 
   workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   agent     Agent?     @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  client    ClientProfile? @relation(fields: [clientId], references: [id], onDelete: SetNull)
   accounts  CampaignAccount[]
   listeners Listener[]
   targetPosts TargetPost[]
   drafts    CommentDraft[]
   actions   CommentAction[]
   approvals Approval[]
+  leads     EngagementLead[]
 
   @@index([workspaceId, status])
+  @@index([clientId])
 }
 
 model CampaignAccount {
@@ -560,6 +568,7 @@ model TargetPost {
   drafts    CommentDraft[]
   actions   CommentAction[]
   approvals Approval[]
+  leads     EngagementLead[]
 
   @@unique([workspaceId, platform, externalId])
   @@index([workspaceId, status, discoveredAt(sort: Desc)])
@@ -727,6 +736,24 @@ enum DeliveryKind {
   discover_posts
   health_probe
   rotate_proxy
+  send_comment_preflight
+}
+
+enum LeadStatus {
+  new
+  contacted
+  qualified
+  won
+  lost
+  archived
+}
+
+enum LeadSource {
+  inbox
+  approval
+  comment
+  manual
+  api
 }
 
 enum JobRunStatus {
@@ -1315,5 +1342,56 @@ model FeatureFlag {
   enabled     Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+/// Agency multi-client tag — lightweight isolation label inside one workspace.
+model ClientProfile {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  slug        String
+  notes       String?  @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  leads     EngagementLead[]
+  campaigns Campaign[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, isActive])
+}
+
+/// Lead captured from social engagement (comment/inbox/approval).
+model EngagementLead {
+  id            String     @id @default(cuid())
+  workspaceId   String
+  clientId      String?
+  targetPostId  String?
+  campaignId    String?
+  platform      Platform?
+  handle        String
+  displayName   String?
+  contactEmail  String?
+  contactPhone  String?
+  source        LeadSource @default(manual)
+  status        LeadStatus @default(new)
+  intent        String?
+  notes         String?    @db.Text
+  postSnippet   String?    @db.Text
+  draftSnippet  String?    @db.Text
+  externalUrl   String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  workspace  Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  client     ClientProfile? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  targetPost TargetPost?    @relation(fields: [targetPostId], references: [id], onDelete: SetNull)
+  campaign   Campaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, createdAt(sort: Desc)])
+  @@index([workspaceId, handle])
+  @@index([clientId])
 }
 

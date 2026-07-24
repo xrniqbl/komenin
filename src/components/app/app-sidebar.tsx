@@ -9,8 +9,10 @@ import {
   BarChart3,
   Bell,
   Bot,
+  Briefcase,
   CalendarDays,
   ClipboardCheck,
+  ContactRound,
   Crosshair,
   Gauge,
   Globe,
@@ -72,6 +74,7 @@ const items: NavGroup[] = [
       { label: "Listeners", href: "/app/listeners", icon: Radar },
       { label: "Inbox", href: "/app/inbox", icon: Inbox },
       { label: "Approvals", href: "/app/approvals", icon: ClipboardCheck },
+      { label: "Leads", href: "/app/leads", icon: ContactRound },
       { label: "Activity", href: "/app/activity", icon: Activity },
     ],
   },
@@ -87,6 +90,7 @@ const items: NavGroup[] = [
   {
     label: "Workspace",
     children: [
+      { label: "Clients", href: "/app/clients", icon: Briefcase },
       { label: "Analytics", href: "/app/analytics", icon: BarChart3 },
       { label: "Rate Limits", href: "/app/rate-limits", icon: Gauge },
       { label: "Audit Logs", href: "/app/audit-logs", icon: ScrollText },

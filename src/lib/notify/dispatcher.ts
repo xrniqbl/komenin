@@ -8,6 +8,8 @@ type DispatchData = {
   title: string;
   body: string;
   href?: string;
+  /** Structured fields for CRM/generic consumers (also folded into Slack/Discord context). */
+  extra?: Record<string, unknown>;
 };
 
 export async function dispatchExternal(event: NotificationEvent, workspaceId: string, data: DispatchData) {
@@ -42,6 +44,7 @@ export async function dispatchExternal(event: NotificationEvent, workspaceId: st
         body: data.body,
         href: data.href,
         workspaceName: workspace?.name,
+        extra: data.extra,
       };
 
       if (formatterType === "slack") payload = formatSlackPayload(event, notifyData);

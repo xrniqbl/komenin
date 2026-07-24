@@ -1,22 +1,25 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { docsNav } from "@/data/docs";
 import { DocsSearch } from "@/components/docs/docs-search";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { getDocsNav } from "@/data/docs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 export function DocsSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { locale, t } = useLocale();
+  const nav = getDocsNav(locale);
 
   return (
     <ScrollArea className="h-full">
       <div className="px-4 py-6">
-        <div className="mb-4 text-sm font-semibold tracking-tight">Aether Docs</div>
+        <div className="mb-4 text-sm font-semibold tracking-tight">{t.docsUi.brandShort}</div>
         <DocsSearch />
         <nav className="space-y-5">
-          {docsNav.map((group) => (
+          {nav.map((group) => (
             <div key={group.title}>
               <div className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 {group.title}

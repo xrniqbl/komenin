@@ -77,6 +77,7 @@ export const messages = {
       title: "Choose how long you want to run Aether",
       subtitle:
         "Only three plans: 1 month, 6 months, and 12 months. Longer commitment, lower monthly rate. No hidden tiers.",
+      currencyNote: "Prices in IDR · billed via Midtrans (same amounts as in-app checkout)",
       perMonth: "/month",
       billedEvery: "Billed",
       every: "every",
@@ -108,6 +109,22 @@ export const messages = {
             "1m": "Up to 10",
             "6m": "Up to 40",
             "12m": "Up to 100",
+          },
+        },
+        {
+          label: "Monthly sends",
+          values: {
+            "1m": "3,000 comments",
+            "6m": "10,000 comments",
+            "12m": "30,000 comments",
+          },
+        },
+        {
+          label: "Monthly publishes",
+          values: {
+            "1m": "300 posts",
+            "6m": "1,000 posts",
+            "12m": "3,000 posts",
           },
         },
         {
@@ -145,17 +162,17 @@ export const messages = {
         {
           label: "Monthly rate",
           values: {
-            "1m": "$49 / month",
-            "6m": "$39 / month",
-            "12m": "$29 / month",
+            "1m": "Rp499.000 / month",
+            "6m": "Rp399.000 / month",
+            "12m": "Rp299.000 / month",
           },
         },
         {
           label: "Billed total",
           values: {
-            "1m": "$49 every 1 month",
-            "6m": "$234 every 6 months",
-            "12m": "$348 every 12 months",
+            "1m": "Rp499.000 every 1 month",
+            "6m": "Rp2.394.000 every 6 months",
+            "12m": "Rp3.588.000 every 12 months",
           },
         },
       ],
@@ -282,7 +299,7 @@ export const messages = {
       badge: "Enterprise",
       title: "Built for security reviews and multi-team ops",
       subtitle:
-        "Aether gives enterprise operators governed automation: custom quotas, SSO-ready access, audit export, and guided onboarding without losing day-to-day control.",
+        "Aether gives enterprise operators governed automation: custom quotas, SSO configuration preview, audit export, and guided onboarding without losing day-to-day control.",
       cta: "Book demo",
       backHome: "Back to home",
       fitTitle: "When enterprise is the right fit",
@@ -294,7 +311,7 @@ export const messages = {
           body: "Keep every workspace isolated and role-aware.",
           bullets: [
             "Workspace RBAC with owner/admin/operator/analyst/auditor/viewer",
-            "SSO/SAML configuration for domain-enforced login",
+            "SSO/SAML configuration preview (production ACS shipping next)",
             "Invite flows and membership lifecycle controls",
           ],
         },
@@ -358,7 +375,7 @@ export const messages = {
           body: "Role boundaries are first-class.",
           bullets: [
             "Fine-grained workspace permissions",
-            "Enterprise SSO/SAML path for domain-controlled access",
+            "SSO/SAML config stored today; production login enforcement coming next",
             "Platform superadmin separated from workspace roles",
           ],
         },
@@ -387,13 +404,15 @@ export const messages = {
       badge: "Contact",
       title: "Book a demo",
       subtitle: "Ask about enterprise onboarding, security review, or custom quotas.",
-      success: "Thanks. Your message is ready for sales follow-up.",
+      success: "Thanks. Your message was received — our team will follow up shortly.",
       formTitle: "Send a message",
       formSubtitle: "We will respond with next steps.",
       name: "Name",
       email: "Work email",
       message: "How can we help?",
       submit: "Send message",
+      submitting: "Sending…",
+      errorGeneric: "Could not send your message. Please try again.",
     },
     legalPages: {
       privacy: {
@@ -484,6 +503,90 @@ export const messages = {
       terms: "Terms",
       aup: "AUP",
     },
+    docsUi: {
+      brand: "Aether Documentation",
+      brandShort: "Aether Docs",
+      home: "Home",
+      tutorial: "Tutorial",
+      api: "API Reference",
+      backToSite: "Back to site",
+      browse: "Browse docs",
+      openMenu: "Open docs menu",
+      searchPlaceholder: "Search docs...",
+      noMatches: "No matches",
+      previous: "Previous",
+      next: "Next",
+      copyPage: "Copy page",
+      copied: "Copied",
+      needProductUi: "Need the product UI?",
+      openCommandCenter: "Open command center",
+      homeTitle: "Aether Documentation",
+      homeSubtitle:
+        "Two ways to use Aether: follow the Tutorial to manage everything from the dashboard, or use the API Reference to build your own integration around workers, webhooks, and billing.",
+      getStarted: "Get Started",
+      apiReference: "API Reference",
+      quickStart: "Quick Start",
+      tutorialPath: "Tutorial path",
+      tutorialPathBody:
+        "Dashboard-first operators: accounts, campaigns, approvals, agents, billing, and admin.",
+      openTutorial: "Open Tutorial",
+      integrationPath: "Integration path",
+      integrationPathBody:
+        "Engineers: worker jobs, publish webhooks, Midtrans notifications, and SSO endpoints.",
+      openWorkerApi: "Open Worker API",
+      cards: [
+        {
+          href: "/docs/tutorial/introduction",
+          title: "Getting Started",
+          body: "New to Aether? Learn the core concepts and what you can manage from one workspace.",
+        },
+        {
+          href: "/docs/tutorial/connectors",
+          title: "Hybrid Connectors",
+          body: "Use simulator for demos, webhook for live ops, and official adapters when credentials exist.",
+        },
+        {
+          href: "/docs/tutorial/campaigns",
+          title: "Set Automation",
+          body: "Run comment campaigns, approvals, paced sends, and auto-post schedules with guardrails.",
+        },
+        {
+          href: "/docs/tutorial/agents",
+          title: "Agent Intelligence",
+          body: "Personas, knowledge retrieval, memory, and playground drafts before anything goes live.",
+        },
+        {
+          href: "/docs/api",
+          title: "API Reference",
+          body: "Trigger workers, receive publish webhooks, and handle Midtrans billing notifications.",
+        },
+        {
+          href: "/docs/tutorial/security",
+          title: "Security & Control",
+          body: "Encrypted secrets, RBAC, approvals-by-default, usage limits, and audit export.",
+        },
+        {
+          href: "/docs/tutorial/golden-path",
+          title: "Golden Path Demo",
+          body: "Run the full simulator loop from signup to audited send/publish before going live.",
+        },
+        {
+          href: "/docs/tutorial/command-center",
+          title: "Command Center",
+          body: "Learn what to check daily in /app and where to click next when something degrades.",
+        },
+        {
+          href: "/docs/tutorial/troubleshooting",
+          title: "Troubleshooting",
+          body: "Fix auth loops, empty inbox, worker 401s, live fail-closed errors, and billing pending states.",
+        },
+        {
+          href: "/docs/tutorial/faq",
+          title: "FAQ",
+          body: "Short answers about simulator vs live, approvals, Midtrans, workers, SSO, and admin access.",
+        },
+      ],
+    },
   },
   id: {
     nav: {
@@ -562,6 +665,7 @@ export const messages = {
       title: "Pilih berapa lama Anda ingin memakai Aether",
       subtitle:
         "Hanya tiga paket: 1 bulan, 6 bulan, dan 12 bulan. Semakin panjang, semakin rendah harga bulanan. Tanpa tier tersembunyi.",
+      currencyNote: "Harga dalam IDR · ditagih via Midtrans (sama dengan checkout di app)",
       perMonth: "/bulan",
       billedEvery: "Ditagih",
       every: "setiap",
@@ -593,6 +697,22 @@ export const messages = {
             "1m": "Hingga 10",
             "6m": "Hingga 40",
             "12m": "Hingga 100",
+          },
+        },
+        {
+          label: "Kirim komentar / bulan",
+          values: {
+            "1m": "3.000 komentar",
+            "6m": "10.000 komentar",
+            "12m": "30.000 komentar",
+          },
+        },
+        {
+          label: "Publish / bulan",
+          values: {
+            "1m": "300 post",
+            "6m": "1.000 post",
+            "12m": "3.000 post",
           },
         },
         {
@@ -630,17 +750,17 @@ export const messages = {
         {
           label: "Harga bulanan",
           values: {
-            "1m": "$49 / bulan",
-            "6m": "$39 / bulan",
-            "12m": "$29 / bulan",
+            "1m": "Rp499.000 / bulan",
+            "6m": "Rp399.000 / bulan",
+            "12m": "Rp299.000 / bulan",
           },
         },
         {
           label: "Total tagihan",
           values: {
-            "1m": "$49 setiap 1 bulan",
-            "6m": "$234 setiap 6 bulan",
-            "12m": "$348 setiap 12 bulan",
+            "1m": "Rp499.000 setiap 1 bulan",
+            "6m": "Rp2.394.000 setiap 6 bulan",
+            "12m": "Rp3.588.000 setiap 12 bulan",
           },
         },
       ],
@@ -767,7 +887,7 @@ export const messages = {
       badge: "Enterprise",
       title: "Dirancang untuk security review dan operasi multi-tim",
       subtitle:
-        "Aether memberi operator enterprise otomatisasi yang terkendali: kuota kustom, akses siap SSO, export audit, dan onboarding terpandu tanpa kehilangan kontrol harian.",
+        "Aether memberi operator enterprise otomatisasi yang terkendali: kuota kustom, preview konfigurasi SSO, export audit, dan onboarding terpandu tanpa kehilangan kontrol harian.",
       cta: "Jadwalkan demo",
       backHome: "Kembali ke beranda",
       fitTitle: "Kapan paket enterprise paling pas",
@@ -779,7 +899,7 @@ export const messages = {
           body: "Setiap workspace tetap terisolasi dan berbasis peran.",
           bullets: [
             "RBAC workspace: owner/admin/operator/analyst/auditor/viewer",
-            "Konfigurasi SSO/SAML untuk login berbasis domain",
+            "Preview konfigurasi SSO/SAML (ACS production menyusul)",
             "Alur invite dan kontrol siklus membership",
           ],
         },
@@ -843,7 +963,7 @@ export const messages = {
           body: "Batas peran adalah first-class.",
           bullets: [
             "Permission workspace yang granular",
-            "Jalur SSO/SAML enterprise untuk akses berbasis domain",
+            "Konfig SSO/SAML tersimpan hari ini; penegakan login production menyusul",
             "Superadmin platform terpisah dari role workspace",
           ],
         },
@@ -872,13 +992,15 @@ export const messages = {
       badge: "Kontak",
       title: "Jadwalkan demo",
       subtitle: "Tanyakan onboarding enterprise, security review, atau kuota kustom.",
-      success: "Terima kasih. Pesan Anda siap ditindaklanjuti tim sales.",
+      success: "Terima kasih. Pesan Anda sudah diterima — tim kami akan segera menindaklanjuti.",
       formTitle: "Kirim pesan",
       formSubtitle: "Kami akan membalas dengan langkah berikutnya.",
       name: "Nama",
       email: "Email kerja",
       message: "Ada yang bisa kami bantu?",
       submit: "Kirim pesan",
+      submitting: "Mengirim…",
+      errorGeneric: "Pesan gagal dikirim. Silakan coba lagi.",
     },
     legalPages: {
       privacy: {
@@ -970,6 +1092,90 @@ export const messages = {
       privacy: "Privasi",
       terms: "Syarat",
       aup: "AUP",
+    },
+    docsUi: {
+      brand: "Dokumentasi Aether",
+      brandShort: "Docs Aether",
+      home: "Beranda",
+      tutorial: "Tutorial",
+      api: "Referensi API",
+      backToSite: "Kembali ke situs",
+      browse: "Jelajahi docs",
+      openMenu: "Buka menu docs",
+      searchPlaceholder: "Cari dokumentasi...",
+      noMatches: "Tidak ada hasil",
+      previous: "Sebelumnya",
+      next: "Berikutnya",
+      copyPage: "Salin halaman",
+      copied: "Disalin",
+      needProductUi: "Butuh UI produk?",
+      openCommandCenter: "Buka command center",
+      homeTitle: "Dokumentasi Aether",
+      homeSubtitle:
+        "Dua cara memakai Aether: ikuti Tutorial untuk mengelola semuanya dari dashboard, atau gunakan Referensi API untuk membangun integrasi sendiri di sekitar worker, webhook, dan billing.",
+      getStarted: "Mulai",
+      apiReference: "Referensi API",
+      quickStart: "Mulai Cepat",
+      tutorialPath: "Jalur tutorial",
+      tutorialPathBody:
+        "Operator yang mengutamakan dashboard: akun, kampanye, persetujuan, agen, billing, dan admin.",
+      openTutorial: "Buka Tutorial",
+      integrationPath: "Jalur integrasi",
+      integrationPathBody:
+        "Engineer: job worker, webhook publish, notifikasi Midtrans, dan endpoint SSO.",
+      openWorkerApi: "Buka API Worker",
+      cards: [
+        {
+          href: "/docs/tutorial/introduction",
+          title: "Mulai",
+          body: "Baru di Aether? Pelajari konsep inti dan apa saja yang bisa dikelola dari satu workspace.",
+        },
+        {
+          href: "/docs/tutorial/connectors",
+          title: "Konektor Hybrid",
+          body: "Gunakan simulator untuk demo, webhook untuk operasi live, dan adapter resmi saat kredensial tersedia.",
+        },
+        {
+          href: "/docs/tutorial/campaigns",
+          title: "Siapkan Otomasi",
+          body: "Jalankan kampanye komentar, persetujuan, pengiriman berirama, dan jadwal auto-post dengan guardrail.",
+        },
+        {
+          href: "/docs/tutorial/agents",
+          title: "Inteligensi Agen",
+          body: "Persona, pengambilan knowledge, memori, dan draf playground sebelum apa pun dipublikasikan.",
+        },
+        {
+          href: "/docs/api",
+          title: "Referensi API",
+          body: "Picu worker, terima webhook publish, dan tangani notifikasi billing Midtrans.",
+        },
+        {
+          href: "/docs/tutorial/security",
+          title: "Keamanan & Kontrol",
+          body: "Rahasia terenkripsi, RBAC, persetujuan-by-default, batas penggunaan, dan ekspor audit.",
+        },
+        {
+          href: "/docs/tutorial/golden-path",
+          title: "Demo Golden Path",
+          body: "Jalankan loop simulator penuh dari signup hingga send/publish ber-audit sebelum live.",
+        },
+        {
+          href: "/docs/tutorial/command-center",
+          title: "Command Center",
+          body: "Pelajari apa yang dicek harian di /app dan ke mana klik berikutnya saat ada degradasi.",
+        },
+        {
+          href: "/docs/tutorial/troubleshooting",
+          title: "Pemecahan Masalah",
+          body: "Perbaiki loop auth, inbox kosong, worker 401, error fail-closed live, dan status billing pending.",
+        },
+        {
+          href: "/docs/tutorial/faq",
+          title: "FAQ",
+          body: "Jawaban singkat tentang simulator vs live, persetujuan, Midtrans, worker, SSO, dan akses admin.",
+        },
+      ],
     },
   },
 } as const;

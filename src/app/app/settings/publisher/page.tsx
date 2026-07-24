@@ -270,13 +270,36 @@ export default async function PublisherSettingsPage({
       <Card className="mt-6">
         <CardHeader>
           <CardTitle className="text-base">How to go live</CardTitle>
+          <CardDescription>
+            Live delivery requires env + a worker that accepts Aether webhooks. Threads/TikTok native
+            paths still fall back to webhook for many actions.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <div><code>SIMULATOR_MODE=&quot;false&quot;</code></div>
-          <div><code>SOCIAL_PUBLISH_WEBHOOK_URL=&quot;https://your-worker/hooks/aether&quot;</code></div>
-          <div><code>SOCIAL_PUBLISH_WEBHOOK_TOKEN=&quot;long-random-token&quot;</code> (required)</div>
-          <div><code>SOCIAL_CONNECTOR_POLICY=&quot;prefer_webhook&quot;</code></div>
-          <div>Optional official (partial): <code>SOCIAL_OFFICIAL_API_BASE_URL</code> + <code>SOCIAL_OFFICIAL_API_TOKEN</code></div>
+          <div>1. Set <code>SIMULATOR_MODE=&quot;false&quot;</code></div>
+          <div>
+            2. Point Aether at your bridge:{" "}
+            <code>SOCIAL_PUBLISH_WEBHOOK_URL=&quot;https://your-worker/hooks/aether&quot;</code>
+          </div>
+          <div>
+            3. Require auth:{" "}
+            <code>SOCIAL_PUBLISH_WEBHOOK_TOKEN=&quot;long-random-token&quot;</code>
+          </div>
+          <div>
+            4. Policy: <code>SOCIAL_CONNECTOR_POLICY=&quot;prefer_webhook&quot;</code> (or{" "}
+            <code>prefer_official</code> when official tokens are configured)
+          </div>
+          <div>
+            5. Optional official (partial Instagram/Threads/TikTok):{" "}
+            <code>SOCIAL_OFFICIAL_API_BASE_URL</code> + <code>SOCIAL_OFFICIAL_API_TOKEN</code>
+          </div>
+          <div>
+            6. Run workers: <code>npm run worker:tick</code> (or scheduled{" "}
+            <code>/api/worker/run</code> with <code>WORKER_SECRET</code>)
+          </div>
+          <div className="pt-1 text-xs">
+            Command Center shows a readiness banner until blockers are cleared.
+          </div>
         </CardContent>
       </Card>
 

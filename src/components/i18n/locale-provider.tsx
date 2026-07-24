@@ -1,6 +1,11 @@
 "use client";
 
 import * as React from "react";
+import {
+  LOCALE_COOKIE,
+  LOCALE_STORAGE_KEY,
+  normalizeLocale,
+} from "@/lib/i18n/locale";
 import { messages, type Locale, type Messages } from "@/lib/i18n/messages";
 
 type LocaleContextValue = {
@@ -10,23 +15,39 @@ type LocaleContextValue = {
 };
 
 const LocaleContext = React.createContext<LocaleContextValue | null>(null);
-const STORAGE_KEY = "aether.locale";
 
-export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = React.useState<Locale>("en");
+function writeLocaleCookie(locale: Locale) {
+  const maxAge = 60 * 60 * 24 * 365;
+  document.cookie = `${LOCALE_COOKIE}=${locale}; path=/; max-age=${maxAge}; samesite=lax`;
+}
+
+export function LocaleProvider({
+  children,
+  initialLocale = "en",
+}: {
+  children: React.ReactNode;
+  initialLocale?: Locale;
+}) {
+  const [locale, setLocaleState] = React.useState<Locale>(normalizeLocale(initialLocale));
 
   React.useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
+    const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
     if (saved === "en" || saved === "id") {
       setLocaleState(saved);
       document.documentElement.lang = saved;
+      writeLocaleCookie(saved);
+      return;
     }
+    document.documentElement.lang = locale;
+    writeLocaleCookie(locale);
   }, []);
 
   const setLocale = React.useCallback((next: Locale) => {
-    setLocaleState(next);
-    window.localStorage.setItem(STORAGE_KEY, next);
-    document.documentElement.lang = next;
+    const normalized = normalizeLocale(next);
+    setLocaleState(normalized);
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, normalized);
+    writeLocaleCookie(normalized);
+    document.documentElement.lang = normalized;
   }, []);
 
   const value = React.useMemo(

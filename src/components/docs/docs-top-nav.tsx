@@ -2,16 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LanguageToggle } from "@/components/i18n/language-toggle";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
-
-const topLinks = [
-  { href: "/docs", label: "Home", match: "home" },
-  { href: "/docs/tutorial/introduction", label: "Tutorial", match: "tutorial" },
-  { href: "/docs/api", label: "API Reference", match: "api" },
-] as const;
 
 export function DocsTopNav() {
   const pathname = usePathname() || "";
+  const { t } = useLocale();
+  const ui = t.docsUi;
+
+  const topLinks = [
+    { href: "/docs", label: ui.home, match: "home" },
+    { href: "/docs/tutorial/introduction", label: ui.tutorial, match: "tutorial" },
+    { href: "/docs/api", label: ui.api, match: "api" },
+  ] as const;
 
   function isActive(match: string) {
     if (match === "home") return pathname === "/docs";
@@ -24,7 +28,7 @@ export function DocsTopNav() {
     <div className="border-b bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 md:px-6">
         <Link href="/docs" className="text-sm font-semibold tracking-tight">
-          Aether Documentation
+          {ui.brand}
         </Link>
         <nav className="flex items-center gap-1 text-sm">
           {topLinks.map((link) => {
@@ -41,14 +45,15 @@ export function DocsTopNav() {
               </Button>
             );
           })}
+          <LanguageToggle className="ml-2 hidden sm:inline-flex" />
           <Button
             size="sm"
             variant="ghost"
-            className="ml-2"
+            className="ml-1"
             render={<Link href="/" />}
             nativeButton={false}
           >
-            Back to site
+            {ui.backToSite}
           </Button>
         </nav>
       </div>

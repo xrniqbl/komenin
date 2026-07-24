@@ -277,7 +277,7 @@ export async function adminUpsertFlag(input: {
   description?: string;
 }) {
   await requireSuperAdmin();
-  return db.featureFlag.upsert({
+  const row = await db.featureFlag.upsert({
     where: { key: input.key },
     create: {
       key: input.key,
@@ -289,6 +289,10 @@ export async function adminUpsertFlag(input: {
       description: input.description,
     },
   });
+  // Keep runtime flag cache coherent after admin writes.
+  const { clearFeatureFlagCache } = await import("@/lib/feature-flags");
+  clearFeatureFlagCache(input.key);
+  return row;
 }
 
 export async function listAdminRegions() {

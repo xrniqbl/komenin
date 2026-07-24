@@ -39,6 +39,8 @@ export async function listRateLimitStatus() {
 
   const sendsUsed = usage?.sends ?? 0;
   const publishesUsed = usage?.publishes ?? 0;
+  const generatesUsed = usage?.generates ?? 0;
+  const skillRunsUsed = usage?.skillRuns ?? 0;
   const sendLimit = ws?.monthlySendLimit ?? 5000;
   const publishLimit = ws?.monthlyPublishLimit ?? 1000;
 
@@ -58,6 +60,8 @@ export async function listRateLimitStatus() {
       planCode: ws?.planCode ?? "unknown",
       sendsUsed,
       publishesUsed,
+      generatesUsed,
+      skillRunsUsed,
       sendLimit,
       publishLimit,
       sendsPct: getQuotaPercent(sendsUsed, sendLimit),

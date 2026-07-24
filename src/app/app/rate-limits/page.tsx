@@ -15,7 +15,7 @@ export default async function RateLimitsPage() {
         description={`Monthly period ${data.periodKey} · ${data.throttledCount} throttled account(s).`}
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="p-4 pb-2">
             <CardTitle className="flex items-center justify-between gap-2 text-sm">
@@ -37,6 +37,28 @@ export default async function RateLimitsPage() {
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <QuotaMeter used={data.workspace.publishesUsed} limit={data.workspace.publishLimit} label="Publishes" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm">AI generations</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-3xl font-semibold tabular-nums">{data.workspace.generatesUsed}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Comment/content drafts generated this period
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm">Skill runs</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-3xl font-semibold tabular-nums">{data.workspace.skillRunsUsed}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Skill executions counted this period
+            </div>
           </CardContent>
         </Card>
       </div>

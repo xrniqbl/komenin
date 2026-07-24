@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "@/styles/globals.css";
 import { AppProviders } from "@/components/providers/app-providers";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import {
   DEFAULT_OG_IMAGE,
   SITE_DESCRIPTION,
@@ -83,15 +84,17 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getRequestLocale();
+
   return (
-    <html lang="en" className={interTight.variable}>
+    <html lang={locale} className={interTight.variable}>
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
-        <AppProviders>{children}</AppProviders>
+        <AppProviders initialLocale={locale}>{children}</AppProviders>
       </body>
     </html>
   );

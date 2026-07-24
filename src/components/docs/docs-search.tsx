@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { getDocsSearchIndex } from "@/data/docs";
 import {
   Autocomplete,
@@ -17,8 +18,9 @@ type DocsSearchItem = ReturnType<typeof getDocsSearchIndex>[number];
 
 export function DocsSearch() {
   const router = useRouter();
+  const { locale, t } = useLocale();
   const [query, setQuery] = useState("");
-  const index = useMemo(() => getDocsSearchIndex(), []);
+  const index = useMemo(() => getDocsSearchIndex(locale), [locale]);
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return index.slice(0, 8);
@@ -39,13 +41,13 @@ export function DocsSearch() {
         filter={null}
       >
         <AutocompleteInput
-          placeholder="Search docs..."
+          placeholder={t.docsUi.searchPlaceholder}
           size="sm"
           showClear={query.length > 0}
           startAddon={<Search className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
         />
         <AutocompletePopup>
-          <AutocompleteEmpty>No matches</AutocompleteEmpty>
+          <AutocompleteEmpty>{t.docsUi.noMatches}</AutocompleteEmpty>
           <AutocompleteList>
             {results.map((item) => (
               <AutocompleteItem

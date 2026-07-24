@@ -1,18 +1,24 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/app/empty-state";
+import { OnboardingChecklistCard } from "@/components/app/onboarding-checklist";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getEntitlementsForPlanCode } from "@/lib/billing/entitlements";
 import { db } from "@/lib/db";
-import { getRuntimeModeLabel } from "@/lib/runtime-mode";
+import { evaluateLiveReadiness, getRuntimeModeLabel } from "@/lib/runtime-mode";
+import { getOnboardingChecklist } from "@/server/onboarding-checklist";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 
 export default async function AppHomePage() {
   const { workspace } = await requireActiveWorkspace();
   const mode = getRuntimeModeLabel();
+  const readiness = evaluateLiveReadiness();
+  const entitlements = getEntitlementsForPlanCode(workspace.planCode);
+  const checklist = await getOnboardingChecklist();
 
-  const [healthyAccounts, proxyCount, sessionCount, pendingApprovals, recentAudits] =
+  const [healthyAccounts, proxyCount, sessionCount, pendingApprovals, recentAudits, accountCount] =
     await Promise.all([
       db.socialAccount.count({
         where: { workspaceId: workspace.id, deletedAt: null, status: "healthy" },
@@ -29,9 +35,16 @@ export default async function AppHomePage() {
       db.auditLog.count({
         where: { workspaceId: workspace.id },
       }),
+      db.socialAccount.count({
+        where: { workspaceId: workspace.id, deletedAt: null },
+      }),
     ]);
 
   const metrics = [
+    {
+      label: "Social accounts",
+      value: `${accountCount}/${entitlements.maxSocialAccounts}`,
+    },
     { label: "Healthy accounts", value: String(healthyAccounts) },
     { label: "Active proxies", value: String(proxyCount) },
     { label: "Active sessions", value: String(sessionCount) },
@@ -54,7 +67,44 @@ export default async function AppHomePage() {
           </div>
         }
       />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
+      <OnboardingChecklistCard checklist={checklist} />
+
+      {!readiness.ready ? (
+        <Card className="mb-6 border-amber-500/40 bg-amber-500/5">
+          <CardHeader className="pb-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle className="text-base">Live connector readiness</CardTitle>
+              <Badge variant="secondary">{mode}</Badge>
+            </div>
+            <CardDescription>
+              {mode === "simulator"
+                ? "You are in simulator mode. Campaigns and approvals still work end-to-end, but platform delivery is simulated."
+                : "Live mode is on, but connector configuration is incomplete."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            {[...readiness.blockers, ...readiness.warnings].map((item) => (
+              <div key={item} className="flex items-start gap-2">
+                <span className="mt-1.5 inline-block size-1.5 shrink-0 rounded-full bg-amber-600" />
+                <span>{item}</span>
+              </div>
+            ))}
+            <div className="pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                render={<Link href="/app/settings/publisher" />}
+                nativeButton={false}
+              >
+                Open publisher settings
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {metrics.map((metric) => (
           <Card key={metric.label}>
             <CardHeader className="pb-2">

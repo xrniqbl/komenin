@@ -1,7 +1,8 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { Check, Copy } from "lucide-react";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 
 function pageToMarkdown(input: {
@@ -56,6 +57,7 @@ export function DocsCopyButton({
   }>;
   href: string;
 }) {
+  const { t } = useLocale();
   const [copied, setCopied] = React.useState(false);
 
   async function onCopy() {
@@ -65,7 +67,6 @@ export function DocsCopyButton({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
-      // Fallback for older browsers / blocked clipboard
       const el = document.createElement("textarea");
       el.value = markdown;
       el.setAttribute("readonly", "");
@@ -83,7 +84,7 @@ export function DocsCopyButton({
   return (
     <Button type="button" variant="outline" size="sm" onClick={onCopy}>
       {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-      {copied ? "Copied" : "Copy page"}
+      {copied ? t.docsUi.copied : t.docsUi.copyPage}
     </Button>
   );
 }

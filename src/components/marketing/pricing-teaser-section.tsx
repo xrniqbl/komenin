@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { billingPlans, formatUsd } from "@/data/pricing";
+import { billingPlans, formatPrice } from "@/data/pricing";
 import { cn } from "@/lib/utils";
 
 export function PricingTeaserSection() {
@@ -29,6 +29,7 @@ export function PricingTeaserSection() {
           <p className="text-base text-muted-foreground sm:text-lg">
             {t.pricingTeaser.subtitle}
           </p>
+          <p className="text-xs text-muted-foreground">{t.pricingPage.currencyNote}</p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -51,14 +52,14 @@ export function PricingTeaserSection() {
                       <Badge variant="secondary">{planCopy.badge}</Badge>
                     ) : null}
                   </div>
-                  <CardTitle className="text-3xl">
-                    {formatUsd(plan.priceMonthly)}
+                  <CardTitle className="text-2xl sm:text-3xl">
+                    {formatPrice(plan.priceMonthly)}
                     <span className="text-sm font-normal text-muted-foreground">
                       {t.pricingTeaser.perMonth}
                     </span>
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    {formatUsd(plan.priceTotal)} {t.pricingTeaser.billed} / {plan.months}{" "}
+                    {formatPrice(plan.priceTotal)} {t.pricingTeaser.billed} / {plan.months}{" "}
                     {plan.months === 1 ? t.pricingPage.month : t.pricingPage.months}
                   </p>
                 </CardHeader>

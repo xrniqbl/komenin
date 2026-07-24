@@ -1,4 +1,7 @@
-﻿export type DocsNavItem = {
+import docsId from "@/data/docs-id.json";
+import type { Locale } from "@/lib/i18n/messages";
+
+export type DocsNavItem = {
   href: string;
   title: string;
 };
@@ -93,6 +96,7 @@ export const docsNav: DocsNavGroup[] = [
     title: "Reference",
     items: [
       { href: "/docs/api", title: "API Reference" },
+      { href: "/docs/api/public-v1", title: "Public API v1" },
       { href: "/docs/api/worker", title: "Worker API" },
       { href: "/docs/api/billing", title: "Billing Webhooks" },
       { href: "/docs/api/publish-webhook", title: "Publish Webhook" },
@@ -1064,24 +1068,115 @@ export const apiPages: Record<string, DocsPage> = {
   index: {
     slug: "index",
     title: "API Reference",
-    description: "HTTP endpoints for workers, billing, and connector callbacks.",
+    description: "HTTP endpoints for workers, billing, connector callbacks, and workspace API keys.",
     sections: [
       {
         id: "auth",
         title: "Authentication",
         body:
-          "Browser session auth protects app routes/server actions. Worker and some webhook endpoints use bearer secrets/tokens.",
+          "Browser session auth protects app routes/server actions. Workspace integrations use aeth_ API keys. Worker and some webhook endpoints use bearer secrets/tokens.",
       },
       {
         id: "groups",
         title: "Endpoint groups",
         bullets: [
+          "Public API v1 (API keys)",
           "Worker run API",
           "Midtrans Snap + notification",
           "Voucher validation",
           "Publish webhook receiver",
           "SSO SAML bootstrap/ACS",
+          "Contact form POST /api/contact",
         ],
+      },
+    ],
+  },
+  "public-v1": {
+    slug: "public-v1",
+    title: "Public API v1",
+    description:
+      "Workspace-scoped REST endpoints authenticated with aeth_ API keys from Settings → API keys.",
+    sections: [
+      {
+        id: "auth",
+        title: "Authentication",
+        body:
+          "Create a key under /app/settings/api-keys. Send it as x-api-key or Authorization: Bearer aeth_.... Write routes require the public_api_write feature flag (on by default) plus campaigns:write scope.",
+        code: `curl https://your-app/api/v1/campaigns \\
+  -H "Authorization: Bearer aeth_..."`,
+      },
+      {
+        id: "scopes",
+        title: "Scopes",
+        bullets: [
+          "campaigns:read / campaigns:write",
+          "accounts:read",
+          "listeners:read / listeners:write (listeners also accept campaigns:read/write)",
+          "leads:read / leads:write",
+          "activity:read",
+          "analytics:read",
+          "competitors:read",
+          "templates:read",
+        ],
+      },
+      {
+        id: "list-campaigns",
+        title: "GET /api/v1/campaigns",
+        body: "List campaigns for the API key workspace.",
+      },
+      {
+        id: "create-campaign",
+        title: "POST /api/v1/campaigns",
+        body: "Create a campaign. Optional listenerQuery creates a keyword listener. Optional socialAccountIds must belong to the workspace.",
+        code: `{
+  "name": "IG keyword pilot",
+  "platform": "instagram",
+  "mode": "approval_required",
+  "goal": "Helpful product replies",
+  "listenerQuery": "social ops automation",
+  "clientId": "optional_client_profile_id",
+  "dailyLimit": 30
+}`,
+      },
+      {
+        id: "listeners",
+        title: "GET/POST /api/v1/listeners",
+        body: "List or create keyword/competitor/trend listeners. POST requires campaigns:write.",
+        code: `{
+  "platform": "instagram",
+  "type": "keyword",
+  "query": "ai agent",
+  "campaignId": "optional_campaign_id"
+}`,
+      },
+      {
+        id: "leads",
+        title: "GET/POST /api/v1/leads",
+        body:
+          "List or create engagement leads. Query params for GET: status, clientId, q. Requires lead_capture feature flag. POST uses leads:write and fires outbound lead.captured with structured CRM fields on generic webhooks.",
+        code: `{
+  "handle": "prospect_ig",
+  "platform": "instagram",
+  "intent": "Asked for pricing",
+  "contactEmail": "ops@brand.com",
+  "clientId": "optional_client_id",
+  "source": "api"
+}`,
+      },
+      {
+        id: "read-others",
+        title: "Other read endpoints",
+        bullets: [
+          "GET /api/v1/accounts",
+          "GET /api/v1/activity",
+          "GET /api/v1/analytics",
+        ],
+      },
+      {
+        id: "outbound-webhooks",
+        title: "Outbound workspace webhooks",
+        body:
+          "Configure Slack/Discord/generic endpoints under Settings → Webhooks. Events include approval.new, lead.captured (extra: handle/email/client/campaign/status), account.degraded, account.reauth_required, account.proxy_rotated, comment.failed, usage.warning.",
       },
     ],
   },
@@ -1268,13 +1363,35 @@ export const apiPages: Record<string, DocsPage> = {
 };
 
 
-export function getDocsPage(slug: string): DocsPage | null {
-  return docsPages[slug] || null;
+type LocalizedDocsBundle = {
+  docsNav: DocsNavGroup[];
+  docsPages: Record<string, DocsPage>;
+  apiPages: Record<string, DocsPage>;
+};
+
+const docsIdBundle = docsId as LocalizedDocsBundle;
+
+function getDocsBundle(locale: Locale = "en"): LocalizedDocsBundle {
+  if (locale === "id") return docsIdBundle;
+  return {
+    docsNav,
+    docsPages,
+    apiPages,
+  };
 }
 
-export function getApiPage(slug: string): DocsPage | null {
-  if (slug === "index" || slug === "") return apiPages.index;
-  return apiPages[slug] || null;
+export function getDocsNav(locale: Locale = "en"): DocsNavGroup[] {
+  return getDocsBundle(locale).docsNav;
+}
+
+export function getDocsPage(slug: string, locale: Locale = "en"): DocsPage | null {
+  return getDocsBundle(locale).docsPages[slug] || null;
+}
+
+export function getApiPage(slug: string, locale: Locale = "en"): DocsPage | null {
+  const pages = getDocsBundle(locale).apiPages;
+  if (slug === "index" || slug === "") return pages.index;
+  return pages[slug] || null;
 }
 
 export function getAllTutorialSlugs(): string[] {
@@ -1288,15 +1405,18 @@ export type DocsSearchItem = {
   group: string;
 };
 
-export function getFlatDocsNav(): DocsNavItem[] {
-  return docsNav.flatMap((group) => group.items);
+export function getFlatDocsNav(locale: Locale = "en"): DocsNavItem[] {
+  return getDocsNav(locale).flatMap((group) => group.items);
 }
 
-export function getDocsNeighbors(href: string): {
+export function getDocsNeighbors(
+  href: string,
+  locale: Locale = "en",
+): {
   prev: DocsNavItem | null;
   next: DocsNavItem | null;
 } {
-  const flat = getFlatDocsNav();
+  const flat = getFlatDocsNav(locale);
   const index = flat.findIndex((item) => item.href === href);
   if (index < 0) return { prev: null, next: null };
   return {
@@ -1305,20 +1425,21 @@ export function getDocsNeighbors(href: string): {
   };
 }
 
-export function getDocsSearchIndex(): DocsSearchItem[] {
+export function getDocsSearchIndex(locale: Locale = "en"): DocsSearchItem[] {
   const items: DocsSearchItem[] = [];
+  const bundle = getDocsBundle(locale);
 
-  for (const group of docsNav) {
+  for (const group of bundle.docsNav) {
     for (const item of group.items) {
       let description = item.title;
       if (item.href.startsWith("/docs/tutorial/")) {
         const slug = item.href.replace("/docs/tutorial/", "");
-        description = docsPages[slug]?.description || item.title;
+        description = bundle.docsPages[slug]?.description || item.title;
       } else if (item.href === "/docs/api") {
-        description = apiPages.index.description;
+        description = bundle.apiPages.index.description;
       } else if (item.href.startsWith("/docs/api/")) {
         const slug = item.href.replace("/docs/api/", "");
-        description = apiPages[slug]?.description || item.title;
+        description = bundle.apiPages[slug]?.description || item.title;
       }
       items.push({
         href: item.href,

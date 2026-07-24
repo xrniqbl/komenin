@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { billingPlans, formatUsd, type BillingPlanId } from "@/data/pricing";
+import { billingPlans, formatPrice, type BillingPlanId } from "@/data/pricing";
 import { cn } from "@/lib/utils";
 
 export default function PricingPage() {
@@ -43,6 +43,7 @@ export default function PricingPage() {
           <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
             {copy.subtitle}
           </p>
+          <p className="text-xs text-muted-foreground">{copy.currencyNote}</p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-3">
@@ -70,15 +71,15 @@ export default function PricingPage() {
                     {planCopy.name}
                   </CardDescription>
                   <div className="flex flex-wrap items-end gap-2">
-                    <CardTitle className="text-4xl font-semibold tracking-tight">
-                      {formatUsd(plan.priceMonthly)}
+                    <CardTitle className="text-3xl font-semibold tracking-tight sm:text-4xl">
+                      {formatPrice(plan.priceMonthly)}
                     </CardTitle>
                     <span className="pb-1 text-sm text-muted-foreground">
                       {copy.perMonth}
                     </span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {copy.billedEvery} {formatUsd(plan.priceTotal)} {copy.every}{" "}
+                    {copy.billedEvery} {formatPrice(plan.priceTotal)} {copy.every}{" "}
                     {plan.months} {plan.months === 1 ? copy.month : copy.months}
                   </p>
                   <p className="text-sm text-muted-foreground">{planCopy.description}</p>

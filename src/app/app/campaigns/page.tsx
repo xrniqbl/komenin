@@ -77,6 +77,7 @@ export default async function CampaignsPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Campaign</TableHead>
+                <TableHead>Client</TableHead>
                 <TableHead>Platform</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Mode</TableHead>
@@ -91,6 +92,9 @@ export default async function CampaignsPage({
                       {campaign.name}
                     </Link>
                     <div className="text-xs text-muted-foreground">{campaign.goal || "No goal set"}</div>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {campaign.client?.name || "—"}
                   </TableCell>
                   <TableCell>{platformLabel(campaign.platform)}</TableCell>
                   <TableCell>

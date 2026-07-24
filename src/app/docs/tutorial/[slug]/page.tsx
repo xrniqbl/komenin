@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DocsArticle } from "@/components/docs/docs-article";
 import { JsonLd } from "@/components/seo/json-ld";
 import { getAllTutorialSlugs, getDocsPage } from "@/data/docs";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { breadcrumbJsonLd, buildMetadata } from "@/lib/seo";
 
 export function generateStaticParams() {
@@ -15,7 +16,8 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const page = getDocsPage(slug);
+  const locale = await getRequestLocale();
+  const page = getDocsPage(slug, locale);
   if (!page) return {};
   return buildMetadata({
     title: page.title,
@@ -31,7 +33,8 @@ export default async function DocsTutorialPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const page = getDocsPage(slug);
+  const locale = await getRequestLocale();
+  const page = getDocsPage(slug, locale);
   if (!page) notFound();
   const href = `/docs/tutorial/${slug}`;
 

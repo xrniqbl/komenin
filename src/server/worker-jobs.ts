@@ -91,6 +91,7 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
       platform: true,
       username: true,
       healthScore: true,
+      currentIp: true,
       sessions: {
         where: { isActive: true },
         take: 1,
@@ -101,7 +102,15 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
         where: { isActive: true },
         take: 1,
         select: {
-          proxyEndpoint: { select: { isHealthy: true } },
+          id: true,
+          proxyEndpointId: true,
+          proxyEndpoint: {
+            select: {
+              id: true,
+              isHealthy: true,
+              rotationMode: true,
+            },
+          },
         },
       },
     },
@@ -111,10 +120,87 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
 
   let checked = 0;
   let liveOk = 0;
+  let rotated = 0;
+  let reauthNotified = 0;
+
   for (const account of accounts) {
     const activeSession = account.sessions[0];
-    const proxy = account.proxyAssignments[0]?.proxyEndpoint;
-    const proxyOk = !proxy || proxy.isHealthy;
+    const assignment = account.proxyAssignments[0];
+    const proxy = assignment?.proxyEndpoint;
+    let proxyOk = !proxy || proxy.isHealthy;
+    let recovery: string | null = null;
+
+    // Auto-recovery: unhealthy non-sticky proxy → rotate once, then re-probe path continues.
+    if (activeSession?.encryptedBlob && proxy && !proxy.isHealthy && proxy.rotationMode !== "sticky") {
+      try {
+        const rotateResult = await executeSocialAction({
+          action: "rotateProxy",
+          target: {
+            platform: account.platform,
+            username: account.username,
+            accountId: account.id,
+          },
+          payload: {
+            proxyId: proxy.id,
+            seed: account.id,
+          },
+        });
+        const ip = rotateResult.ip || simulateIp(`${account.id}:${Date.now()}`);
+        await db.$transaction(async (tx) => {
+          await tx.ipRotationLog.create({
+            data: {
+              workspaceId: account.workspaceId,
+              socialAccountId: account.id,
+              proxyEndpointId: proxy.id,
+              oldIp: account.currentIp,
+              newIp: ip,
+              reason: "worker.session.health_auto_rotate",
+              success: rotateResult.ok,
+            },
+          });
+          await tx.proxyEndpoint.update({
+            where: { id: proxy.id },
+            data: {
+              lastIp: ip,
+              lastCheckedAt: new Date(),
+              isHealthy: rotateResult.ok,
+            },
+          });
+          await tx.socialAccount.update({
+            where: { id: account.id },
+            data: { currentIp: ip },
+          });
+        });
+        if (rotateResult.ok) {
+          proxyOk = true;
+          rotated += 1;
+          recovery = `Proxy auto-rotated to ${ip}`;
+          await createNotification({
+            workspaceId: account.workspaceId,
+            title: `Proxy rotated for @${account.username}`,
+            body: recovery,
+            href: `/app/accounts/${account.id}`,
+          });
+          try {
+            const { dispatchExternal } = await import("@/lib/notify/dispatcher");
+            await dispatchExternal("account.proxy_rotated", account.workspaceId, {
+              title: `Proxy rotated for @${account.username}`,
+              body: recovery,
+              href: `/app/accounts/${account.id}`,
+            });
+          } catch {
+            // non-fatal
+          }
+        } else {
+          recovery = `Proxy rotate attempted but failed: ${rotateResult.message}`;
+        }
+      } catch (error) {
+        recovery =
+          error instanceof Error
+            ? `Proxy rotate error: ${error.message}`
+            : "Proxy rotate error";
+      }
+    }
 
     let ok = false;
     let signal = "session_missing";
@@ -126,9 +212,11 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
 
     if (!activeSession?.encryptedBlob) {
       status = "limited";
+      details = "No active session — re-import cookies from the account page";
+      signal = "session_missing";
     } else if (!proxyOk) {
       signal = "proxy_degraded";
-      details = "Assigned proxy marked unhealthy";
+      details = recovery || "Assigned proxy marked unhealthy";
       status = "degraded";
       mode = "proxy";
     } else {
@@ -139,7 +227,7 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
       });
       ok = probe.ok;
       signal = probe.signal;
-      details = probe.details;
+      details = recovery ? `${probe.details} · ${recovery}` : probe.details;
       latencyMs = probe.latencyMs;
       mode = probe.mode;
       healthScore = probe.ok
@@ -147,7 +235,7 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
         : Math.max(10, Math.min(probe.healthScore, account.healthScore - 5));
       status = probe.ok
         ? "healthy"
-        : probe.signal.includes("expired")
+        : probe.signal.includes("expired") || probe.signal.includes("unauthorized")
           ? "limited"
           : "degraded";
       if (probe.ok) liveOk += 1;
@@ -181,28 +269,44 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
           mode,
           ok,
           message: details,
-          payload: { signal, latencyMs } as Prisma.InputJsonValue,
+          payload: { signal, latencyMs, recovery } as Prisma.InputJsonValue,
         },
       });
     });
 
     if (!ok) {
+      const needsReauth =
+        signal.includes("expired") ||
+        signal.includes("unauthorized") ||
+        signal === "session_missing";
+      const title = needsReauth
+        ? `Re-auth required for @${account.username}`
+        : `Account @${account.username} degraded`;
+      const body = needsReauth
+        ? `${details}. Open the account page → re-import session cookies, then run a health check.`
+        : details;
+
       await createNotification({
         workspaceId: account.workspaceId,
-        title: `Account @${account.username} degraded`,
-        body: details,
+        title,
+        body,
         href: `/app/accounts/${account.id}`,
       });
       try {
         const { dispatchExternal } = await import("@/lib/notify/dispatcher");
-        await dispatchExternal("account.degraded", account.workspaceId, {
-          title: `Account @${account.username} degraded — ${status}`,
-          body: details,
-          href: `/app/accounts/${account.id}`,
-        });
+        await dispatchExternal(
+          needsReauth ? "account.reauth_required" : "account.degraded",
+          account.workspaceId,
+          {
+            title: `${title} — ${status}`,
+            body,
+            href: `/app/accounts/${account.id}`,
+          },
+        );
       } catch {
         // non-fatal
       }
+      if (needsReauth) reauthNotified += 1;
     }
     checked += 1;
   }
@@ -210,9 +314,9 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
   return {
     job: "session.health_check",
     ok: true,
-    message: `Checked ${checked} accounts (${liveOk} live-ok)`,
+    message: `Checked ${checked} accounts (${liveOk} live-ok, ${rotated} proxy rotated, ${reauthNotified} reauth)`,
     count: checked,
-    details: { liveOk },
+    details: { liveOk, rotated, reauthNotified },
   };
 }
 
@@ -500,6 +604,7 @@ async function runCommentGenerate(limit = 20): Promise<WorkerJobResult> {
 }
 
 async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
+  const { runSendPreflight } = await import("@/lib/send-preflight");
   const due = await db.commentAction.findMany({
     where: {
       status: "scheduled",
@@ -517,6 +622,7 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
 
   let sent = 0;
   let failed = 0;
+  let blockedPreflight = 0;
   for (const action of due) {
     const workspace = await db.workspace.findUnique({
       where: { id: action.workspaceId },
@@ -548,6 +654,99 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
     }
 
     const body = action.commentDraft?.content || "";
+
+    const [riskRules, recentDupes] = await Promise.all([
+      db.riskRule.findMany({
+        where: { workspaceId: action.workspaceId, isActive: true },
+        select: { type: true, pattern: true, severity: true },
+        take: 100,
+      }),
+      action.targetPostId
+        ? db.commentAction.findMany({
+            where: {
+              workspaceId: action.workspaceId,
+              targetPostId: action.targetPostId,
+              status: "sent",
+              id: { not: action.id },
+            },
+            include: { commentDraft: { select: { content: true } } },
+            orderBy: { executedAt: "desc" },
+            take: 20,
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const preflight = runSendPreflight({
+      body,
+      postContent: action.targetPost?.content,
+      customRules: riskRules,
+      account: action.socialAccount
+        ? {
+            status: action.socialAccount.status,
+            healthScore: action.socialAccount.healthScore,
+            actionsToday: action.socialAccount.actionsToday,
+            dailyQuota: action.socialAccount.dailyQuota,
+          }
+        : null,
+      recentBodies: recentDupes
+        .map((row) => row.commentDraft?.content || "")
+        .filter(Boolean),
+      monthly: workspace
+        ? {
+            sendsUsed: usage?.sends ?? 0,
+            sendLimit: workspace.monthlySendLimit,
+          }
+        : null,
+    });
+
+    if (preflight.blocked) {
+      const message = `Preflight blocked: ${preflight.reasons.join("; ")}`;
+      await db.$transaction(async (tx) => {
+        await tx.commentAction.update({
+          where: { id: action.id },
+          data: {
+            status: "failed",
+            resultMessage: message,
+            executedAt: new Date(),
+          },
+        });
+        await tx.riskScanLog.create({
+          data: {
+            workspaceId: action.workspaceId,
+            targetType: "comment_action",
+            targetId: action.id,
+            flags: preflight.risk.flags,
+            score: preflight.risk.riskScore,
+            details: {
+              reasons: preflight.reasons,
+              warnings: preflight.warnings,
+              risk: preflight.risk.details,
+            } as Prisma.InputJsonValue,
+          },
+        });
+        await tx.deliveryLog.create({
+          data: {
+            workspaceId: action.workspaceId,
+            socialAccountId: action.socialAccountId,
+            kind: "send_comment_preflight",
+            connector: "preflight",
+            mode: getRuntimeModeLabel(),
+            ok: false,
+            message,
+            payload: {
+              stage: "preflight",
+              reasons: preflight.reasons,
+              warnings: preflight.warnings,
+              riskScore: preflight.risk.riskScore,
+            } as Prisma.InputJsonValue,
+          },
+        });
+      });
+      blockedPreflight += 1;
+      failed += 1;
+      continue;
+    }
+
     const result = await executeSocialAction({
       action: "sendComment",
       target: {
@@ -629,9 +828,9 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
   return {
     job: "comment.send",
     ok: failed === 0,
-    message: `Sent ${sent}, failed ${failed}`,
+    message: `Sent ${sent}, failed ${failed} (${blockedPreflight} preflight)`,
     count: sent,
-    details: { failed, mode: getRuntimeModeLabel() },
+    details: { failed, blockedPreflight, mode: getRuntimeModeLabel() },
   };
 }
 

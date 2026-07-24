@@ -31,6 +31,10 @@ export async function createWorkspace(input: { name: string; timezone?: string }
         name,
         slug,
         timezone: input.timezone ?? "Asia/Jakarta",
+        // Free tier until a paid plan is applied via checkout.
+        planCode: "free",
+        monthlySendLimit: 500,
+        monthlyPublishLimit: 50,
       },
     });
 

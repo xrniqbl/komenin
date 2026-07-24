@@ -1,0 +1,1222 @@
+{
+  "docsNav": [
+    {
+      "title": "Mulai",
+      "items": [
+        {
+          "href": "/docs/tutorial/introduction",
+          "title": "Pendahuluan"
+        },
+        {
+          "href": "/docs/tutorial/quick-start",
+          "title": "Mulai Cepat"
+        },
+        {
+          "href": "/docs/tutorial/concepts",
+          "title": "Konsep Inti"
+        },
+        {
+          "href": "/docs/tutorial/pricing-plans",
+          "title": "Harga & Paket"
+        }
+      ]
+    },
+    {
+      "title": "Pengaturan Workspace",
+      "items": [
+        {
+          "href": "/docs/tutorial/accounts-proxies",
+          "title": "Akun & Proxy"
+        },
+        {
+          "href": "/docs/tutorial/sessions",
+          "title": "Routing Sesi"
+        },
+        {
+          "href": "/docs/tutorial/connectors",
+          "title": "Konektor (Simulator / Webhook / Resmi)"
+        }
+      ]
+    },
+    {
+      "title": "Otomasi",
+      "items": [
+        {
+          "href": "/docs/tutorial/campaigns",
+          "title": "Kampanye Komentar"
+        },
+        {
+          "href": "/docs/tutorial/approvals",
+          "title": "Kotak Persetujuan"
+        },
+        {
+          "href": "/docs/tutorial/content",
+          "title": "Kampanye Auto Post"
+        },
+        {
+          "href": "/docs/tutorial/workers",
+          "title": "Worker & Job"
+        }
+      ]
+    },
+    {
+      "title": "Inteligensi",
+      "items": [
+        {
+          "href": "/docs/tutorial/agents",
+          "title": "Agen & Knowledge"
+        },
+        {
+          "href": "/docs/tutorial/skills",
+          "title": "Skill & Jalankan CoT"
+        },
+        {
+          "href": "/docs/tutorial/ai-gateway",
+          "title": "AI Gateway / 9Router"
+        }
+      ]
+    },
+    {
+      "title": "Enterprise",
+      "items": [
+        {
+          "href": "/docs/tutorial/billing",
+          "title": "Billing & Midtrans"
+        },
+        {
+          "href": "/docs/tutorial/sso",
+          "title": "SSO / SAML"
+        },
+        {
+          "href": "/docs/tutorial/admin",
+          "title": "Panel Admin"
+        },
+        {
+          "href": "/docs/tutorial/security",
+          "title": "Keamanan & Audit"
+        }
+      ]
+    },
+    {
+      "title": "Panduan Aplikasi",
+      "items": [
+        {
+          "href": "/docs/tutorial/command-center",
+          "title": "Command Center"
+        },
+        {
+          "href": "/docs/tutorial/inbox-activity",
+          "title": "Inbox & Aktivitas"
+        },
+        {
+          "href": "/docs/tutorial/settings-map",
+          "title": "Peta Pengaturan"
+        },
+        {
+          "href": "/docs/tutorial/golden-path",
+          "title": "Demo Golden Path"
+        }
+      ]
+    },
+    {
+      "title": "Pemecahan Masalah",
+      "items": [
+        {
+          "href": "/docs/tutorial/troubleshooting",
+          "title": "Ringkasan"
+        },
+        {
+          "href": "/docs/tutorial/troubleshoot-auth",
+          "title": "Auth & Workspace"
+        },
+        {
+          "href": "/docs/tutorial/troubleshoot-workers",
+          "title": "Worker & Job"
+        },
+        {
+          "href": "/docs/tutorial/troubleshoot-connectors",
+          "title": "Konektor & Mode Live"
+        },
+        {
+          "href": "/docs/tutorial/troubleshoot-approvals",
+          "title": "Persetujuan & Inbox Kosong"
+        },
+        {
+          "href": "/docs/tutorial/troubleshoot-billing",
+          "title": "Billing & Voucher"
+        },
+        {
+          "href": "/docs/tutorial/faq",
+          "title": "FAQ"
+        }
+      ]
+    },
+    {
+      "title": "Referensi",
+      "items": [
+        {
+          "href": "/docs/api",
+          "title": "Referensi API"
+        },
+        {
+          "href": "/docs/api/worker",
+          "title": "API Worker"
+        },
+        {
+          "href": "/docs/api/billing",
+          "title": "Webhook Billing"
+        },
+        {
+          "href": "/docs/api/publish-webhook",
+          "title": "Webhook Publish"
+        }
+      ]
+    }
+  ],
+  "docsPages": {
+    "introduction": {
+      "slug": "introduction",
+      "title": "Pendahuluan",
+      "description": "Aether adalah control plane operasi sosial enterprise untuk Instagram, Threads, dan TikTok.",
+      "sections": [
+        {
+          "id": "what-is-aether",
+          "title": "Apa itu Aether?",
+          "body": "Aether adalah satu workspace untuk operasi engagement sosial. Alih-alih berpindah antar aplikasi native hanya untuk meninjau komentar, menyetujui draf, merotasi sesi, atau mempublikasikan konten, operator mengelola semuanya dari satu control plane yang dapat diaudit dan ber-guardrail."
+        },
+        {
+          "id": "what-you-can-do",
+          "title": "Yang bisa Anda lakukan",
+          "bullets": [
+            "Lihat akun, sesi, kampanye, persetujuan, dan aktivitas di satu tempat.",
+            "Hasilkan draf komentar kontekstual dengan AI hybrid (gateway + fallback lokal).",
+            "Setujui, edit, dan atur irama aksi outbound sebelum dipublikasikan.",
+            "Jalankan kampanye auto-post pada interval tetap dengan visibilitas jadwal.",
+            "Gunakan mode simulator untuk demo/CI, lalu beralih ke webhook atau konektor resmi untuk live.",
+            "Ekspor audit log dan terapkan batas penggunaan bulanan."
+          ]
+        },
+        {
+          "id": "who-it-is-for",
+          "title": "Untuk siapa?",
+          "bullets": [
+            "Tim growth dan social ops yang butuh otomasi terkendali.",
+            "Agensi yang mengelola banyak akun brand dengan alur persetujuan.",
+            "Operator enterprise yang butuh RBAC, jejak audit, dan dukungan review keamanan."
+          ]
+        },
+        {
+          "id": "two-ways",
+          "title": "Dua cara memakai Aether",
+          "body": "Ikuti Tutorial untuk mengoperasikan semuanya dari dashboard, atau gunakan Referensi API untuk memicu worker, menerima webhook publish, dan mengintegrasikan notifikasi billing ke stack Anda sendiri."
+        }
+      ]
+    },
+    "quick-start": {
+      "slug": "quick-start",
+      "title": "Mulai Cepat",
+      "description": "Dari nol hingga demo simulator yang berjalan dalam satu sesi.",
+      "sections": [
+        {
+          "id": "prereqs",
+          "title": "Prasyarat",
+          "bullets": [
+            "Node.js 20+",
+            "URL database Neon Postgres",
+            "Klien web Google OAuth",
+            "ENCRYPTION_KEY 64 hex"
+          ]
+        },
+        {
+          "id": "install",
+          "title": "Install and boot",
+          "code": "npm install\nnpx prisma generate\nnpx prisma db push\nnpm run dev"
+        },
+        {
+          "id": "first-path",
+          "title": "First operator path",
+          "bullets": [
+            "buka /signup and authenticate with Google.",
+            "buat a workspace in /onboarding.",
+            "Add a proxy and social akun under sesi Routing.",
+            "buat a comment kampanye + listener.",
+            "Run npm run worker:tick.",
+            "Review drafts in /app/persetujuan, lalu inspect /app/activity."
+          ]
+        },
+        {
+          "id": "live-switch",
+          "title": "Switching toward live",
+          "body": "Keep SIMULATOR_MODE=true until the persetujuan flow is trusted. lalu set SIMULATOR_MODE=false, configure SOCIAL_PUBLISH_WEBHOOK_URL (and opsional official API tokens), and test from /app/pengaturan/publisher."
+        },
+        {
+          "id": "checklist",
+          "title": "Operator checklist",
+          "steps": [
+            "Confirm .env.local has DATABASE_URL, AUTH_*, ENCRYPTION_KEY, WORKER_SECRET.",
+            "Run prisma generate + db push, lalu npm run dev.",
+            "Sign up with Google and buat a workspace.",
+            "Add proxy + social akun, lalu buat a kampanye/listener.",
+            "Run worker:tick and review /app/persetujuan + /app/activity.",
+            "Only lalu flip SIMULATOR_MODE=false for live konektor."
+          ]
+        }
+      ]
+    },
+    "concepts": {
+      "slug": "concepts",
+      "title": "Konsep Inti",
+      "description": "The building blocks Anda will see across the product.",
+      "sections": [
+        {
+          "id": "workspace",
+          "title": "Workspace",
+          "body": "Every business object is scoped to a workspace. Memberships define role permissions (owner, admin, operator, analyst, auditor, viewer)."
+        },
+        {
+          "id": "session-routing",
+          "title": "Routing Sesi",
+          "body": "akun, encrypted sesi vaults, proxy, health checks, and rotation logs. This is the foundation for safe multi-akun operations."
+        },
+        {
+          "id": "comment-engine",
+          "title": "Comment Engine",
+          "body": "listener discover target posts, agents generate drafts, persetujuan gate sending, and worker execute paced outbound actions."
+        },
+        {
+          "id": "connectors",
+          "title": "konektor plane",
+          "body": "Hybrid routing chooses simulator, webhook, or official adapters per action. mode live fails closed when credentials are missing."
+        },
+        {
+          "id": "intelligence",
+          "title": "Agents, knowledge, skills",
+          "body": "Agents carry persona/guardrails. Knowledge documents are chunked and retrieved into generation. Skills can inject tool results with chain-of-thought steps."
+        }
+      ]
+    },
+    "pricing-plans": {
+      "slug": "pricing-plans",
+      "title": "Harga & Paket",
+      "description": "Self-serve plans and enterprise overrides.",
+      "sections": [
+        {
+          "id": "self-serve",
+          "title": "Self-serve plans",
+          "bullets": [
+            "1 Month: flexible pilot runway.",
+            "6 Months: best balance for growing operator teams.",
+            "12 Months: lowest bulanan rate for stable production."
+          ]
+        },
+        {
+          "id": "checkout",
+          "title": "Checkout",
+          "body": "Checkout uses Midtrans Snap with opsional voucher. Orders activate plan limits after settlement (or local simulation when Midtrans keys are absent)."
+        },
+        {
+          "id": "enterprise",
+          "title": "Enterprise",
+          "body": "Custom quotas, keamanan review support, SSO, and guided onboarding are available via /enterprise and sales contact flows."
+        }
+      ]
+    },
+    "accounts-proxies": {
+      "slug": "accounts-proxies",
+      "title": "Akun & Proxy",
+      "description": "Connect social akun records and bind healthy egress.",
+      "sections": [
+        {
+          "id": "accounts",
+          "title": "Social akun",
+          "body": "buat akun records for Instagram, Threads, or TikTok. Status and health score update from worker probes."
+        },
+        {
+          "id": "proxies",
+          "title": "proxy",
+          "body": "Add proxy endpoints, assign them to akun, and track rotation/health. Sticky vs rotate modes are supported in the data model."
+        },
+        {
+          "id": "secrets",
+          "title": "Secrets",
+          "body": "sesi blobs and sensitive values are encrypted with ENCRYPTION_KEY. Never store plaintext credentials in notes fields."
+        }
+      ]
+    },
+    "sessions": {
+      "slug": "sessions",
+      "title": "Routing Sesi",
+      "description": "Health, rotation, and operational visibility.",
+      "sections": [
+        {
+          "id": "health",
+          "title": "Health checks",
+          "body": "worker job sesi.health_check probes active sesi and proxy health, writes SessionHealthCheck rows, and can emit notifications on degradation."
+        },
+        {
+          "id": "rotation",
+          "title": "proxy rotation",
+          "body": "proxy.rotate advances IPs for non-sticky assignments and records IpRotationLog entries for auditability."
+        }
+      ]
+    },
+    "connectors": {
+      "slug": "connectors",
+      "title": "konektor",
+      "description": "Simulator, webhook, and official native adapters.",
+      "sections": [
+        {
+          "id": "policy",
+          "title": "konektor policy",
+          "bullets": [
+            "prefer_webhook (default live)",
+            "prefer_official",
+            "webhook_only",
+            "official_only",
+            "simulator_only"
+          ]
+        },
+        {
+          "id": "runtime",
+          "title": "Runtime mode",
+          "body": "SIMULATOR_MODE=true forces safe synthetic behavior. SIMULATOR_MODE=false uses live konektor and fails closed without configuration."
+        },
+        {
+          "id": "publisher-settings",
+          "title": "Publisher pengaturan",
+          "body": "Use /app/pengaturan/publisher to inspect mode/policy, test webhook delivery, and review recent deliveries."
+        }
+      ]
+    },
+    "campaigns": {
+      "slug": "campaigns",
+      "title": "Kampanye Komentar",
+      "description": "Discover posts, generate drafts, approve, and send.",
+      "sections": [
+        {
+          "id": "create",
+          "title": "buat a kampanye",
+          "body": "Define platform, mode (default approval_required), delays, daily limits, agent, and linked akun. Attach listener for keyword/competitor discovery."
+        },
+        {
+          "id": "pipeline",
+          "title": "Pipeline",
+          "bullets": [
+            "listener.poll discovers target posts",
+            "comment.generate creates drafts + pending persetujuan",
+            "operators edit/approve/reject",
+            "comment.send executes due actions through konektor router"
+          ]
+        },
+        {
+          "id": "operator-steps",
+          "title": "Step-by-step",
+          "steps": [
+            "Go to /app/kampanye and buat a kampanye in approval_required mode.",
+            "Attach healthy akun and set delay/daily limits.",
+            "buat a listener with keyword or competitor query.",
+            "Run listener.poll + comment.generate (or worker:tick).",
+            "buka /app/persetujuan, edit if needed, approve selected drafts.",
+            "Run comment.send and verify /app/activity + delivery logs."
+          ]
+        }
+      ]
+    },
+    "approvals": {
+      "slug": "approvals",
+      "title": "Kotak Persetujuan",
+      "description": "Human control before outbound actions.",
+      "sections": [
+        {
+          "id": "review",
+          "title": "Review flow",
+          "body": "buka /app/persetujuan to inspect draft text, risk flags, knowledge/skill markers, and decide approve/reject. Approved items schedule paced sends."
+        },
+        {
+          "id": "defaults",
+          "title": "Safety defaults",
+          "body": "persetujuan-wajib is the default kampanye mode. High-risk skills can force persetujuan even when kampanye are set to auto."
+        }
+      ]
+    },
+    "content": {
+      "slug": "content",
+      "title": "Kampanye Auto Post",
+      "description": "Generate original posts and publish on an interval.",
+      "sections": [
+        {
+          "id": "create-content",
+          "title": "buat content kampanye",
+          "body": "Provide topic, platform, post count, interval, start time, and opsional agent/akun. Drafts can require persetujuan before scheduling."
+        },
+        {
+          "id": "publish",
+          "title": "Publish path",
+          "body": "content.generate creates drafts; content.publish sends due scheduled posts through the hybrid publisher konektor and records delivery logs."
+        },
+        {
+          "id": "content-steps",
+          "title": "Step-by-step",
+          "steps": [
+            "buka /app/content/new and define topic, platform, interval, and post count.",
+            "Generate drafts (persetujuan mode recommended).",
+            "Review and approve pending content drafts.",
+            "Confirm schedule in the content calendar.",
+            "Run content.publish or worker:tick for due posts.",
+            "Inspect publisher deliveries under /app/pengaturan/publisher."
+          ]
+        }
+      ]
+    },
+    "workers": {
+      "slug": "workers",
+      "title": "Worker & Job",
+      "description": "Background execution for health, discovery, generation, and send/publish.",
+      "sections": [
+        {
+          "id": "jobs",
+          "title": "Available jobs",
+          "bullets": [
+            "sesi.health_check",
+            "proxy.rotate",
+            "listener.poll",
+            "comment.generate / comment.send",
+            "content.generate / content.publish",
+            "knowledge.ingest",
+            "skill.execute",
+            "usage.rollup",
+            "notify.dispatch",
+            "worker.tick"
+          ]
+        },
+        {
+          "id": "run",
+          "title": "How to run",
+          "code": "npm run worker:tick\n# or\ncurl -X POST http://localhost:3000/api/worker/run ^\n  -H \"Authorization: Bearer %WORKER_SECRET%\" ^\n  -H \"Content-Type: application/json\" ^\n  -d \"{\\\"job\\\":\\\"worker.tick\\\"}\""
+        }
+      ]
+    },
+    "agents": {
+      "slug": "agents",
+      "title": "Agen & Knowledge",
+      "description": "Personas, memory, and grounded generation.",
+      "sections": [
+        {
+          "id": "agents-ui",
+          "title": "Agents UI",
+          "body": "buat/edit personas under /app/agents. Each agent has tone, language, system prompt, knowledge docs, memory entries, and a playground."
+        },
+        {
+          "id": "knowledge",
+          "title": "Knowledge ingest",
+          "body": "Upload text knowledge, lalu run knowledge.ingest to chunk content. Retrieval ranks chunks into comment generation context."
+        }
+      ]
+    },
+    "skills": {
+      "slug": "skills",
+      "title": "Skill & Jalankan CoT",
+      "description": "Tool execution with visible reasoning steps.",
+      "sections": [
+        {
+          "id": "builtins",
+          "title": "Builtin skills",
+          "bullets": [
+            "coupon-lookup",
+            "brand-faq",
+            "Custom webhook skills with schema/config"
+          ]
+        },
+        {
+          "id": "runs",
+          "title": "Runs timeline",
+          "body": "Inspect /app/runs for step-level chain-of-thought. High-risk skills can force persetujuan even in auto kampanye."
+        }
+      ]
+    },
+    "ai-gateway": {
+      "slug": "ai-gateway",
+      "title": "AI Gateway / 9Router",
+      "description": "Hybrid generation with tiered fallback.",
+      "sections": [
+        {
+          "id": "routing",
+          "title": "Routing model",
+          "body": "kampanye/Agent -> Aether AI Router -> OpenAI-compatible gateway (e.g. 9Router) -> local rule-based fallback."
+        },
+        {
+          "id": "env",
+          "title": "Key env vars",
+          "bullets": [
+            "AI_GATEWAY_ENABLED",
+            "AI_GATEWAY_BASE_URL",
+            "AI_GATEWAY_API_KEY",
+            "AI_MODEL_PRIMARY",
+            "AI_MODEL_FALLBACKS",
+            "AI_PROVIDERS (opsional multi-tier JSON)"
+          ]
+        }
+      ]
+    },
+    "billing": {
+      "slug": "billing",
+      "title": "Billing & Midtrans",
+      "description": "Snap checkout, voucher, and subscription activation.",
+      "sections": [
+        {
+          "id": "checkout",
+          "title": "Checkout flow",
+          "bullets": [
+            "Choose plan at /app/checkout",
+            "opsional voucher validation",
+            "buat Midtrans Snap transaction",
+            "Notification webhook verifies signature and activates plan limits"
+          ]
+        },
+        {
+          "id": "simulation",
+          "title": "Local simulation",
+          "body": "Without MIDTRANS_SERVER_KEY, checkout uses simulation tokens and can mark orders paid via /app/checkout/result for development."
+        },
+        {
+          "id": "billing-steps",
+          "title": "Step-by-step",
+          "steps": [
+            "buka /app/checkout and choose 1 / 6 / 12 month plan.",
+            "Optionally apply a voucher code.",
+            "Complete Midtrans Snap (or local simulation without keys).",
+            "Confirm subscription status in /app/pengaturan/billing.",
+            "Verify bulanan send/publish limits updated for the workspace."
+          ]
+        }
+      ]
+    },
+    "sso": {
+      "slug": "sso",
+      "title": "SSO / SAML",
+      "description": "Enterprise identity for workspace access.",
+      "sections": [
+        {
+          "id": "configure",
+          "title": "Configure",
+          "body": "Workspace admins set issuer, entry point, certificate, and email domain under /app/pengaturan/keamanan. opsional ssoRequired enforces SSO policy."
+        },
+        {
+          "id": "endpoints",
+          "title": "Endpoints",
+          "bullets": [
+            "/api/auth/sso/saml/login?email=user@domain.com",
+            "/api/auth/sso/saml/acs"
+          ]
+        }
+      ]
+    },
+    "admin": {
+      "slug": "admin",
+      "title": "Panel Admin",
+      "description": "Platform superadmin console.",
+      "sections": [
+        {
+          "id": "access",
+          "title": "Access",
+          "body": "Users with platformRole=superadmin can buka /admin for workspaces, users, billing, voucher, konektor, jobs, SSO, regions, flags, and audit."
+        },
+        {
+          "id": "promote",
+          "title": "Promote a superadmin",
+          "code": "UPDATE \"User\" SET \"platformRole\" = 'superadmin' WHERE email = 'you@example.com';"
+        }
+      ]
+    },
+    "security": {
+      "slug": "security",
+      "title": "Keamanan & Audit",
+      "description": "Guardrails that keep automation controllable.",
+      "sections": [
+        {
+          "id": "controls",
+          "title": "Controls",
+          "bullets": [
+            "rahasia terenkripsi at rest",
+            "Workspace isolation on queries",
+            "persetujuan-first defaults",
+            "batas penggunaan on send/publish",
+            "Append-only audit log + CSV export"
+          ]
+        },
+        {
+          "id": "compliance-stance",
+          "title": "Compliance stance",
+          "body": "Aether is positioned as managed engagement sosial operations with guardrails, not a spam farm or ToS-bypass toolkit."
+        }
+      ]
+    },
+    "command-center": {
+      "slug": "command-center",
+      "title": "Command Center Walkthrough",
+      "description": "How to read /app as an operator dashboard, not just a landing route.",
+      "sections": [
+        {
+          "id": "open",
+          "title": "buka the command center",
+          "steps": [
+            "Sign in and buka /app.",
+            "Confirm the active workspace in the shell.",
+            "Scan cards/widgets for health, pending persetujuan, and recent activity."
+          ]
+        },
+        {
+          "id": "what-to-check",
+          "title": "Daily operator checklist",
+          "bullets": [
+            "Degraded akun or unhealthy proxy",
+            "Pending persetujuan count",
+            "gagal sends/publishes in recent activity",
+            "Unread notifications"
+          ]
+        },
+        {
+          "id": "next-actions",
+          "title": "Typical next clicks",
+          "bullets": [
+            "/app/persetujuan for draft review",
+            "/app/akun when health drops",
+            "/app/content for due auto-post",
+            "/app/pengaturan/publisher for konektor issues"
+          ]
+        }
+      ]
+    },
+    "inbox-activity": {
+      "slug": "inbox-activity",
+      "title": "Inbox & Activity Walkthrough",
+      "description": "Follow discovered posts and outbound outcomes end-to-end.",
+      "sections": [
+        {
+          "id": "inbox",
+          "title": "Inbox",
+          "body": "Inbox lists discovered target posts and the latest generated draft state.",
+          "steps": [
+            "Run a listener poll so new target posts appear.",
+            "buka /app/inbox and inspect author/platform/content.",
+            "If a draft exists, note status (pending/approved/sent).",
+            "Jump to persetujuan when draft review is wajib."
+          ]
+        },
+        {
+          "id": "activity",
+          "title": "Activity",
+          "body": "Activity is the operator-facing trail of kampanye actions and send outcomes.",
+          "steps": [
+            "buka /app/activity after approve/send cycles.",
+            "Confirm scheduled vs sent vs gagal states.",
+            "Use gagal rows to debug konektor/policy/limit issues."
+          ]
+        }
+      ]
+    },
+    "settings-map": {
+      "slug": "settings-map",
+      "title": "Peta Pengaturan",
+      "description": "Where each operational control lives.",
+      "sections": [
+        {
+          "id": "map",
+          "title": "pengaturan routes",
+          "bullets": [
+            "/app/pengaturan/general - workspace basics",
+            "/app/pengaturan/team - members and invites",
+            "/app/pengaturan/ai - hybrid AI gateway",
+            "/app/pengaturan/publisher - konektor policy + webhook test",
+            "/app/pengaturan/billing - plan, usage, orders",
+            "/app/pengaturan/keamanan - SSO/SAML + region"
+          ]
+        },
+        {
+          "id": "when",
+          "title": "When to use which page",
+          "steps": [
+            "AI quality issues -> /app/pengaturan/ai and agent knowledge.",
+            "Live publish/send failures -> /app/pengaturan/publisher.",
+            "Limit error -> /app/pengaturan/billing.",
+            "Enterprise login policy -> /app/pengaturan/keamanan."
+          ]
+        }
+      ]
+    },
+    "golden-path": {
+      "slug": "golden-path",
+      "title": "Demo Golden Path",
+      "description": "A complete simulator demo path from signup to audited send.",
+      "sections": [
+        {
+          "id": "goal",
+          "title": "Goal",
+          "body": "Prove the full control-plane loop in mode simulator before enabling live konektor."
+        },
+        {
+          "id": "path",
+          "title": "Run this path",
+          "steps": [
+            "Google signup -> buat workspace.",
+            "Add proxy + social akun + active sesi record.",
+            "buat agent and upload one knowledge doc; run knowledge.ingest.",
+            "buat persetujuan-wajib kampanye + listener.",
+            "Run worker:tick (health, poll, generate).",
+            "Review drafts/skills, edit if needed, approve.",
+            "Run comment.send and verify activity + audit log.",
+            "buat one content kampanye, approve drafts, publish due posts.",
+            "opsional: buka /app/checkout and simulate billing activation."
+          ]
+        },
+        {
+          "id": "pass-criteria",
+          "title": "Pass criteria",
+          "bullets": [
+            "persetujuan show editable drafts",
+            "Activity shows sent/published outcomes",
+            "audit log captures sensitive actions",
+            "No live external calls while SIMULATOR_MODE=true"
+          ]
+        }
+      ]
+    },
+    "troubleshooting": {
+      "slug": "troubleshooting",
+      "title": "Troubleshooting Overview",
+      "description": "Start here when something looks wrong in simulator or mode live.",
+      "sections": [
+        {
+          "id": "triage",
+          "title": "Triage order",
+          "steps": [
+            "Confirm runtime mode: SIMULATOR_MODE true/false.",
+            "Confirm Anda are in the correct workspace.",
+            "Check /app/notifications and /app/activity for recent failures.",
+            "Check /app/pengaturan/publisher for konektor policy and webhook health.",
+            "Re-run the smallest worker job that reproduces the issue (not always worker.tick)."
+          ]
+        },
+        {
+          "id": "common",
+          "title": "Most common symptoms",
+          "bullets": [
+            "Login loops or missing workspace after Google auth",
+            "worker returns 401 Unauthorized",
+            "Inbox stays empty after poll",
+            "persetujuan empty after generate",
+            "Live send/publish fails closed",
+            "webhook test fails / 401 token mismatch",
+            "voucher invalid or order stuck pending"
+          ]
+        },
+        {
+          "id": "where",
+          "title": "Where to look",
+          "bullets": [
+            "Auth/workspace issues -> Auth & Workspace page",
+            "Job failures -> worker & Jobs page",
+            "Live delivery issues -> konektor & mode live page",
+            "Draft pipeline issues -> persetujuan & Empty Inbox page",
+            "Checkout issues -> Billing & voucher page"
+          ]
+        }
+      ]
+    },
+    "troubleshoot-auth": {
+      "slug": "troubleshoot-auth",
+      "title": "Auth & Workspace Issues",
+      "description": "Fix Google login, onboarding, and membership access problems.",
+      "sections": [
+        {
+          "id": "login-loop",
+          "title": "Login keeps returning to /login",
+          "steps": [
+            "Verify AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET are set.",
+            "Confirm Google OAuth redirect URI includes /api/auth/callback/google.",
+            "Confirm APP_URL / AUTH_URL match the origin Anda buka in browser.",
+            "Clear site cookies for localhost and retry /signup."
+          ]
+        },
+        {
+          "id": "no-workspace",
+          "title": "Signed in but redirected to onboarding forever",
+          "steps": [
+            "Complete workspace creation form (name wajib).",
+            "Check database connectivity (DATABASE_URL) and prisma db push.",
+            "Confirm Membership row exists for Anda user with status active."
+          ]
+        },
+        {
+          "id": "forbidden",
+          "title": "Forbidden on billing/pengaturan actions",
+          "body": "RBAC blocks actions by role. Billing and some pengaturan require elevated roles.",
+          "bullets": [
+            "Owner: full access including billing",
+            "Admin: broad manage permissions",
+            "Operator: kampanye/akun/agents",
+            "Viewer/analyst/auditor: read-focused"
+          ]
+        },
+        {
+          "id": "admin-access",
+          "title": "Cannot buka /admin",
+          "steps": [
+            "Ensure Anda user platformRole is superadmin.",
+            "UPDATE User platformRole to superadmin for Anda email.",
+            "Sign out/in and reopen /admin."
+          ]
+        }
+      ]
+    },
+    "troubleshoot-workers": {
+      "slug": "troubleshoot-workers",
+      "title": "worker & Jobs Issues",
+      "description": "Debug worker auth, job names, and empty execution results.",
+      "sections": [
+        {
+          "id": "unauthorized",
+          "title": "worker API returns 401",
+          "steps": [
+            "Set WORKER_SECRET in .env.local.",
+            "Send Authorization: Bearer <WORKER_SECRET>.",
+            "Restart dev server after env changes."
+          ],
+          "code": "curl -X POST http://localhost:3000/api/worker/run \n  -H \"Authorization: Bearer $WORKER_SECRET\" \n  -H \"Content-Type: application/json\" \n  -d '{\"job\":\"session.health_check\"}'"
+        },
+        {
+          "id": "invalid-job",
+          "title": "Invalid job error",
+          "body": "Use only names exposed by GET /api/worker/run or npm run worker:* scripts."
+        },
+        {
+          "id": "no-effect",
+          "title": "Job succeeds but UI looks unchanged",
+          "steps": [
+            "Confirm the job message/count in JSON response.",
+            "Hard refresh the related page (/app/inbox, /app/persetujuan, /app/activity).",
+            "Ensure data belongs to the active workspace.",
+            "For generate jobs, ensure there are target posts with status new."
+          ]
+        },
+        {
+          "id": "recommended",
+          "title": "Recommended debug sequence",
+          "steps": [
+            "sesi.health_check",
+            "listener.poll",
+            "comment.generate",
+            "comment.send (only after persetujuan exist)",
+            "content.publish (only when drafts are scheduled/due)"
+          ]
+        }
+      ]
+    },
+    "troubleshoot-connectors": {
+      "slug": "troubleshoot-connectors",
+      "title": "konektor & mode live Issues",
+      "description": "Fix fail-closed live actions, webhook auth, and policy mismatches.",
+      "sections": [
+        {
+          "id": "fail-closed",
+          "title": "mode live fails with not configured",
+          "steps": [
+            "Check SIMULATOR_MODE=false only when ready.",
+            "Set SOCIAL_PUBLISH_WEBHOOK_URL or official API credentials.",
+            "Confirm konektor policy in /app/pengaturan/publisher.",
+            "Use Test webhook before enabling auto sends."
+          ]
+        },
+        {
+          "id": "webhook-401",
+          "title": "Publish webhook returns 401",
+          "steps": [
+            "If SOCIAL_PUBLISH_WEBHOOK_TOKEN is set, sender must pass the same bearer token.",
+            "If token is empty, receiver is buka (dev only).",
+            "Retest from /app/pengaturan/publisher."
+          ]
+        },
+        {
+          "id": "official-fallback",
+          "title": "Official adapter fails and no fallback",
+          "body": "If policy is official_only, webhook fallback is disabled. Prefer prefer_official or prefer_webhook until native credentials are complete."
+        },
+        {
+          "id": "simulator-confusion",
+          "title": "Still seeing simulator behavior",
+          "steps": [
+            "Confirm process env actually loaded SIMULATOR_MODE=false (restart dev server).",
+            "Check worker response mode field.",
+            "Ensure one-off tests are not forcing mode simulator."
+          ]
+        }
+      ]
+    },
+    "troubleshoot-approvals": {
+      "slug": "troubleshoot-approvals",
+      "title": "Persetujuan & Inbox Kosong",
+      "description": "Why drafts do not appear and how to recover the pipeline.",
+      "sections": [
+        {
+          "id": "empty-inbox",
+          "title": "Inbox empty after poll",
+          "steps": [
+            "Confirm at least one active listener exists.",
+            "Run listener.poll and inspect job count.",
+            "In mode live, discovery can fail closed if konektor is misconfigured.",
+            "In mode simulator, poll should buat synthetic target posts."
+          ]
+        },
+        {
+          "id": "no-approvals",
+          "title": "No rows in /app/persetujuan",
+          "steps": [
+            "Ensure target posts exist with status new.",
+            "Run comment.generate.",
+            "Confirm kampanye/agent context is available.",
+            "Refresh /app/persetujuan and /app/inbox."
+          ]
+        },
+        {
+          "id": "approved-not-sent",
+          "title": "Approved but not sent",
+          "steps": [
+            "Check whether action is scheduled in the future (delay window).",
+            "Run comment.send after scheduledFor is due.",
+            "Inspect batas penggunaan (bulanan send limit).",
+            "Inspect konektor result message in activity/delivery logs."
+          ]
+        }
+      ]
+    },
+    "troubleshoot-billing": {
+      "slug": "troubleshoot-billing",
+      "title": "Billing & voucher Issues",
+      "description": "Checkout, Snap, voucher validation, and pending orders.",
+      "sections": [
+        {
+          "id": "voucher-invalid",
+          "title": "voucher invalid",
+          "bullets": [
+            "Code expired or not started",
+            "Max redemptions reached",
+            "Not allowed for selected plan",
+            "Already redeemed by this workspace",
+            "Below min subtotal"
+          ]
+        },
+        {
+          "id": "snap",
+          "title": "Snap token/buat fails",
+          "steps": [
+            "If MIDTRANS_SERVER_KEY missing, app should use local simulation path.",
+            "With keys present, verify sandbox vs production flags match the keys.",
+            "Check server logs for Midtrans error messages."
+          ]
+        },
+        {
+          "id": "pending",
+          "title": "Order stuck pending",
+          "steps": [
+            "Pending is normal for unpaid/unsettled transactions.",
+            "Ensure notification endpoint is reachable by Midtrans.",
+            "For local dev without Midtrans, use simulation result path to mark paid.",
+            "Recheck /app/pengaturan/billing order status after settlement."
+          ]
+        }
+      ]
+    },
+    "faq": {
+      "slug": "faq",
+      "title": "FAQ",
+      "description": "Short answers to the questions operators and integrators ask most.",
+      "sections": [
+        {
+          "id": "what-is-aether",
+          "title": "Apa itu Aether?",
+          "body": "Aether adalah control plane operasi sosial enterprise untuk Instagram, Threads, dan TikTok. It centralizes akun, persetujuan, automation, AI drafting, billing, and auditability."
+        },
+        {
+          "id": "simulator-vs-live",
+          "title": "What is the difference between simulator and mode live?",
+          "body": "mode simulator synthesizes discovery/send/publish results for safe demos and CI. mode live uses webhook and/or official konektor and fails closed when credentials are missing."
+        },
+        {
+          "id": "default-approval",
+          "title": "Are kampanye auto-send by default?",
+          "body": "No. Default kampanye mode is approval_required so humans can edit/approve drafts before outbound actions."
+        },
+        {
+          "id": "midtrans",
+          "title": "Do I need Midtrans keys for local development?",
+          "body": "No. Without MIDTRANS_SERVER_KEY, checkout uses a local simulation path so Anda can still validate plan activation UX."
+        },
+        {
+          "id": "9router",
+          "title": "How does 9Router fit in?",
+          "body": "Aether can call any OpenAI-compatible gateway. 9Router is the recommended hybrid gateway so provider keys stay outside Aether while generation still has tiered fallback."
+        },
+        {
+          "id": "worker-secret",
+          "title": "Why does the worker API return 401?",
+          "body": "POST /api/worker/run requires Authorization: Bearer WORKER_SECRET. Missing/mismatched secrets are rejected."
+        },
+        {
+          "id": "empty-approvals",
+          "title": "Why is persetujuan empty?",
+          "body": "persetujuan appear after comment.generate creates drafts from target posts. If listener never poll or generate never runs, the inbox/persetujuan stay empty."
+        },
+        {
+          "id": "admin",
+          "title": "How do I access /admin?",
+          "body": "Only users with platformRole=superadmin can buka the platform admin console. Promote Anda user in the database, lalu sign out/in."
+        },
+        {
+          "id": "sso",
+          "title": "Is SSO wajib for all workspaces?",
+          "body": "No. SSO/SAML is opsional per workspace. Enable and optionally force it under /app/pengaturan/keamanan."
+        },
+        {
+          "id": "support-path",
+          "title": "Where do I go next if still blocked?",
+          "bullets": [
+            "Start at /docs/tutorial/troubleshooting",
+            "Use the symptom-specific troubleshooting pages",
+            "Reproduce with the smallest worker job and capture the JSON response",
+            "Check /app/activity, /app/pengaturan/publisher, and audit log"
+          ]
+        }
+      ]
+    }
+  },
+  "apiPages": {
+    "index": {
+      "slug": "index",
+      "title": "Referensi API",
+      "description": "HTTP endpoints for worker, billing, and konektor callbacks.",
+      "sections": [
+        {
+          "id": "auth",
+          "title": "Authentication",
+          "body": "Browser sesi auth protects app routes/server actions. worker and some webhook endpoints use bearer secrets/tokens."
+        },
+        {
+          "id": "groups",
+          "title": "Endpoint groups",
+          "bullets": [
+            "worker run API",
+            "Midtrans Snap + notification",
+            "voucher validation",
+            "Publish webhook receiver",
+            "SSO SAML bootstrap/ACS"
+          ]
+        }
+      ]
+    },
+    "worker": {
+      "slug": "worker",
+      "title": "API Worker",
+      "description": "Trigger background jobs over HTTP with bearer auth.",
+      "sections": [
+        {
+          "id": "auth",
+          "title": "Authentication",
+          "body": "Send WORKER_SECRET as Authorization Bearer token (or x-worker-secret header).",
+          "code": "Authorization: Bearer <WORKER_SECRET>"
+        },
+        {
+          "id": "list-jobs",
+          "title": "GET /api/worker/run",
+          "body": "List allowed job names and current runtime mode.",
+          "code": "{\n  \"jobs\": [\"worker.tick\", \"session.health_check\", \"...\"],\n  \"mode\": \"simulator\"\n}"
+        },
+        {
+          "id": "run",
+          "title": "POST /api/worker/run",
+          "body": "Execute one job. Invalid job names return 400; bad secrets return 401.",
+          "code": "curl -X POST http://localhost:3000/api/worker/run   -H \"Authorization: Bearer $WORKER_SECRET\"   -H \"Content-Type: application/json\"   -d '{\"job\":\"comment.generate\"}'"
+        },
+        {
+          "id": "request",
+          "title": "Request body",
+          "code": "{\n  \"job\": \"worker.tick\"\n}"
+        },
+        {
+          "id": "response",
+          "title": "Success response",
+          "code": "{\n  \"ok\": true,\n  \"job\": \"comment.generate\",\n  \"message\": \"Generated 3 drafts\",\n  \"count\": 3,\n  \"details\": null,\n  \"mode\": \"simulator\"\n}"
+        },
+        {
+          "id": "jobs",
+          "title": "Job names",
+          "bullets": [
+            "worker.tick",
+            "sesi.health_check",
+            "proxy.rotate",
+            "listener.poll",
+            "comment.generate",
+            "comment.send",
+            "content.generate",
+            "content.publish",
+            "knowledge.ingest",
+            "skill.execute",
+            "usage.rollup",
+            "notify.dispatch"
+          ]
+        }
+      ]
+    },
+    "billing": {
+      "slug": "billing",
+      "title": "Webhook Billing",
+      "description": "Midtrans Snap checkout, voucher validation, and settlement notifications.",
+      "sections": [
+        {
+          "id": "snap",
+          "title": "POST /api/billing/midtrans/snap",
+          "body": "Creates a workspace order and returns Snap token/redirect URL.",
+          "code": "// request\n{\n  \"planCode\": \"growth_6m\",\n  \"voucherCode\": \"AETHER10\"\n}\n\n// response\n{\n  \"orderId\": \"clx...\",\n  \"orderCode\": \"AETH-1710000000-123\",\n  \"token\": \"snap-token-or-sim-token\",\n  \"redirectUrl\": \"https://app.sandbox.midtrans.com/snap/v2/vtweb/...\",\n  \"totalIdr\": 2154600,\n  \"discountIdr\": 239400,\n  \"subtotalIdr\": 2394000,\n  \"clientKey\": \"SB-Mid-client-xxx\",\n  \"isSimulation\": false\n}"
+        },
+        {
+          "id": "notification",
+          "title": "POST /api/billing/midtrans/notification",
+          "body": "Midtrans server-to-server notification. Signature is verified when MIDTRANS_SERVER_KEY is set.",
+          "code": "// request\n{\n  \"order_id\": \"AETH-1710000000-123\",\n  \"status_code\": \"200\",\n  \"gross_amount\": \"2154600.00\",\n  \"signature_key\": \"<sha512>\",\n  \"transaction_status\": \"settlement\",\n  \"transaction_id\": \"midtrans-trx-id\",\n  \"payment_type\": \"qris\"\n}\n\n// response\n{\n  \"ok\": true,\n  \"result\": {\n    \"ok\": true,\n    \"orderId\": \"clx...\",\n    \"subscriptionId\": \"clx...\"\n  }\n}"
+        },
+        {
+          "id": "voucher",
+          "title": "POST /api/billing/voucher/validate",
+          "body": "Validates a voucher for the selected plan before checkout.",
+          "code": "// request\n{ \"code\": \"AETHER10\", \"planCode\": \"growth_6m\" }\n\n// response\n{\n  \"voucherId\": \"clx...\",\n  \"code\": \"AETHER10\",\n  \"type\": \"percent\",\n  \"value\": 10,\n  \"discountIdr\": 239400,\n  \"totalIdr\": 2154600\n}"
+        }
+      ]
+    },
+    "publish-webhook": {
+      "slug": "publish-webhook",
+      "title": "Webhook Publish",
+      "description": "Local/live receiver used by the hybrid publisher konektor.",
+      "sections": [
+        {
+          "id": "endpoint",
+          "title": "POST /api/publish/webhook",
+          "body": "Accepts publish payloads from Aether mode live. opsional bearer token via SOCIAL_PUBLISH_WEBHOOK_TOKEN.",
+          "code": "curl -X POST http://localhost:3000/api/publish/webhook   -H \"Authorization: Bearer $SOCIAL_PUBLISH_WEBHOOK_TOKEN\"   -H \"Content-Type: application/json\"   -d '{\n    \"platform\": \"instagram\",\n    \"username\": \"brand\",\n    \"body\": \"We just shipped a safer approvals flow.\",\n    \"hashtags\": [\"aether\", \"socialops\"]\n  }'"
+        },
+        {
+          "id": "response",
+          "title": "Response",
+          "code": "{\n  \"ok\": true,\n  \"id\": \"dlv_...\",\n  \"externalPostId\": \"hook_...\",\n  \"message\": \"Webhook accepted\"\n}"
+        },
+        {
+          "id": "ops",
+          "title": "Operator tips",
+          "bullets": [
+            "Point SOCIAL_PUBLISH_WEBHOOK_URL at this receiver or Anda n8n/custom worker.",
+            "Use /app/pengaturan/publisher Test webhook before enabling live kampanye.",
+            "Keep SIMULATOR_MODE=true until deliveries look correct."
+          ]
+        }
+      ]
+    }
+  }
+}

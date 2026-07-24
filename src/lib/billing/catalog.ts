@@ -6,12 +6,20 @@ export type CatalogPlan = {
   description: string;
   interval: "month" | "months_6" | "months_12";
   durationMonths: number;
+  /** Full commitment price in IDR (what Midtrans charges). */
   priceIdr: number;
+  /** Effective monthly rate for marketing display (priceIdr / durationMonths). */
+  priceMonthlyIdr: number;
   monthlySendLimit: number;
   monthlyPublishLimit: number;
+  maxSocialAccounts: number;
   sortOrder: number;
 };
 
+/**
+ * Single commercial source of truth for checkout + marketing.
+ * Effective monthly rates: Rp499k / Rp399k / Rp299k.
+ */
 export const DEFAULT_PLANS: CatalogPlan[] = [
   {
     code: "starter_1m",
@@ -20,8 +28,10 @@ export const DEFAULT_PLANS: CatalogPlan[] = [
     interval: "month",
     durationMonths: 1,
     priceIdr: 499_000,
+    priceMonthlyIdr: 499_000,
     monthlySendLimit: 3_000,
     monthlyPublishLimit: 300,
+    maxSocialAccounts: 10,
     sortOrder: 1,
   },
   {
@@ -31,8 +41,10 @@ export const DEFAULT_PLANS: CatalogPlan[] = [
     interval: "months_6",
     durationMonths: 6,
     priceIdr: 2_394_000,
+    priceMonthlyIdr: 399_000,
     monthlySendLimit: 10_000,
     monthlyPublishLimit: 1_000,
+    maxSocialAccounts: 40,
     sortOrder: 2,
   },
   {
@@ -42,8 +54,10 @@ export const DEFAULT_PLANS: CatalogPlan[] = [
     interval: "months_12",
     durationMonths: 12,
     priceIdr: 3_588_000,
+    priceMonthlyIdr: 299_000,
     monthlySendLimit: 30_000,
     monthlyPublishLimit: 3_000,
+    maxSocialAccounts: 100,
     sortOrder: 3,
   },
 ];

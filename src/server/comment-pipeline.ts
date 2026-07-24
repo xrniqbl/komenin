@@ -133,6 +133,19 @@ export async function generateDraftsForCampaign(campaignId: string) {
     metadata: { created },
   });
 
+  if (created > 0) {
+    try {
+      const { dispatchExternal } = await import("@/lib/notify/dispatcher");
+      await dispatchExternal("approval.new", workspace.id, {
+        title: `${created} new approval${created === 1 ? "" : "s"} ready`,
+        body: `Campaign “${campaign.name}” generated drafts waiting for review.`,
+        href: "/app/approvals",
+      });
+    } catch {
+      // non-fatal outbound webhook
+    }
+  }
+
   revalidatePath("/app/campaigns");
   revalidatePath(`/app/campaigns/${campaignId}`);
   revalidatePath("/app/approvals");

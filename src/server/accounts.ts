@@ -1,6 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  accountLimitMessage,
+  getEntitlementsForPlanCode,
+} from "@/lib/billing/entitlements";
 import { assertWorkspacePermission } from "@/lib/rbac";
 import { encryptSecret } from "@/lib/encryption";
 import { simulateIp } from "@/lib/session-routing";
@@ -196,6 +200,14 @@ export async function createAccount(input: {
   const username = input.username.trim().replace(/^@/, "");
   if (!username) throw new Error("Username is required");
 
+  const entitlements = getEntitlementsForPlanCode(workspace.planCode);
+  const existingCount = await db.socialAccount.count({
+    where: { workspaceId: workspace.id, deletedAt: null },
+  });
+  if (existingCount >= entitlements.maxSocialAccounts) {
+    throw new Error(accountLimitMessage(entitlements.maxSocialAccounts));
+  }
+
   const validated = assertProductionSessionPayload(input.sessionPayload, input.platform, {
     username,
     userAgent: input.userAgent,
@@ -216,6 +228,14 @@ export async function createAccount(input: {
 
   const currentIp = proxy?.lastIp || simulateIp(`${workspace.id}:${username}`);
   const account = await db.$transaction(async (tx) => {
+    // Re-check inside the transaction to avoid concurrent over-create races.
+    const liveCount = await tx.socialAccount.count({
+      where: { workspaceId: workspace.id, deletedAt: null },
+    });
+    if (liveCount >= entitlements.maxSocialAccounts) {
+      throw new Error(accountLimitMessage(entitlements.maxSocialAccounts));
+    }
+
     const created = await tx.socialAccount.create({
       data: {
         workspaceId: workspace.id,

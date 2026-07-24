@@ -1,11 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormSelect } from "@/components/ui/form-select";
+import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusPill } from "@/components/session-routing/status-pill";
 import { platformLabel } from "@/lib/session-routing";
-import { getCampaign } from "@/server/campaigns";
+import { getCampaign, setCampaignClient } from "@/server/campaigns";
+import { listClients } from "@/server/clients";
 import { generateDraftsForCampaign } from "@/server/comment-pipeline";
 import { pollListener } from "@/server/listeners";
 
@@ -15,14 +18,25 @@ export default async function CampaignDetailPage({
   params: Promise<{ campaignId: string }>;
 }) {
   const { campaignId } = await params;
-  const campaign = await getCampaign(campaignId);
+  const [campaign, clients] = await Promise.all([getCampaign(campaignId), listClients()]);
   if (!campaign) notFound();
+
+  async function assignClient(formData: FormData) {
+    "use server";
+    const clientId = String(formData.get("clientId") || "").trim();
+    await setCampaignClient({
+      campaignId,
+      clientId: clientId || null,
+    });
+  }
 
   return (
     <div>
       <PageHeader
         title={campaign.name}
-        description={`${platformLabel(campaign.platform)} · ${campaign.mode}`}
+        description={`${platformLabel(campaign.platform)} · ${campaign.mode}${
+          campaign.client ? ` · ${campaign.client.name}` : ""
+        }`}
         action={<Link href="/app/campaigns" className="text-sm text-primary">Back</Link>}
       />
 
@@ -32,6 +46,9 @@ export default async function CampaignDetailPage({
             <div className="flex flex-wrap gap-2">
               <StatusPill label={campaign.status} color="var(--signal-ok)" />
               <StatusPill label={campaign.mode} color="var(--signal-info)" />
+              {campaign.client ? (
+                <StatusPill label={campaign.client.name} color="var(--ink-500)" />
+              ) : null}
             </div>
             <CardDescription>Goal: {campaign.goal || "—"}</CardDescription>
             <CardTitle className="text-base font-normal text-muted-foreground">
@@ -75,6 +92,36 @@ export default async function CampaignDetailPage({
                 <div key={item.id}>@{item.socialAccount.username}</div>
               ))
             )}
+          </CardContent>
+        </Card>
+        <Card className="md:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-base">Client assignment</CardTitle>
+            <CardDescription>
+              Tag this campaign for agency reporting. Leads captured from this campaign inherit the client when set.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form action={assignClient} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex min-w-[220px] flex-1 flex-col gap-2">
+                <Label htmlFor="clientId">Client</Label>
+                <FormSelect
+                  id="clientId"
+                  name="clientId"
+                  defaultValue={campaign.clientId || ""}
+                  options={[
+                    { value: "", label: "Unassigned" },
+                    ...clients.map((client) => ({
+                      value: client.id,
+                      label: `${client.name}${client.isActive ? "" : " (inactive)"}`,
+                    })),
+                  ]}
+                />
+              </div>
+              <Button type="submit" variant="outline">
+                Save client
+              </Button>
+            </form>
           </CardContent>
         </Card>
       </div>

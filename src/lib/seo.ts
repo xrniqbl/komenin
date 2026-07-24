@@ -218,9 +218,9 @@ export function softwareApplicationJsonLd() {
     image: absoluteUrl(DEFAULT_OG_IMAGE.path),
     offers: {
       "@type": "AggregateOffer",
-      priceCurrency: "USD",
-      lowPrice: "29",
-      highPrice: "49",
+      priceCurrency: "IDR",
+      lowPrice: "299000",
+      highPrice: "499000",
       offerCount: "3",
       url: absoluteUrl("/pricing"),
     },
@@ -233,6 +233,7 @@ export function pricingProductJsonLd(
     months: number;
     priceMonthly: number;
     priceTotal: number;
+    currency?: "IDR" | "USD";
   }>,
 ) {
   return {
@@ -252,13 +253,13 @@ export function pricingProductJsonLd(
       name: `${plan.months}-month plan`,
       sku: `aether-${plan.id}`,
       price: String(plan.priceTotal),
-      priceCurrency: "USD",
+      priceCurrency: plan.currency || "IDR",
       url: absoluteUrl("/signup"),
       availability: "https://schema.org/InStock",
       priceValidUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365)
         .toISOString()
         .slice(0, 10),
-      description: `$${plan.priceMonthly}/month billed every ${plan.months} month${plan.months > 1 ? "s" : ""}`,
+      description: `IDR ${plan.priceMonthly.toLocaleString("id-ID")}/month billed every ${plan.months} month${plan.months > 1 ? "s" : ""}`,
     })),
   };
 }

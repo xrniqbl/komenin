@@ -9,14 +9,17 @@ import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/app/page-header";
 import { listAccounts } from "@/server/accounts";
 import { createCampaign } from "@/server/campaigns";
+import { listClients } from "@/server/clients";
 import type { CampaignMode, Platform } from "@prisma/client";
 
 export default async function NewCampaignPage() {
-  const accounts = await listAccounts();
+  const [accounts, clients] = await Promise.all([listAccounts(), listClients()]);
+  const activeClients = clients.filter((c) => c.isActive);
 
   async function submit(formData: FormData) {
     "use server";
     const socialAccountIds = formData.getAll("socialAccountIds").map(String);
+    const clientId = String(formData.get("clientId") || "").trim();
     const campaign = await createCampaign({
       name: String(formData.get("name") || ""),
       platform: String(formData.get("platform") || "instagram") as Platform,
@@ -27,6 +30,7 @@ export default async function NewCampaignPage() {
       minDelaySec: Number(formData.get("minDelaySec") || 45),
       maxDelaySec: Number(formData.get("maxDelaySec") || 180),
       socialAccountIds,
+      clientId: clientId || undefined,
     });
     redirect(`/app/campaigns/${campaign.id}`);
   }
@@ -82,6 +86,26 @@ export default async function NewCampaignPage() {
             <div className="flex flex-col gap-2">
               <Label htmlFor="goal">Goal</Label>
               <Input id="goal" name="goal" placeholder="Tingkatkan awareness produk" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="clientId">Client (optional)</Label>
+              <FormSelect
+                id="clientId"
+                name="clientId"
+                defaultValue=""
+                options={[
+                  { value: "", label: "Unassigned" },
+                  ...activeClients.map((client) => ({
+                    value: client.id,
+                    label: client.name,
+                  })),
+                ]}
+              />
+              {activeClients.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No clients yet. Create one under Workspace → Clients.
+                </p>
+              ) : null}
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="listenerQuery">Listener keyword</Label>
