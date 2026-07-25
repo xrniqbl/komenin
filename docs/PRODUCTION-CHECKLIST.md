@@ -168,10 +168,11 @@ Checklist:
 - [ ] SSO only enabled after SAML signature validation is production-ready  
   (`SAML_ALLOW_UNSIGNED` / security stubs must stay off in prod)
 
-## 9. Security smoke
+## 9. Security + product smoke
 
 ```bash
 npm run smoke:security
+npm run smoke:product
 ```
 
 Checklist:
@@ -180,6 +181,7 @@ Checklist:
 - [ ] Security stubs disabled
 - [ ] Encryption key stable (rotation plan documented)
 - [ ] Rate limits enabled on public billing/auth endpoints
+- [ ] Product smoke: IDR pricing, entitlements, contact schema, preflight, API scopes
 
 ## 10. Functional smoke (no dummy data)
 
@@ -188,14 +190,17 @@ Product lists are empty until real records exist. That is expected.
 Walkthrough:
 
 1. Sign up / login
-2. Create or join workspace
+2. Create or join workspace (guided checklist on `/app`)
 3. Connect account + proxy + session
-4. Create campaign + listener/template
-5. Generate comment → approval → send
-6. Create content campaign → publish
-7. Open analytics (real counters only)
-8. Checkout with/without voucher
-9. Admin overview shows real counts
+4. Create campaign (+ optional client) + listener/template
+5. Generate comment → approval → send (watch preflight blocks)
+6. Capture lead from inbox/approvals; set follow-up; export CSV
+7. Create content campaign → publish
+8. Open analytics (workspace KPIs + agency client report)
+9. Checkout with/without voucher (IDR Midtrans amounts)
+10. Public API: campaigns/listeners/leads with `aeth_` key
+11. Admin overview shows real counts
+12. Contact form `/contact` writes audit (+ webhook if configured)
 
 ## 11. Deploy topology (recommended)
 

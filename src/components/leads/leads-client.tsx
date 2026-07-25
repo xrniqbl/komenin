@@ -7,7 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createLead, exportLeadsCsv, updateLeadStatus } from "@/server/leads";
+import {
+  createLead,
+  exportLeadsCsv,
+  updateLeadFollowUp,
+  updateLeadStatus,
+} from "@/server/leads";
 
 type LeadRow = {
   id: string;
@@ -22,6 +27,8 @@ type LeadRow = {
   postSnippet: string | null;
   draftSnippet: string | null;
   externalUrl: string | null;
+  ownerUserId: string | null;
+  followUpAt: string | null;
   createdAt: string;
   client: { id: string; name: string; slug: string } | null;
   campaign: { id: string; name: string } | null;
@@ -45,9 +52,12 @@ export function LeadsClient({
   const [notes, setNotes] = useState("");
   const [email, setEmail] = useState("");
   const [clientId, setClientId] = useState("");
+  const [followUpAt, setFollowUpAt] = useState("");
+  const [dueOnly, setDueOnly] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const now = Date.now();
     return initialLeads.filter((lead) => {
       if (statusFilter !== "all" && lead.status !== statusFilter) return false;
       if (clientFilter === "unassigned" && lead.client) return false;
@@ -57,6 +67,11 @@ export function LeadsClient({
         lead.client?.id !== clientFilter
       ) {
         return false;
+      }
+      if (dueOnly) {
+        if (!lead.followUpAt) return false;
+        if (new Date(lead.followUpAt).getTime() > now) return false;
+        if (["won", "lost", "archived"].includes(lead.status)) return false;
       }
       if (!q) return true;
       return [
@@ -73,7 +88,7 @@ export function LeadsClient({
         .toLowerCase()
         .includes(q);
     });
-  }, [initialLeads, query, statusFilter, clientFilter]);
+  }, [initialLeads, query, statusFilter, clientFilter, dueOnly]);
 
   const createManual = () => {
     if (!handle.trim()) return;
@@ -84,6 +99,7 @@ export function LeadsClient({
         notes: notes || undefined,
         contactEmail: email || undefined,
         clientId: clientId || undefined,
+        followUpAt: followUpAt || null,
         source: "manual",
       });
       setHandle("");
@@ -91,6 +107,7 @@ export function LeadsClient({
       setNotes("");
       setEmail("");
       setClientId("");
+      setFollowUpAt("");
     });
   };
 
@@ -176,6 +193,15 @@ export function LeadsClient({
               </select>
             </div>
           ) : null}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="lead-followup">Follow-up date</Label>
+            <Input
+              id="lead-followup"
+              type="date"
+              value={followUpAt}
+              onChange={(e) => setFollowUpAt(e.target.value)}
+            />
+          </div>
           <div className="flex items-end">
             <Button onClick={createManual} disabled={pending || !handle.trim()}>
               {pending ? "Saving…" : "Save lead"}
@@ -219,6 +245,13 @@ export function LeadsClient({
             ))}
           </select>
         ) : null}
+        <Button
+          size="sm"
+          variant={dueOnly ? "default" : "outline"}
+          onClick={() => setDueOnly((v) => !v)}
+        >
+          Due follow-ups
+        </Button>
         <Badge variant="secondary">{filtered.length} shown</Badge>
         <Button size="sm" variant="outline" disabled={pending} onClick={downloadCsv}>
           {pending ? "Exporting…" : "Export CSV"}
@@ -267,6 +300,67 @@ export function LeadsClient({
                 {lead.notes ? (
                   <div className="text-xs text-muted-foreground">Notes: {lead.notes}</div>
                 ) : null}
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span>
+                    Follow-up:{" "}
+                    {lead.followUpAt
+                      ? new Date(lead.followUpAt).toLocaleDateString()
+                      : "not set"}
+                  </span>
+                  {lead.followUpAt &&
+                  new Date(lead.followUpAt).getTime() <= Date.now() &&
+                  !["won", "lost", "archived"].includes(lead.status) ? (
+                    <Badge variant="destructive">due</Badge>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="flex flex-col gap-1">
+                    <Label
+                      htmlFor={`followup-${lead.id}`}
+                      className="text-xs text-muted-foreground"
+                    >
+                      Set follow-up
+                    </Label>
+                    <Input
+                      id={`followup-${lead.id}`}
+                      type="date"
+                      className="h-8 w-[160px]"
+                      defaultValue={
+                        lead.followUpAt ? lead.followUpAt.slice(0, 10) : ""
+                      }
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        startTransition(async () => {
+                          await updateLeadFollowUp({
+                            leadId: lead.id,
+                            followUpAt: value || null,
+                          });
+                        });
+                      }}
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() =>
+                      startTransition(async () => {
+                        const next = new Date();
+                        next.setDate(next.getDate() + 3);
+                        await updateLeadFollowUp({
+                          leadId: lead.id,
+                          followUpAt: next.toISOString().slice(0, 10),
+                          status:
+                            lead.status === "new"
+                              ? "contacted"
+                              : (lead.status as (typeof STATUSES)[number]),
+                        });
+                      })
+                    }
+                  >
+                    +3 days
+                  </Button>
+                </div>
                 <div className="flex flex-wrap gap-1">
                   {STATUSES.map((status) => (
                     <Button

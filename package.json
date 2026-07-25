@@ -29,7 +29,8 @@
         "worker:skills": "tsx scripts/run-worker.ts skill.execute",
         "worker:usage": "tsx scripts/run-worker.ts usage.rollup",
         "worker:notify": "tsx scripts/run-worker.ts notify.dispatch",
-        "smoke:security": "tsx scripts/smoke-security.ts"
+        "smoke:security": "tsx scripts/smoke-security.ts",
+        "smoke:product": "tsx scripts/smoke-product.ts"
     },
     "dependencies": {
         "@auth/prisma-adapter": "^2.11.2",

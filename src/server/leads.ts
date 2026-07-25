@@ -11,11 +11,17 @@ export async function listLeads(input?: {
   status?: LeadStatus | "all";
   q?: string;
   clientId?: string;
+  /** When true, only leads with followUpAt <= now and not won/lost/archived. */
+  dueFollowUp?: boolean;
 }) {
   const { workspace } = await requireActiveWorkspace();
   const where: Record<string, unknown> = { workspaceId: workspace.id };
   if (input?.status && input.status !== "all") where.status = input.status;
   if (input?.clientId) where.clientId = input.clientId;
+  if (input?.dueFollowUp) {
+    where.followUpAt = { lte: new Date() };
+    where.status = { notIn: ["won", "lost", "archived"] };
+  }
   if (input?.q?.trim()) {
     const q = input.q.trim();
     where.OR = [
@@ -34,7 +40,7 @@ export async function listLeads(input?: {
       campaign: { select: { id: true, name: true } },
       targetPost: { select: { id: true, url: true, authorHandle: true } },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ followUpAt: "asc" }, { createdAt: "desc" }],
     take: 100,
   });
 }
@@ -55,6 +61,8 @@ export async function createLead(input: {
   campaignId?: string;
   clientId?: string;
   status?: LeadStatus;
+  ownerUserId?: string | null;
+  followUpAt?: string | Date | null;
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
   assertWorkspacePermission(workspace, "campaigns.manage");
@@ -86,6 +94,16 @@ export async function createLead(input: {
     if (!campaign) throw new Error("Campaign not found");
   }
 
+  const followUpAt =
+    input.followUpAt === undefined
+      ? undefined
+      : input.followUpAt
+        ? new Date(input.followUpAt)
+        : null;
+  if (followUpAt && Number.isNaN(followUpAt.getTime())) {
+    throw new Error("Invalid follow-up date");
+  }
+
   const lead = await db.engagementLead.create({
     data: {
       workspaceId: workspace.id,
@@ -104,6 +122,11 @@ export async function createLead(input: {
       campaignId: input.campaignId || null,
       clientId: input.clientId || null,
       status: input.status || "new",
+      ownerUserId:
+        input.ownerUserId === undefined
+          ? userId
+          : input.ownerUserId?.trim() || null,
+      followUpAt: followUpAt === undefined ? null : followUpAt,
     },
     include: {
       client: { select: { id: true, name: true, slug: true } },
@@ -271,6 +294,8 @@ export async function exportLeadsCsv(input?: {
     "notes",
     "client",
     "campaign",
+    "ownerUserId",
+    "followUpAt",
     "externalUrl",
     "createdAt",
   ];
@@ -291,6 +316,8 @@ export async function exportLeadsCsv(input?: {
         lead.notes,
         lead.client?.name,
         lead.campaign?.name,
+        lead.ownerUserId,
+        lead.followUpAt?.toISOString() || "",
         lead.externalUrl,
         lead.createdAt.toISOString(),
       ]
@@ -334,6 +361,61 @@ export async function updateLeadStatus(input: {
     resourceType: "engagement_lead",
     resourceId: lead.id,
     metadata: { from: existing.status, to: lead.status },
+  });
+
+  revalidatePath("/app/leads");
+  return lead;
+}
+
+export async function updateLeadFollowUp(input: {
+  leadId: string;
+  followUpAt?: string | Date | null;
+  ownerUserId?: string | null;
+  notes?: string;
+  status?: LeadStatus;
+}) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertWorkspacePermission(workspace, "campaigns.manage");
+
+  const existing = await db.engagementLead.findFirst({
+    where: { id: input.leadId, workspaceId: workspace.id },
+  });
+  if (!existing) throw new Error("Lead not found");
+
+  const followUpAt =
+    input.followUpAt === undefined
+      ? undefined
+      : input.followUpAt
+        ? new Date(input.followUpAt)
+        : null;
+  if (followUpAt && Number.isNaN(followUpAt.getTime())) {
+    throw new Error("Invalid follow-up date");
+  }
+
+  const lead = await db.engagementLead.update({
+    where: { id: existing.id },
+    data: {
+      followUpAt: followUpAt === undefined ? existing.followUpAt : followUpAt,
+      ownerUserId:
+        input.ownerUserId === undefined
+          ? existing.ownerUserId
+          : input.ownerUserId?.trim() || null,
+      notes: input.notes !== undefined ? input.notes.trim() || null : existing.notes,
+      status: input.status || existing.status,
+    },
+  });
+
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "lead.followup_updated",
+    resourceType: "engagement_lead",
+    resourceId: lead.id,
+    metadata: {
+      followUpAt: lead.followUpAt,
+      ownerUserId: lead.ownerUserId,
+      status: lead.status,
+    },
   });
 
   revalidatePath("/app/leads");

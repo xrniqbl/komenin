@@ -5,15 +5,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAnalyticsSummary } from "@/server/analytics";
+import { getAnalyticsSummary, getClientAgencyReport } from "@/server/analytics";
 import { listRateLimitStatus } from "@/server/rate-limits";
 import { checkUsageAlerts } from "@/server/usage-alerts";
 
 export default async function AnalyticsPage() {
-  const [summary, quota, alerts] = await Promise.all([
+  const [summary, quota, alerts, agency] = await Promise.all([
     getAnalyticsSummary(30),
     listRateLimitStatus(),
     checkUsageAlerts(),
+    getClientAgencyReport(30),
   ]);
 
   const metrics = [
@@ -116,6 +117,53 @@ export default async function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base">Agency report by client</CardTitle>
+              <CardDescription>
+                Last {agency.rangeDays} days · {agency.totals.clients} clients ·{" "}
+                {agency.totals.leads} leads · {agency.totals.leadsDue} due follow-ups
+              </CardDescription>
+            </div>
+            <Button variant="outline" render={<Link href="/app/clients" />} nativeButton={false}>
+              Manage clients
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {agency.rows.length === 0 ? (
+            <div className="text-muted-foreground">
+              No client activity yet. Create clients and assign campaigns/leads.
+            </div>
+          ) : (
+            agency.rows.map((row) => (
+              <div
+                key={row.clientId || "unassigned"}
+                className="grid gap-2 rounded-lg border px-3 py-3 sm:grid-cols-2 lg:grid-cols-4"
+              >
+                <div>
+                  <div className="font-medium">{row.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {row.active ? "active" : "inactive"} · {row.campaigns} campaigns
+                  </div>
+                </div>
+                <div className="text-muted-foreground">
+                  Leads: {row.leadsTotal} · new {row.leadsNew} · won {row.leadsWon}
+                </div>
+                <div className="text-muted-foreground">
+                  Pipeline: {row.leadsQualified} contacted/qualified · due {row.leadsDue}
+                </div>
+                <div className="text-muted-foreground">
+                  Volume: {row.targetPosts} posts · {row.approvals} approvals · {row.drafts} drafts
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

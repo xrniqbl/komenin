@@ -33,6 +33,8 @@ export default async function LeadsPage() {
       <LeadsClient
         initialLeads={leads.map((lead) => ({
           ...lead,
+          followUpAt: lead.followUpAt?.toISOString() || null,
+          ownerUserId: lead.ownerUserId || null,
           createdAt: lead.createdAt.toISOString(),
           updatedAt: lead.updatedAt.toISOString(),
         }))}

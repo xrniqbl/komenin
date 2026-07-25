@@ -1382,6 +1382,10 @@ model EngagementLead {
   postSnippet   String?    @db.Text
   draftSnippet  String?    @db.Text
   externalUrl   String?
+  /** Optional operator owner (User.id) for follow-up accountability. */
+  ownerUserId   String?
+  /** Next follow-up due date (workspace-local intent; stored UTC). */
+  followUpAt    DateTime?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
@@ -1393,5 +1397,7 @@ model EngagementLead {
   @@index([workspaceId, status, createdAt(sort: Desc)])
   @@index([workspaceId, handle])
   @@index([clientId])
+  @@index([workspaceId, followUpAt])
+  @@index([ownerUserId])
 }
 
