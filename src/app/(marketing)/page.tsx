@@ -8,7 +8,13 @@ import { PricingTeaserSection } from "@/components/marketing/pricing-teaser-sect
 import { SecuritySection } from "@/components/marketing/security-section";
 import { JsonLd } from "@/components/seo/json-ld";
 import { messages } from "@/lib/i18n/messages";
-import { PAGE_SEO, buildMetadata, faqJsonLd } from "@/lib/seo";
+import {
+  PAGE_SEO,
+  breadcrumbJsonLd,
+  buildMetadata,
+  faqJsonLd,
+  webPageJsonLd,
+} from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata(PAGE_SEO.home);
 
@@ -17,7 +23,17 @@ export default function HomePage() {
 
   return (
     <>
-      <JsonLd data={faqJsonLd(faqItems)} />
+      <JsonLd
+        data={[
+          webPageJsonLd({
+            name: PAGE_SEO.home.title,
+            description: PAGE_SEO.home.description,
+            path: PAGE_SEO.home.path,
+          }),
+          faqJsonLd(faqItems),
+          breadcrumbJsonLd([{ name: "Home", path: "/" }]),
+        ]}
+      />
       <HeroSection />
       <PillarsSection />
       <HowItWorksSection />

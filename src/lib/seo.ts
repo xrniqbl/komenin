@@ -4,6 +4,8 @@ export const SITE_NAME = "Aether";
 export const SITE_TAGLINE = "Enterprise social operations control plane";
 export const SITE_DESCRIPTION =
   "Run Instagram, Threads, and TikTok comments and auto posts with session routing, AI drafts, approval-first controls, and full audit trails.";
+/** Primary contact for Organization schema (public support). */
+export const SITE_SUPPORT_EMAIL = "hello@aether.ops";
 export const SITE_KEYWORDS = [
   "social media operations",
   "comment automation",
@@ -15,6 +17,10 @@ export const SITE_KEYWORDS = [
   "AI social agent",
   "approval workflow",
   "enterprise social ops",
+  "social media management Indonesia",
+  "otomatisasi komentar Instagram",
+  "jadwal posting TikTok",
+  "agency social ops",
   "Aether",
 ] as const;
 
@@ -34,11 +40,12 @@ export const PUBLIC_ROUTES = [
   { path: "/status", changeFrequency: "daily" as const, priority: 0.5 },
   { path: "/docs", changeFrequency: "weekly" as const, priority: 0.85 },
   { path: "/docs/api", changeFrequency: "weekly" as const, priority: 0.7 },
+  { path: "/docs/tutorial/introduction", changeFrequency: "monthly" as const, priority: 0.7 },
   { path: "/legal/privacy", changeFrequency: "yearly" as const, priority: 0.3 },
   { path: "/legal/terms", changeFrequency: "yearly" as const, priority: 0.3 },
   { path: "/legal/aup", changeFrequency: "yearly" as const, priority: 0.3 },
-  { path: "/login", changeFrequency: "yearly" as const, priority: 0.4 },
-  { path: "/signup", changeFrequency: "monthly" as const, priority: 0.7 },
+  // Login is noindex via metadata; keep out of high-priority discovery.
+  { path: "/signup", changeFrequency: "monthly" as const, priority: 0.75 },
 ] as const;
 
 export type PageSeoInput = {
@@ -114,7 +121,7 @@ export function buildMetadata({
   return {
     title: titleValue,
     description,
-    keywords: keywords.join(", "),
+    keywords: [...keywords],
     authors: [{ name: SITE_NAME }],
     creator: SITE_NAME,
     publisher: SITE_NAME,
@@ -122,6 +129,12 @@ export function buildMetadata({
     category: "technology",
     alternates: {
       canonical: url,
+      // Locale is cookie-based on the same URLs (en/id); declare both + x-default.
+      languages: {
+        en: url,
+        id: url,
+        "x-default": url,
+      },
     },
     openGraph: {
       type,
@@ -130,6 +143,7 @@ export function buildMetadata({
       title: fullTitle,
       description,
       locale: "en_US",
+      alternateLocale: ["id_ID"],
       images: [
         {
           url: imageUrl,
@@ -149,7 +163,8 @@ export function buildMetadata({
       ? {
           index: false,
           follow: false,
-          googleBot: { index: false, follow: false },
+          nocache: true,
+          googleBot: { index: false, follow: false, noimageindex: true },
         }
       : {
           index: true,
@@ -176,9 +191,27 @@ export function organizationJsonLd() {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: SITE_NAME,
+    legalName: SITE_NAME,
     url: getSiteUrl(),
-    logo: absoluteUrl("/brand/aether-logo-512.png"),
+    logo: {
+      "@type": "ImageObject",
+      url: absoluteUrl("/brand/aether-logo-512.png"),
+      width: 512,
+      height: 512,
+    },
+    image: absoluteUrl("/brand/aether-logo-512.png"),
     description: SITE_DESCRIPTION,
+    email: SITE_SUPPORT_EMAIL,
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        contactType: "sales",
+        email: SITE_SUPPORT_EMAIL,
+        url: absoluteUrl("/contact"),
+        availableLanguage: ["English", "Indonesian"],
+      },
+    ],
+    areaServed: ["ID", "SG", "Worldwide"],
     sameAs: [] as string[],
   };
 }
@@ -188,8 +221,10 @@ export function websiteJsonLd() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: SITE_NAME,
+    alternateName: ["Aether Social Ops", "Aether Control Plane"],
     url: getSiteUrl(),
     description: SITE_DESCRIPTION,
+    inLanguage: ["en", "id"],
     publisher: {
       "@type": "Organization",
       name: SITE_NAME,
@@ -200,7 +235,10 @@ export function websiteJsonLd() {
     },
     potentialAction: {
       "@type": "SearchAction",
-      target: `${absoluteUrl("/docs")}?q={search_term_string}`,
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${absoluteUrl("/docs")}?q={search_term_string}`,
+      },
       "query-input": "required name=search_term_string",
     },
   };
@@ -212,18 +250,73 @@ export function softwareApplicationJsonLd() {
     "@type": "SoftwareApplication",
     name: SITE_NAME,
     applicationCategory: "BusinessApplication",
+    applicationSubCategory: "Social Media Management",
     operatingSystem: "Web",
     description: SITE_DESCRIPTION,
     url: getSiteUrl(),
     image: absoluteUrl(DEFAULT_OG_IMAGE.path),
+    featureList: [
+      "Session routing and proxy pools",
+      "AI comment drafts with approval queues",
+      "Content calendar and auto-publish",
+      "Agent knowledge and skill execution",
+      "Workspace RBAC and audit logs",
+    ],
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: "IDR",
-      lowPrice: "299000",
-      highPrice: "499000",
+      // Full commitment totals from DEFAULT_PLANS (starter → scale).
+      lowPrice: "499000",
+      highPrice: "3588000",
       offerCount: "3",
       url: absoluteUrl("/pricing"),
     },
+  };
+}
+
+/** WebPage node for key landing URLs (pairs with breadcrumbs). */
+export function webPageJsonLd(input: {
+  name: string;
+  description: string;
+  path: string;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: input.name,
+    description: input.description,
+    url: absoluteUrl(input.path),
+    isPartOf: {
+      "@type": "WebSite",
+      name: SITE_NAME,
+      url: getSiteUrl(),
+    },
+    about: {
+      "@type": "SoftwareApplication",
+      name: SITE_NAME,
+    },
+    inLanguage: ["en", "id"],
+  };
+}
+
+/** ItemList for the features hub. */
+export function featuresItemListJsonLd() {
+  const features = [
+    { name: "Session Routing", path: "/features/session-routing" },
+    { name: "Comment Engine", path: "/features/comment-engine" },
+    { name: "Agent Intelligence", path: "/features/agent-intelligence" },
+    { name: "Skill Execution", path: "/features/skill-execution" },
+  ] as const;
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: `${SITE_NAME} features`,
+    itemListElement: features.map((feature, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: feature.name,
+      url: absoluteUrl(feature.path),
+    })),
   };
 }
 
@@ -397,4 +490,22 @@ export const PAGE_SEO = {
     description: "Create an Aether workspace and start approval-first social operations.",
     path: "/signup",
   },
+  docsTutorial: {
+    title: "Tutorials | Aether Docs",
+    description:
+      "Step-by-step Aether tutorials for workspaces, accounts, campaigns, approvals, and workers.",
+    path: "/docs/tutorial/introduction",
+  },
 } as const;
+
+/** Standard breadcrumb trails for marketing feature pages. */
+export function featureBreadcrumbs(
+  featureName: string,
+  featurePath: string,
+): Array<{ name: string; path: string }> {
+  return [
+    { name: "Home", path: "/" },
+    { name: "Features", path: "/features" },
+    { name: featureName, path: featurePath },
+  ];
+}

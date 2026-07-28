@@ -16,22 +16,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     url: absoluteUrl(`/docs/tutorial/${slug}`),
     lastModified: now,
     changeFrequency: "monthly",
-    priority: 0.65,
+    priority: slug === "introduction" ? 0.72 : 0.65,
   }));
 
   const docsNavEntries: MetadataRoute.Sitemap = getFlatDocsNav()
-    .filter((item) => item.href.startsWith("/docs/api/"))
+    .filter((item) => item.href.startsWith("/docs/"))
     .map((item) => ({
       url: absoluteUrl(item.href),
       lastModified: now,
       changeFrequency: "monthly" as const,
-      priority: 0.6,
+      priority: item.href.startsWith("/docs/api") ? 0.62 : 0.68,
     }));
 
-  // De-dupe by URL
+  // De-dupe by URL (static routes win on first insert for priority).
   const map = new Map<string, MetadataRoute.Sitemap[number]>();
   for (const entry of [...staticEntries, ...tutorialEntries, ...docsNavEntries]) {
-    map.set(entry.url, entry);
+    if (!map.has(entry.url)) map.set(entry.url, entry);
   }
-  return Array.from(map.values());
+  return Array.from(map.values()).sort((a, b) => a.url.localeCompare(b.url));
 }

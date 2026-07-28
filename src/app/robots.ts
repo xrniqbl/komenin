@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
+        allow: ["/", "/features/", "/docs/", "/pricing", "/signup"],
         disallow: [
           "/app/",
           "/admin/",
@@ -14,7 +14,20 @@ export default function robots(): MetadataRoute.Robots {
           "/onboarding",
           "/invite/",
           "/auth/",
+          "/login",
+          "/checkout",
         ],
+      },
+      // Keep AI crawlers on public marketing/docs; still block app/admin/api.
+      {
+        userAgent: "GPTBot",
+        allow: ["/", "/features/", "/docs/", "/pricing"],
+        disallow: ["/app/", "/admin/", "/api/", "/onboarding", "/invite/", "/auth/", "/login"],
+      },
+      {
+        userAgent: "Google-Extended",
+        allow: ["/", "/features/", "/docs/", "/pricing"],
+        disallow: ["/app/", "/admin/", "/api/", "/onboarding", "/invite/", "/auth/", "/login"],
       },
     ],
     sitemap: absoluteUrl("/sitemap.xml"),

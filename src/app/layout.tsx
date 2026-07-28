@@ -32,15 +32,21 @@ export const metadata: Metadata = {
   creator: SITE_NAME,
   publisher: SITE_NAME,
   category: "technology",
+  // Do NOT set a site-wide canonical/OG url here — child routes must own their
+  // canonical via buildMetadata(path). A root canonical of "/" would collapse
+  // every public page into the homepage for crawlers.
   icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/brand/aether-logo-256.png" }],
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/brand/aether-logo-256.png", sizes: "256x256", type: "image/png" },
+    ],
+    apple: [{ url: "/brand/aether-logo-256.png", sizes: "256x256" }],
     shortcut: ["/favicon.svg"],
   },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: absoluteUrl("/"),
+    alternateLocale: ["id_ID"],
     siteName: SITE_NAME,
     title: `${SITE_NAME} | Enterprise Social Operations Control Plane`,
     description: SITE_DESCRIPTION,
@@ -70,8 +76,10 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
-  alternates: {
-    canonical: absoluteUrl("/"),
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
   },
 };
 
