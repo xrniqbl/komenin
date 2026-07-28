@@ -1,7 +1,7 @@
 # Aether Live Webhook Bridge Design
 
 **Date:** 2026-07-28  
-**Status:** Approved for planning (pending user review of this file)  
+**Status:** Approved — implementation plan `docs/superpowers/plans/2026-07-28-live-webhook-bridge.md`  
 **Product:** Aether (repo: lokarouter)  
 **Epic type:** Harden & complete existing live social delivery (not net-new product features)  
 **Decision locked:** Webhook-bridge end-to-end as the production live path; native platform APIs remain secondary/optional
