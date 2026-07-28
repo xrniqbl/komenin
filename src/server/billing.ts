@@ -12,6 +12,7 @@ import {
   parseMidtransGrossAmount,
 } from "@/lib/billing/amount";
 import { createMidtransSnapTransaction } from "@/lib/billing/midtrans";
+import { FREE_ENTITLEMENTS } from "@/lib/billing/entitlements";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
@@ -326,11 +327,102 @@ export async function applyPaidOrder(orderCode: string, payment?: {
     );
   }
 
+  const now = new Date();
+  const status = (payment?.transactionStatus || "settlement").toLowerCase();
+
+  // Refund / chargeback must run even when order is already "paid" (Midtrans
+  // sends these after settlement). Do this BEFORE the already-paid short-circuit.
+  if (status === "partial_refund") {
+    // Keep entitlement; OrderStatus has no partial_refunded value. Audit only.
+    if (order.status === "paid" || order.status === "refunded") {
+      await db.subscriptionOrder.update({
+        where: { id: order.id },
+        data: {
+          paymentType: payment?.paymentType,
+          midtransTxnId: payment?.transactionId,
+        },
+      });
+    }
+    await writeAuditLog({
+      workspaceId: order.workspaceId,
+      actorUserId: order.userId,
+      action: "billing.order_partial_refund",
+      resourceType: "subscription_order",
+      resourceId: order.id,
+      metadata: {
+        paymentType: payment?.paymentType || null,
+        transactionId: payment?.transactionId || null,
+        entitlementRevoked: false,
+        priorStatus: order.status,
+      },
+    });
+    return { ok: true, orderId: order.id, status: "partial_refund" };
+  }
+
+  if (["refund", "chargeback"].includes(status)) {
+    if (order.status === "refunded") {
+      return { ok: false, orderId: order.id, status: "refunded", alreadyRefunded: true };
+    }
+    await db.$transaction(async (tx) => {
+      const refunded = await tx.subscriptionOrder.update({
+        where: { id: order.id },
+        data: {
+          status: "refunded",
+          paymentType: payment?.paymentType,
+          midtransTxnId: payment?.transactionId,
+        },
+      });
+      if (refunded.subscriptionId) {
+        await tx.subscription.updateMany({
+          where: {
+            id: refunded.subscriptionId,
+            status: { in: ["active", "trialing"] },
+          },
+          data: { status: "canceled", endsAt: now },
+        });
+      }
+      // Drop to free only when no other still-valid paid period remains.
+      const stillActive = await tx.subscription.findFirst({
+        where: {
+          workspaceId: order.workspaceId,
+          status: { in: ["active", "trialing"] },
+          endsAt: { gt: now },
+        },
+        select: { id: true },
+      });
+      if (!stillActive) {
+        await tx.workspace.update({
+          where: { id: order.workspaceId },
+          data: {
+            planCode: "free",
+            monthlySendLimit: FREE_ENTITLEMENTS.monthlySendLimit,
+            monthlyPublishLimit: FREE_ENTITLEMENTS.monthlyPublishLimit,
+          },
+        });
+      }
+    });
+    await writeAuditLog({
+      workspaceId: order.workspaceId,
+      actorUserId: order.userId,
+      action: "billing.order_refunded",
+      resourceType: "subscription_order",
+      resourceId: order.id,
+      metadata: {
+        transactionStatus: status,
+        paymentType: payment?.paymentType || null,
+        transactionId: payment?.transactionId || null,
+      },
+    });
+    return { ok: false, orderId: order.id, status: "refunded" };
+  }
+
   if (order.status === "paid") {
     return { ok: true, alreadyPaid: true, orderId: order.id };
   }
+  if (order.status === "refunded") {
+    return { ok: false, orderId: order.id, status: "refunded", alreadyRefunded: true };
+  }
 
-  const status = (payment?.transactionStatus || "settlement").toLowerCase();
   if (["pending", "authorize"].includes(status)) {
     await db.subscriptionOrder.update({
       where: { id: order.id },
@@ -357,21 +449,48 @@ export async function applyPaidOrder(orderCode: string, payment?: {
   }
 
   // settlement / capture / success / simulation
-  const now = new Date();
   const endsAt = addMonths(now, order.plan.durationMonths);
 
   const result = await db.$transaction(async (tx) => {
-    // Re-check status inside the transaction to avoid double-pay races.
-    const fresh = await tx.subscriptionOrder.findUnique({ where: { id: order.id } });
-    if (!fresh) throw new Error("Order not found");
-    if (fresh.status === "paid") {
-      return { paid: fresh, subscription: null as null, alreadyPaid: true as const };
+    // Atomically claim the pending->paid transition. `updateMany` with a
+    // `status != paid` guard takes a row lock; under Postgres Read Committed a
+    // concurrent (retried/replayed) webhook re-evaluates the WHERE against the
+    // committed row and matches 0 rows, so exactly one caller proceeds. This is
+    // the single source of idempotency for the paid transition.
+    const claim = await tx.subscriptionOrder.updateMany({
+      where: { id: order.id, status: { not: "paid" } },
+      data: {
+        status: "paid",
+        paidAt: now,
+        paymentType: payment?.paymentType || "midtrans",
+        midtransTxnId: payment?.transactionId,
+      },
+    });
+    if (claim.count === 0) {
+      return { paid: null, subscription: null as null, alreadyPaid: true as const };
     }
 
     if (order.voucherId) {
+      // Serialize all redemptions of this voucher on its row. Concurrent paid
+      // webhooks for the same voucher (even across different orders) block here
+      // until the holder commits, so the per-workspace count() below is read
+      // against a stable state — this is what enforces perWorkspaceLimit
+      // (which may be > 1) without relying on implicit increment-lock ordering.
+      await tx.$executeRaw`SELECT id FROM "Voucher" WHERE id = ${order.voucherId} FOR UPDATE`;
+
       const voucher = await tx.voucher.findUnique({ where: { id: order.voucherId } });
       if (!voucher || !voucher.isActive) {
         throw new Error("Voucher not found");
+      }
+
+      // Re-validate the time window at settlement, not just at checkout. An order
+      // (or an unpaid Snap token) can otherwise settle after the voucher expires
+      // and still honor a discount that is no longer valid.
+      if (voucher.startsAt && voucher.startsAt > now) {
+        throw new Error("Voucher not yet active");
+      }
+      if (voucher.expiresAt && voucher.expiresAt < now) {
+        throw new Error("Voucher expired");
       }
 
       // Atomic capacity reservation under maxRedemptions (null = unlimited).
@@ -413,14 +532,20 @@ export async function applyPaidOrder(orderCode: string, payment?: {
       });
     }
 
-    const paid = await tx.subscriptionOrder.update({
+    // Status/paidAt/txn were already written by the atomic claim above.
+    const paid = await tx.subscriptionOrder.findUniqueOrThrow({
       where: { id: order.id },
-      data: {
-        status: "paid",
-        paidAt: now,
-        paymentType: payment?.paymentType || "midtrans",
-        midtransTxnId: payment?.transactionId,
+    });
+
+    // One active entitlement per workspace: cancel any previous active/trialing
+    // rows before inserting the new paid period so stacked subs can't inflate
+    // plan benefits after upgrades/renewals/replays.
+    await tx.subscription.updateMany({
+      where: {
+        workspaceId: order.workspaceId,
+        status: { in: ["active", "trialing"] },
       },
+      data: { status: "canceled", endsAt: now },
     });
 
     const subscription = await tx.subscription.create({

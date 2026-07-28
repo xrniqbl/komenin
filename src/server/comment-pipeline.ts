@@ -195,6 +195,11 @@ export async function decideApproval(input: {
   } else {
     const finalContent = input.editedContent?.trim() || approval.commentDraft.content;
     const accountId = approval.campaign?.accounts[0]?.socialAccountId || null;
+    if (!accountId) {
+      throw new Error(
+        "Cannot approve: campaign has no linked social account. Attach an account on the campaign first.",
+      );
+    }
     const delay = pickDelaySeconds(
       approval.campaign?.minDelaySec ?? 45,
       approval.campaign?.maxDelaySec ?? 180,

@@ -14,6 +14,19 @@ export type SsoLoginResult = {
  * JIT provision user + membership from a validated SSO identity, mint one-time ticket.
  * Caller MUST authenticate the assertion (signature) before invoking in production paths.
  */
+const SSO_SAFE_ROLES: WorkspaceRole[] = [
+  "admin",
+  "operator",
+  "analyst",
+  "auditor",
+  "viewer",
+];
+
+function sanitizeJitRole(role: WorkspaceRole): WorkspaceRole {
+  if (role === "owner" || !SSO_SAFE_ROLES.includes(role)) return "operator";
+  return role;
+}
+
 export async function completeSsoIdentityLogin(input: {
   email: string;
   name?: string | null;
@@ -24,6 +37,7 @@ export async function completeSsoIdentityLogin(input: {
 }): Promise<SsoLoginResult> {
   const email = input.email.trim().toLowerCase();
   if (!email.includes("@")) throw new Error("Invalid SSO email");
+  const jitRole = sanitizeJitRole(input.defaultRole);
 
   const user = await db.user.upsert({
     where: { email },
@@ -39,23 +53,31 @@ export async function completeSsoIdentityLogin(input: {
     },
   });
 
-  await db.membership.upsert({
+  const existingMembership = await db.membership.findUnique({
     where: {
       workspaceId_userId: {
         workspaceId: input.workspaceId,
         userId: user.id,
       },
     },
-    create: {
-      workspaceId: input.workspaceId,
-      userId: user.id,
-      role: input.defaultRole,
-      status: "active",
-    },
-    update: {
-      status: "active",
-    },
   });
+
+  if (existingMembership) {
+    // Never demote or overwrite owner via SSO JIT; only reactivate.
+    await db.membership.update({
+      where: { id: existingMembership.id },
+      data: { status: "active" },
+    });
+  } else {
+    await db.membership.create({
+      data: {
+        workspaceId: input.workspaceId,
+        userId: user.id,
+        role: jitRole,
+        status: "active",
+      },
+    });
+  }
 
   await db.auditLog.create({
     data: {

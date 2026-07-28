@@ -7,6 +7,19 @@ export type ProductionGateResult = {
   warnings: string[];
 };
 
+function isSelfHostedPublishWebhook(webhookUrl: string, appUrl?: string): boolean {
+  try {
+    const webhook = new URL(webhookUrl);
+    const path = webhook.pathname.replace(/\/$/, "");
+    if (path !== "/api/publish/webhook") return false;
+    if (!appUrl) return true;
+    const app = new URL(appUrl);
+    return webhook.host === app.host;
+  } catch {
+    return false;
+  }
+}
+
 export function evaluateProductionGate(): ProductionGateResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -15,6 +28,14 @@ export function evaluateProductionGate(): ProductionGateResult {
   }
 
   const env = getEnv();
+  const policy = (process.env.SOCIAL_CONNECTOR_POLICY || "prefer_webhook").trim();
+  const live = process.env.SIMULATOR_MODE === "false";
+  const hasOfficial =
+    Boolean(process.env.SOCIAL_OFFICIAL_API_TOKEN?.trim()) ||
+    Boolean(process.env.INSTAGRAM_ACCESS_TOKEN?.trim()) ||
+    Boolean(process.env.THREADS_ACCESS_TOKEN?.trim()) ||
+    Boolean(process.env.TIKTOK_ACCESS_TOKEN?.trim()) ||
+    Boolean(process.env.SOCIAL_OFFICIAL_API_BASE_URL?.trim());
 
   // Fail closed: simulator must not run as production.
   if (env.SIMULATOR_MODE) {
@@ -25,10 +46,53 @@ export function evaluateProductionGate(): ProductionGateResult {
     errors.push("WORKER_SECRET is required");
   }
 
-  // Live social mode requires authenticated publish webhook token.
-  if (process.env.SIMULATOR_MODE === "false") {
-    if (!process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN?.trim()) {
-      errors.push("SOCIAL_PUBLISH_WEBHOOK_TOKEN is required when SIMULATOR_MODE=false");
+  // Vercel Cron needs CRON_SECRET. External schedulers can use WORKER_SECRET.
+  if (process.env.VERCEL === "1" || process.env.VERCEL_ENV) {
+    if (!env.CRON_SECRET) {
+      errors.push(
+        "CRON_SECRET is required on Vercel so scheduled /api/worker/cron requests authenticate",
+      );
+    }
+  } else if (!env.CRON_SECRET && !env.WORKER_SECRET) {
+    errors.push("CRON_SECRET or WORKER_SECRET is required for scheduled worker auth");
+  } else if (!env.CRON_SECRET) {
+    warnings.push(
+      "CRON_SECRET is unset — Vercel Cron Authorization: Bearer $CRON_SECRET will fail; WORKER_SECRET can still drive the endpoint",
+    );
+  }
+
+  if (live) {
+    const webhookUrl = process.env.SOCIAL_PUBLISH_WEBHOOK_URL?.trim();
+    const webhookToken = process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN?.trim();
+    const usesWebhook =
+      policy === "prefer_webhook" ||
+      policy === "webhook_only" ||
+      policy === "prefer_official" ||
+      !policy;
+
+    if (policy === "official_only") {
+      if (!hasOfficial) {
+        warnings.push(
+          "SOCIAL_CONNECTOR_POLICY=official_only but no official API tokens/base URL are configured (workspace OAuth vault may still work per account)",
+        );
+      }
+    } else if (usesWebhook) {
+      if (!webhookToken) {
+        errors.push(
+          "SOCIAL_PUBLISH_WEBHOOK_TOKEN is required when SIMULATOR_MODE=false and connector policy uses the webhook bridge",
+        );
+      }
+      if (!webhookUrl) {
+        errors.push(
+          "SOCIAL_PUBLISH_WEBHOOK_URL is required when SIMULATOR_MODE=false and connector policy uses the webhook bridge",
+        );
+      }
+    }
+
+    if (webhookUrl && isSelfHostedPublishWebhook(webhookUrl, process.env.APP_URL)) {
+      errors.push(
+        "SOCIAL_PUBLISH_WEBHOOK_URL points at this app's /api/publish/webhook — that only logs deliveries and does not post to social networks. Point it at an external bridge.",
+      );
     }
   }
 
@@ -43,6 +107,17 @@ export function evaluateProductionGate(): ProductionGateResult {
 
   if (process.env.AUTH_URL && process.env.APP_URL && process.env.AUTH_URL !== process.env.APP_URL) {
     warnings.push("AUTH_URL and APP_URL differ");
+  }
+
+  if (!process.env.OAUTH_STATE_SECRET?.trim()) {
+    warnings.push(
+      "OAUTH_STATE_SECRET unset — OAuth state MAC falls back to AUTH_SECRET/ENCRYPTION_KEY (rotate carefully)",
+    );
+  }
+  if (!process.env.SSO_TICKET_SECRET?.trim()) {
+    warnings.push(
+      "SSO_TICKET_SECRET unset — SSO ticket MAC falls back to AUTH_SECRET/ENCRYPTION_KEY (rotate carefully)",
+    );
   }
 
   return { ok: errors.length === 0, errors, warnings };

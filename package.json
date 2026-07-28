@@ -29,6 +29,7 @@
         "worker:skills": "tsx scripts/run-worker.ts skill.execute",
         "worker:usage": "tsx scripts/run-worker.ts usage.rollup",
         "worker:notify": "tsx scripts/run-worker.ts notify.dispatch",
+        "worker:billing-expire": "tsx scripts/run-worker.ts billing.expire",
         "smoke:security": "tsx scripts/smoke-security.ts",
         "smoke:product": "tsx scripts/smoke-product.ts"
     },
@@ -66,6 +67,7 @@
         "@vitejs/plugin-react": "^6.0.3",
         "eslint": "^9.39.1",
         "eslint-config-next": "^16.2.10",
+        "eslint-plugin-react-hooks": "^7.1.1",
         "jsdom": "^29.1.1",
         "postcss": "^8.5.19",
         "tailwindcss": "^4.3.2",

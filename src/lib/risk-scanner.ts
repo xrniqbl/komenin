@@ -80,8 +80,8 @@ export function validateRiskPattern(raw: string): string | null {
       return "Unsupported regex construct";
     }
     try {
-      // eslint-disable-next-line no-new
-      new RegExp(body, flags);
+      // Validate the pattern compiles; result intentionally discarded.
+      void new RegExp(body, flags);
     } catch {
       return "Invalid regular expression";
     }

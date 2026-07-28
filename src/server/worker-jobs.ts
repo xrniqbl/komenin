@@ -1,4 +1,5 @@
 ﻿import { Prisma } from "@prisma/client";
+import { FREE_ENTITLEMENTS } from "@/lib/billing/entitlements";
 import { db } from "@/lib/db";
 import { generateContextualCommentHybrid } from "@/lib/comment-engine";
 import { executeSocialAction } from "@/lib/connectors/runtime";
@@ -29,6 +30,7 @@ export type WorkerJobName =
   | "skill.execute"
   | "usage.rollup"
   | "notify.dispatch"
+  | "billing.expire"
   | "worker.tick";
 
 export type WorkerJobResult = {
@@ -135,10 +137,12 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
       try {
         const rotateResult = await executeSocialAction({
           action: "rotateProxy",
+          workspaceId: account.workspaceId,
           target: {
             platform: account.platform,
             username: account.username,
             accountId: account.id,
+            workspaceId: account.workspaceId,
           },
           payload: {
             proxyId: proxy.id,
@@ -338,10 +342,12 @@ async function runProxyRotate(limit = 10): Promise<WorkerJobResult> {
 
     const result = await executeSocialAction({
       action: "rotateProxy",
+      workspaceId: assignment.socialAccount.workspaceId,
       target: {
         platform: assignment.socialAccount.platform,
         username: assignment.socialAccount.username,
         accountId: assignment.socialAccountId,
+        workspaceId: assignment.socialAccount.workspaceId,
       },
       payload: {
         proxyId: assignment.proxyEndpointId,
@@ -393,13 +399,17 @@ async function runListenerPolls(limit = 10): Promise<WorkerJobResult> {
     take: limit,
   });
 
+  const mode = getRuntimeModeLabel();
   let created = 0;
   for (const listener of listeners) {
+    try {
     const discovery = await executeSocialAction({
       action: "discoverPosts",
+      workspaceId: listener.workspaceId,
       target: {
         platform: listener.platform,
         username: "listener",
+        workspaceId: listener.workspaceId,
       },
       payload: {
         query: listener.query,
@@ -408,27 +418,80 @@ async function runListenerPolls(limit = 10): Promise<WorkerJobResult> {
       },
     });
 
-    const posts =
-      discovery.posts && discovery.posts.length > 0
-        ? discovery.posts
-        : discovery.ok
-          ? []
-          : [];
+    const realPosts =
+      discovery.posts && discovery.posts.length > 0 ? discovery.posts : [];
 
-    // Fail-closed live discovery: if connector fails, skip create.
-    if (!discovery.ok && getRuntimeModeLabel() === "live") {
-      await createNotification({
-        workspaceId: listener.workspaceId,
-        title: "Listener poll failed",
-        body: discovery.message,
-        href: "/app/listeners",
+    // Live fail-closed: never invent targets. Empty success or hard failure both
+    // skip inserts so comment.send cannot fire against example.com placeholders.
+    if (mode === "live") {
+      if (!discovery.ok) {
+        await createNotification({
+          workspaceId: listener.workspaceId,
+          title: "Listener poll failed",
+          body: discovery.message,
+          href: "/app/listeners",
+        });
+      }
+
+      for (const post of realPosts) {
+        try {
+          const row = await db.targetPost.upsert({
+            where: {
+              workspaceId_platform_externalId: {
+                workspaceId: listener.workspaceId,
+                platform: listener.platform,
+                externalId: post.externalId,
+              },
+            },
+            create: {
+              workspaceId: listener.workspaceId,
+              listenerId: listener.id,
+              campaignId: listener.campaignId,
+              platform: listener.platform,
+              externalId: post.externalId,
+              authorHandle: post.authorHandle,
+              content: post.content,
+              url: post.url,
+              status: "new",
+            },
+            update: {
+              authorHandle: post.authorHandle,
+              content: post.content,
+              url: post.url,
+              listenerId: listener.id,
+              campaignId: listener.campaignId,
+            },
+            select: { id: true, status: true },
+          });
+          if (row.status === "new") created += 1;
+        } catch {
+          // Ignore unique races / bad rows so one listener cannot fail the tick.
+        }
+      }
+
+      await db.deliveryLog.create({
+        data: {
+          workspaceId: listener.workspaceId,
+          kind: "discover_posts",
+          connector: discovery.connector,
+          mode: discovery.mode,
+          ok: discovery.ok,
+          message: discovery.message,
+          payload: {
+            listenerId: listener.id,
+            created: realPosts.length,
+            invented: false,
+          },
+        },
       });
       continue;
     }
 
-    const fallbackPosts =
-      posts.length > 0
-        ? posts
+    // Simulator only: seed demo posts when the connector returns nothing so the
+    // rest of the comment pipeline can be exercised end-to-end offline.
+    const posts =
+      realPosts.length > 0
+        ? realPosts
         : [0, 1, 2].map((i) => {
             const externalId = `${listener.platform}_${listener.id}_${Date.now()}_${i}`;
             return {
@@ -440,21 +503,40 @@ async function runListenerPolls(limit = 10): Promise<WorkerJobResult> {
             };
           });
 
-    for (const post of fallbackPosts) {
-      await db.targetPost.create({
-        data: {
-          workspaceId: listener.workspaceId,
-          listenerId: listener.id,
-          campaignId: listener.campaignId,
-          platform: listener.platform,
-          externalId: post.externalId,
-          authorHandle: post.authorHandle,
-          content: post.content,
-          url: post.url,
-          status: "new",
-        },
-      });
-      created += 1;
+    for (const post of posts) {
+      try {
+        const row = await db.targetPost.upsert({
+          where: {
+            workspaceId_platform_externalId: {
+              workspaceId: listener.workspaceId,
+              platform: listener.platform,
+              externalId: post.externalId,
+            },
+          },
+          create: {
+            workspaceId: listener.workspaceId,
+            listenerId: listener.id,
+            campaignId: listener.campaignId,
+            platform: listener.platform,
+            externalId: post.externalId,
+            authorHandle: post.authorHandle,
+            content: post.content,
+            url: post.url,
+            status: "new",
+          },
+          update: {
+            authorHandle: post.authorHandle,
+            content: post.content,
+            url: post.url,
+            listenerId: listener.id,
+            campaignId: listener.campaignId,
+          },
+          select: { id: true, status: true },
+        });
+        if (row.status === "new") created += 1;
+      } catch {
+        // Ignore unique races in simulator seed too.
+      }
     }
 
     await db.deliveryLog.create({
@@ -463,11 +545,26 @@ async function runListenerPolls(limit = 10): Promise<WorkerJobResult> {
         kind: "discover_posts",
         connector: discovery.connector,
         mode: discovery.mode,
-        ok: discovery.ok || getRuntimeModeLabel() === "simulator",
+        ok: discovery.ok || true,
         message: discovery.message,
-        payload: { listenerId: listener.id, created: fallbackPosts.length },
+        payload: {
+          listenerId: listener.id,
+          created: posts.length,
+          invented: realPosts.length === 0,
+        },
       },
     });
+    } catch (error) {
+      await createNotification({
+        workspaceId: listener.workspaceId,
+        title: "Listener poll error",
+        body:
+          error instanceof Error
+            ? error.message
+            : "Unexpected listener poll failure",
+        href: "/app/listeners",
+      }).catch(() => undefined);
+    }
   }
 
   return {
@@ -749,10 +846,12 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
 
     const result = await executeSocialAction({
       action: "sendComment",
+      workspaceId: action.workspaceId,
       target: {
         platform: action.targetPost.platform,
         username: action.socialAccount?.username,
         accountId: action.socialAccountId,
+        workspaceId: action.workspaceId,
       },
       payload: {
         body,
@@ -956,6 +1055,7 @@ async function runContentPublish(limit = 30): Promise<WorkerJobResult> {
         platform: draft.contentCampaign.platform,
         username: draft.socialAccount?.username,
         accountId: draft.socialAccountId,
+        workspaceId: draft.workspaceId,
       },
       payload: {
         title: draft.title,
@@ -1202,6 +1302,87 @@ async function runNotifyDispatch(limit = 20): Promise<WorkerJobResult> {
   }
 }
 
+/**
+ * Expire paid periods whose endsAt has passed and drop the workspace to free
+ * limits when no other active/trialing period remains.
+ */
+async function runBillingExpire(limit = 50): Promise<WorkerJobResult> {
+  const now = new Date();
+  const due = await db.subscription.findMany({
+    where: {
+      status: { in: ["active", "trialing"] },
+      endsAt: { lte: now },
+    },
+    orderBy: { endsAt: "asc" },
+    take: limit,
+    select: { id: true, workspaceId: true },
+  });
+
+  let expired = 0;
+  let workspacesDowngraded = 0;
+
+  for (const sub of due) {
+    const outcome = await db.$transaction(async (tx) => {
+      // Claim the row so concurrent ticks don't double-notify / double-write.
+      const claim = await tx.subscription.updateMany({
+        where: {
+          id: sub.id,
+          status: { in: ["active", "trialing"] },
+          endsAt: { lte: now },
+        },
+        data: { status: "expired" },
+      });
+      if (claim.count === 0) {
+        return { claimed: false, downgraded: false };
+      }
+
+      const stillActive = await tx.subscription.findFirst({
+        where: {
+          workspaceId: sub.workspaceId,
+          status: { in: ["active", "trialing"] },
+          endsAt: { gt: now },
+        },
+        select: { id: true },
+      });
+
+      if (stillActive) {
+        return { claimed: true, downgraded: false };
+      }
+
+      await tx.workspace.update({
+        where: { id: sub.workspaceId },
+        data: {
+          planCode: "free",
+          monthlySendLimit: FREE_ENTITLEMENTS.monthlySendLimit,
+          monthlyPublishLimit: FREE_ENTITLEMENTS.monthlyPublishLimit,
+        },
+      });
+
+      await tx.notification.create({
+        data: {
+          workspaceId: sub.workspaceId,
+          title: "Subscription expired",
+          body: "Your paid plan period ended. Workspace limits were reset to the free tier.",
+          href: "/app/settings/billing",
+        },
+      });
+
+      return { claimed: true, downgraded: true };
+    });
+
+    if (outcome.claimed) expired += 1;
+    if (outcome.downgraded) workspacesDowngraded += 1;
+  }
+
+  return {
+    job: "billing.expire",
+    ok: true,
+    message: `Expired ${expired} subscriptions (${workspacesDowngraded} workspaces → free)`,
+    count: expired,
+    details: { workspacesDowngraded },
+  };
+}
+
 export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult> {
   const started = await db.jobRun.create({
     data: {
@@ -1247,6 +1428,9 @@ export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult>
       case "notify.dispatch":
         result = await runNotifyDispatch();
         break;
+      case "billing.expire":
+        result = await runBillingExpire();
+        break;
       case "worker.tick": {
         const settled = await Promise.allSettled([
           runSessionHealthChecks(),
@@ -1260,6 +1444,7 @@ export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult>
           runSkillExecute(),
           runUsageRollup(),
           runNotifyDispatch(),
+          runBillingExpire(),
         ]);
         const results = settled.map((s) =>
           s.status === "fulfilled"
@@ -1320,5 +1505,6 @@ export const WORKER_JOBS: WorkerJobName[] = [
   "skill.execute",
   "usage.rollup",
   "notify.dispatch",
+  "billing.expire",
 ];
 

@@ -1,7 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
 
 export function isProductionRuntime(): boolean {
-  return process.env.NODE_ENV === "production";
+  // Treat any deployed (non-development) environment as production for the
+  // purpose of disabling insecure stubs. Vercel preview/staging builds run with
+  // NODE_ENV=production but VERCEL_ENV="preview"; both must be locked down.
+  if (process.env.NODE_ENV === "production") return true;
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (vercelEnv && vercelEnv !== "development") return true;
+  return false;
 }
 
 export function safeEqual(a: string, b: string): boolean {
@@ -24,5 +30,8 @@ export function requireConfiguredSecret(
 
 export function allowDevStubs(): boolean {
   if (isProductionRuntime()) return false;
-  return process.env.ALLOW_SECURITY_STUBS === "true" || process.env.SIMULATOR_MODE !== "false";
+  // Require an explicit opt-in. Previously any SIMULATOR_MODE !== "false" (the
+  // default is "true") silently enabled insecure stubs (SSRF/localhost egress,
+  // SAML email stub) on every non-production environment.
+  return process.env.ALLOW_SECURITY_STUBS === "true";
 }

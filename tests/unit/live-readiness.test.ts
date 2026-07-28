@@ -8,6 +8,12 @@ const KEYS = [
   "SOCIAL_CONNECTOR_POLICY",
   "SOCIAL_OFFICIAL_API_BASE_URL",
   "WORKER_SECRET",
+  "APP_URL",
+  "CRON_SECRET",
+  "INSTAGRAM_ACCESS_TOKEN",
+  "THREADS_ACCESS_TOKEN",
+  "TIKTOK_ACCESS_TOKEN",
+  "SOCIAL_OFFICIAL_API_TOKEN",
 ] as const;
 
 const snapshot: Record<string, string | undefined> = {};
@@ -55,5 +61,18 @@ describe("evaluateLiveReadiness", () => {
     const result = evaluateLiveReadiness();
     expect(result.ready).toBe(true);
     expect(result.blockers).toEqual([]);
+  });
+
+  it("blocks self-hosted /api/publish/webhook as a live bridge", () => {
+    process.env.SIMULATOR_MODE = "false";
+    process.env.APP_URL = "https://app.example.com";
+    process.env.SOCIAL_PUBLISH_WEBHOOK_URL =
+      "https://app.example.com/api/publish/webhook";
+    process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN = "super-secret-token-value";
+    const result = evaluateLiveReadiness();
+    expect(result.ready).toBe(false);
+    expect(result.blockers.some((b) => /own \/api\/publish\/webhook/i.test(b))).toBe(
+      true,
+    );
   });
 });

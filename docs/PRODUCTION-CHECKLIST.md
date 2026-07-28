@@ -4,13 +4,16 @@ Use this before promoting a deploy out of simulator / foundation mode.
 
 ## 1. Runtime hard gates
 
-These fail closed via `evaluateProductionGate()` when `NODE_ENV=production`:
+These fail closed via `evaluateProductionGate()` when `NODE_ENV=production`
+(or non-development `VERCEL_ENV`):
 
 | Check | Required value |
 |---|---|
 | `SIMULATOR_MODE` | `false` |
 | `WORKER_SECRET` | set (min 16 chars) |
+| `CRON_SECRET` | set for Vercel Cron (`Authorization: Bearer`) |
 | `SOCIAL_PUBLISH_WEBHOOK_TOKEN` | set when simulator is off |
+| `SOCIAL_PUBLISH_WEBHOOK_URL` | **external** bridge (not `APP_URL/api/publish/webhook`) |
 | Midtrans keys | required if `MIDTRANS_IS_PRODUCTION=true` |
 
 Also required by env schema:
@@ -24,7 +27,7 @@ Also required by env schema:
 Recommended:
 
 - `AUTH_URL` == `APP_URL`
-- `ALLOW_SECURITY_STUBS=false`
+- `ALLOW_SECURITY_STUBS=false` (or unset)
 - `AETHER_REGION` set
 
 ## 2. Database
@@ -85,7 +88,9 @@ Checklist:
 
 - [ ] Snap token creation works
 - [ ] Notification webhook `/api/billing/midtrans/notification` reachable
-- [ ] Paid order activates subscription
+- [ ] Paid order activates subscription (prior active rows canceled)
+- [ ] Full refund / chargeback revokes entitlement; partial refund does **not** auto-revoke
+- [ ] `billing.expire` marks ended periods expired and resets free limits
 - [ ] 100% voucher free order settles without Midtrans
 - [ ] Amount signature / gross amount binding verified
 
@@ -95,6 +100,8 @@ Without `MIDTRANS_SERVER_KEY`, checkout returns `isSimulation: true` (not live m
 
 ```env
 SIMULATOR_MODE="false"
+# Must be an EXTERNAL bridge host — not this app's /api/publish/webhook
+# (that route only logs deliveries and production-gate will fail closed on self-URL).
 SOCIAL_PUBLISH_WEBHOOK_URL="https://your-worker-or-bridge/..."
 SOCIAL_PUBLISH_WEBHOOK_TOKEN="long-random"
 SOCIAL_CONNECTOR_POLICY="prefer_webhook" # or prefer_official
@@ -109,19 +116,22 @@ Official OAuth (as needed):
 Checklist:
 
 - [ ] Connect account flow works for target platforms
+- [ ] OAuth tokens land in workspace vault and are used by send/discover (not only env tokens)
 - [ ] Session import / reimport works
 - [ ] Health check worker marks healthy/degraded correctly
+- [ ] Live listener poll does **not** invent `example.com` target posts
 - [ ] Comment send + content publish leave simulator payloads
 - [ ] Approvals queue can approve and dispatch
 
 Notes:
 
+- Instagram native publish is still a partial Graph media flow; prefer webhook bridge for real media posts.
 - Threads/TikTok native actions may still fall back to webhook.
 - Marketing mocks are intentional demo UI only and never seed product tables.
 
 ## 6. Worker process
 
-Run separately from the web process:
+Run separately from the web process when possible:
 
 ```bash
 npm run worker
@@ -131,14 +141,18 @@ npm run worker:health
 npm run worker:poll
 npm run worker:generate
 npm run worker:send
+npm run worker:billing-expire
 ```
+
+Vercel Cron (optional fallback): `vercel.json` hits `GET /api/worker/cron` every 5 minutes with `Authorization: Bearer $CRON_SECRET`. Prefer per-job schedules or an always-on worker for live loads — full `worker.tick` can approach function time limits.
 
 Checklist:
 
-- [ ] Worker authenticates with `WORKER_SECRET`
+- [ ] Worker authenticates with `WORKER_SECRET` / cron with `CRON_SECRET`
 - [ ] Job runs appear in `/admin/jobs`
 - [ ] Failed jobs are visible and actionable
-- [ ] Notify / usage rollup jobs scheduled in your orchestrator
+- [ ] Notify / usage rollup / **billing.expire** jobs scheduled in your orchestrator
+- [ ] Expired subscriptions drop workspace to free limits
 
 ## 7. AI providers
 

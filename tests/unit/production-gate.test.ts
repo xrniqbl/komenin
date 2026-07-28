@@ -67,8 +67,39 @@ describe("production gate", () => {
       MIDTRANS_SERVER_KEY: "SB-server",
       MIDTRANS_CLIENT_KEY: "SB-client",
     });
+    vi.stubEnv("SOCIAL_PUBLISH_WEBHOOK_URL", "https://bridge.example/hooks/aether");
+    vi.stubEnv("SOCIAL_CONNECTOR_POLICY", "prefer_webhook");
     const gate = evaluateProductionGate();
     expect(gate.ok).toBe(true);
     expect(gate.errors).toEqual([]);
+  });
+
+  it("allows official_only live without webhook token", () => {
+    setBaseEnv({
+      SIMULATOR_MODE: "false",
+      SOCIAL_PUBLISH_WEBHOOK_TOKEN: "",
+    });
+    vi.stubEnv("SOCIAL_PUBLISH_WEBHOOK_TOKEN", undefined as unknown as string);
+    delete process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN;
+    delete process.env.SOCIAL_PUBLISH_WEBHOOK_URL;
+    vi.stubEnv("SOCIAL_CONNECTOR_POLICY", "official_only");
+    vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "ig-token");
+    const gate = evaluateProductionGate();
+    expect(gate.ok).toBe(true);
+  });
+
+  it("fails when live webhook points at this app's own publish endpoint", () => {
+    setBaseEnv({
+      SIMULATOR_MODE: "false",
+      SOCIAL_PUBLISH_WEBHOOK_TOKEN: "token",
+      APP_URL: "https://app.example.com",
+    });
+    vi.stubEnv(
+      "SOCIAL_PUBLISH_WEBHOOK_URL",
+      "https://app.example.com/api/publish/webhook",
+    );
+    const gate = evaluateProductionGate();
+    expect(gate.ok).toBe(false);
+    expect(gate.errors.some((e) => e.includes("external bridge"))).toBe(true);
   });
 });

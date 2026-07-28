@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { assertWorkspacePermission } from "@/lib/rbac";
+import { encryptSecret } from "@/lib/encryption";
 import { ensureBuiltinSkills, runSkill } from "@/lib/skills/runtime";
 import { assertSafeOutboundUrl, UnsafeUrlError } from "@/lib/url-safety";
 import { db } from "@/lib/db";
@@ -24,10 +25,38 @@ function assertSkillWebhookConfig(
   }
 }
 
+/** Encrypt webhook bearer tokens at rest; never return raw token to list UIs. */
+function sealSkillConfig(
+  executor: "builtin" | "webhook" | undefined,
+  configJson?: Record<string, unknown>,
+): Record<string, unknown> {
+  const base = { ...(configJson || {}) };
+  if ((executor || "builtin") !== "webhook") return base;
+  const token = typeof base.token === "string" ? base.token.trim() : "";
+  delete base.token;
+  if (token) {
+    base.tokenEnc = encryptSecret(token);
+    base.hasToken = true;
+  }
+  return base;
+}
+
+function redactSkillConfig(configJson: unknown): Record<string, unknown> {
+  if (!configJson || typeof configJson !== "object" || Array.isArray(configJson)) {
+    return {};
+  }
+  const raw = { ...(configJson as Record<string, unknown>) };
+  const hasToken = Boolean(raw.tokenEnc) || Boolean(raw.token) || Boolean(raw.hasToken);
+  delete raw.token;
+  delete raw.tokenEnc;
+  if (hasToken) raw.hasToken = true;
+  return raw;
+}
+
 export async function listSkills() {
   const { workspace } = await requireActiveWorkspace();
   await ensureBuiltinSkills(workspace.id);
-  return db.skill.findMany({
+  const rows = await db.skill.findMany({
     where: { workspaceId: workspace.id },
     include: {
       triggers: true,
@@ -35,6 +64,10 @@ export async function listSkills() {
     },
     orderBy: { createdAt: "desc" },
   });
+  return rows.map((row) => ({
+    ...row,
+    configJson: redactSkillConfig(row.configJson),
+  }));
 }
 
 export async function createSkill(input: {
@@ -49,6 +82,7 @@ export async function createSkill(input: {
   const { userId, workspace } = await requireActiveWorkspace();
   assertWorkspacePermission(workspace, "skills.manage");
   assertSkillWebhookConfig(input.executor, input.configJson);
+  const sealedConfig = sealSkillConfig(input.executor, input.configJson);
 
   const skill = await db.skill.create({
     data: {
@@ -58,7 +92,7 @@ export async function createSkill(input: {
       description: input.description?.trim() || null,
       executor: input.executor || "builtin",
       highRisk: Boolean(input.highRisk),
-      configJson: (input.configJson ?? {}) as Prisma.InputJsonValue,
+      configJson: sealedConfig as Prisma.InputJsonValue,
       triggers: {
         create: (input.triggers || [])
           .map((pattern) => pattern.trim())

@@ -14,6 +14,8 @@ const envSchema = z.object({
     .default("true")
     .transform((value) => value === "true"),
   WORKER_SECRET: z.string().min(16).optional(),
+  // Vercel Cron authenticates scheduled GET requests with `Authorization: Bearer $CRON_SECRET`.
+  CRON_SECRET: z.string().min(16).optional(),
   AI_GATEWAY_ENABLED: z.enum(["true", "false"]).default("true"),
   AI_GATEWAY_BASE_URL: z.string().url().optional(),
   AI_GATEWAY_API_KEY: z.string().optional(),
@@ -58,6 +60,7 @@ export function getEnv(): AppEnv {
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
     SIMULATOR_MODE: process.env.SIMULATOR_MODE ?? "true",
     WORKER_SECRET: process.env.WORKER_SECRET,
+    CRON_SECRET: process.env.CRON_SECRET,
     AI_GATEWAY_ENABLED: process.env.AI_GATEWAY_ENABLED ?? "true",
     AI_GATEWAY_BASE_URL: process.env.AI_GATEWAY_BASE_URL,
     AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,

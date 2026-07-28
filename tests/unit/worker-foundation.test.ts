@@ -18,6 +18,7 @@ describe("worker foundation", () => {
         "skill.execute",
         "usage.rollup",
         "notify.dispatch",
+        "billing.expire",
       ]),
     );
   });

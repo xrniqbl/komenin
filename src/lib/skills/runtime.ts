@@ -1,4 +1,5 @@
 ﻿import { db } from "@/lib/db";
+import { decryptSecret } from "@/lib/encryption";
 import { assertSafeOutboundUrl, safeOutboundFetch, UnsafeUrlError } from "@/lib/url-safety";
 
 export type SkillRecord = {
@@ -135,7 +136,11 @@ export async function runSkill(input: {
       outputText = facts[0] || "FAQ belum dikonfigurasi.";
       steps.push({ title: "Compose FAQ answer", detail: outputText });
     } else if (input.skill.executor === "webhook") {
-      const config = input.skill.configJson as { url?: string; token?: string } | null;
+      const config = input.skill.configJson as {
+        url?: string;
+        token?: string;
+        tokenEnc?: string;
+      } | null;
       if (!config?.url) throw new Error("Webhook skill missing url");
       try {
         assertSafeOutboundUrl(config.url);
@@ -145,12 +150,20 @@ export async function runSkill(input: {
         }
         throw error;
       }
+      let token = typeof config.token === "string" ? config.token.trim() : "";
+      if (!token && typeof config.tokenEnc === "string" && config.tokenEnc) {
+        try {
+          token = decryptSecret(config.tokenEnc);
+        } catch {
+          throw new Error("Webhook skill token could not be decrypted");
+        }
+      }
       steps.push({ title: "Call webhook skill", detail: config.url });
       const response = await safeOutboundFetch(config.url, {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          ...(config.token ? { authorization: `Bearer ${config.token}` } : {}),
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           skill: input.skill.slug,

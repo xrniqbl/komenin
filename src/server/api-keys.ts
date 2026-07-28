@@ -9,9 +9,21 @@ import { writeAuditLog } from "@/server/audit";
 
 export async function listApiKeys() {
   const { workspace } = await requireActiveWorkspace();
+  // Never return hashedKey to the client — it is a password-equivalent verifier.
   return db.apiKey.findMany({
     where: { workspaceId: workspace.id },
     orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      prefix: true,
+      scopes: true,
+      isActive: true,
+      lastUsedAt: true,
+      expiresAt: true,
+      createdAt: true,
+      createdBy: true,
+    },
   });
 }
 
@@ -64,7 +76,18 @@ export async function createApiKey(input: {
   });
 
   revalidatePath("/app/settings/api-keys");
-  return { ...key, rawKey: raw }; // raw only returned once
+  // rawKey once only — never echo hashedKey to the client.
+  return {
+    id: key.id,
+    name: key.name,
+    prefix: key.prefix,
+    scopes: key.scopes,
+    isActive: key.isActive,
+    lastUsedAt: key.lastUsedAt,
+    expiresAt: key.expiresAt,
+    createdAt: key.createdAt,
+    rawKey: raw,
+  };
 }
 
 export async function revokeApiKey(id: string) {

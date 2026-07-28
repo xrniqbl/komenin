@@ -14,6 +14,40 @@ function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
+/** Roles that may be granted via invite. Never owner (must transfer deliberately). */
+const INVITEABLE_ROLES: WorkspaceRole[] = [
+  "admin",
+  "operator",
+  "analyst",
+  "auditor",
+  "viewer",
+];
+
+const ROLE_RANK: Record<WorkspaceRole, number> = {
+  owner: 100,
+  admin: 80,
+  operator: 60,
+  analyst: 40,
+  auditor: 30,
+  viewer: 10,
+};
+
+function assertInviteableRole(
+  inviterRole: WorkspaceRole,
+  targetRole: WorkspaceRole,
+) {
+  if (!INVITEABLE_ROLES.includes(targetRole)) {
+    throw new Error("Invalid invite role (owner cannot be granted via invite)");
+  }
+  // Inviter cannot grant a role at or above their own rank (except owner inviting admin).
+  if (inviterRole !== "owner" && ROLE_RANK[targetRole] >= ROLE_RANK[inviterRole]) {
+    throw new Error("Cannot invite a role at or above your own");
+  }
+  if (inviterRole !== "owner" && targetRole === "admin") {
+    throw new Error("Only the workspace owner can invite admins");
+  }
+}
+
 export async function createInvite(input: {
   workspaceId: string;
   email: string;
@@ -25,6 +59,8 @@ export async function createInvite(input: {
     membership.customRole?.permissions,
     "members.manage",
   );
+
+  assertInviteableRole(membership.role as WorkspaceRole, input.role);
 
   const token = randomBytes(24).toString("hex");
   const tokenHash = hashToken(token);
@@ -65,22 +101,51 @@ export async function acceptInvite(token: string) {
     throw new Error("Invite email mismatch");
   }
 
+  // Never accept an invite that smuggles owner (defense in depth vs old rows).
+  if (!INVITEABLE_ROLES.includes(invite.role as WorkspaceRole)) {
+    throw new Error("Invite role is no longer valid; ask an owner to re-issue");
+  }
+
   await db.$transaction(async (tx) => {
-    await tx.membership.upsert({
+    const existing = await tx.membership.findUnique({
       where: {
         workspaceId_userId: {
           workspaceId: invite.workspaceId,
           userId: session.user.id,
         },
       },
-      update: { role: invite.role, status: "active" },
-      create: {
-        workspaceId: invite.workspaceId,
-        userId: session.user.id,
-        role: invite.role,
-        status: "active",
-      },
     });
+
+    if (existing) {
+      // Do not demote or overwrite an existing owner via invite accept.
+      if (existing.role === "owner") {
+        await tx.membership.update({
+          where: { id: existing.id },
+          data: { status: "active" },
+        });
+      } else if (ROLE_RANK[invite.role as WorkspaceRole] > ROLE_RANK[existing.role as WorkspaceRole]) {
+        // Only elevate; never demote via invite.
+        await tx.membership.update({
+          where: { id: existing.id },
+          data: { role: invite.role, status: "active" },
+        });
+      } else {
+        await tx.membership.update({
+          where: { id: existing.id },
+          data: { status: "active" },
+        });
+      }
+    } else {
+      await tx.membership.create({
+        data: {
+          workspaceId: invite.workspaceId,
+          userId: session.user.id,
+          role: invite.role,
+          status: "active",
+        },
+      });
+    }
+
     await tx.invite.update({
       where: { id: invite.id },
       data: { acceptedAt: new Date() },
@@ -103,6 +168,7 @@ export async function acceptInvite(token: string) {
     action: "invite.accepted",
     resourceType: "invite",
     resourceId: invite.id,
+    metadata: { role: invite.role },
   });
 
   return { workspaceId: invite.workspaceId };

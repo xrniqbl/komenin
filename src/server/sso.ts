@@ -37,6 +37,14 @@ export async function getWorkspaceSsoConfig() {
   });
 }
 
+const SSO_JIT_ROLES = [
+  "admin",
+  "operator",
+  "analyst",
+  "auditor",
+  "viewer",
+] as const;
+
 export async function saveWorkspaceSsoConfig(input: {
   protocol?: "saml" | "oidc";
   issuer: string;
@@ -62,6 +70,15 @@ export async function saveWorkspaceSsoConfig(input: {
   if (!certificate) throw new Error("Certificate required");
   if (certificate.length > 32_000) throw new Error("Certificate too large");
 
+  // Never JIT-provision owners. Admin JIT only by workspace owner.
+  let defaultRole = (input.defaultRole || "operator") as (typeof SSO_JIT_ROLES)[number] | "owner";
+  if (defaultRole === "owner" || !SSO_JIT_ROLES.includes(defaultRole as (typeof SSO_JIT_ROLES)[number])) {
+    defaultRole = "operator";
+  }
+  if (defaultRole === "admin" && workspace.role !== "owner") {
+    throw new Error("Only the workspace owner can set SSO defaultRole to admin");
+  }
+
   const existing = await db.ssoConfig.findFirst({
     where: { workspaceId: workspace.id },
     orderBy: { createdAt: "desc" },
@@ -76,7 +93,7 @@ export async function saveWorkspaceSsoConfig(input: {
           entryPoint,
           certificate,
           emailDomain: input.emailDomain?.trim().toLowerCase() || null,
-          defaultRole: input.defaultRole || "operator",
+          defaultRole,
           isActive: input.isActive ?? false,
         },
       })
@@ -88,7 +105,7 @@ export async function saveWorkspaceSsoConfig(input: {
           entryPoint,
           certificate,
           emailDomain: input.emailDomain?.trim().toLowerCase() || null,
-          defaultRole: input.defaultRole || "operator",
+          defaultRole,
           isActive: input.isActive ?? false,
         },
       });

@@ -34,12 +34,16 @@ export function decryptSecret(payload: string): string {
   if (version !== "v1" || !ivHex || !tagHex || !dataHex) {
     throw new Error("Invalid encrypted payload");
   }
-  const decipher = createDecipheriv(
-    "aes-256-gcm",
-    getKey(),
-    Buffer.from(ivHex, "hex"),
-  );
-  decipher.setAuthTag(Buffer.from(tagHex, "hex"));
+  const iv = Buffer.from(ivHex, "hex");
+  const tag = Buffer.from(tagHex, "hex");
+  // Pin IV (96-bit) and auth tag (128-bit) lengths. Node's GCM otherwise accepts
+  // short tags, which weakens forgery resistance for any attacker-supplied blob.
+  if (iv.length !== 12) throw new Error("Invalid encrypted payload");
+  if (tag.length !== 16) throw new Error("Invalid encrypted payload");
+  const decipher = createDecipheriv("aes-256-gcm", getKey(), iv, {
+    authTagLength: 16,
+  });
+  decipher.setAuthTag(tag);
   const plaintext = Buffer.concat([
     decipher.update(Buffer.from(dataHex, "hex")),
     decipher.final(),
