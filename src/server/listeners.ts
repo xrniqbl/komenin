@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { assertWorkspacePermission } from "@/lib/rbac";
+import { executeSocialAction } from "@/lib/connectors/runtime";
+import { getRuntimeModeLabel } from "@/lib/runtime-mode";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
@@ -65,29 +67,87 @@ export async function pollListener(listenerId: string) {
   });
   if (!listener) throw new Error("Listener not found");
 
-  const samples = [
-    `Baru coba ${listener.query} dan hasilnya lumayan. Ada tips biar lebih optimal?`,
-    `Lagi riset ${listener.query}. Rekomendasi tools yang worth it buat tim kecil?`,
-    `Diskusi ${listener.query} lagi rame. Siapa yang sudah implement end-to-end?`,
-  ];
+  const mode = getRuntimeModeLabel();
+  const discovery = await executeSocialAction({
+    action: "discoverPosts",
+    workspaceId: workspace.id,
+    target: {
+      platform: listener.platform,
+      username: "listener",
+      workspaceId: workspace.id,
+    },
+    payload: {
+      query: listener.query,
+      limit: 3,
+      listenerId: listener.id,
+    },
+  });
+
+  const realPosts =
+    discovery.posts && discovery.posts.length > 0 ? discovery.posts : [];
+
+  // Live: only persist real connector posts — never invent example.com targets.
+  // Simulator: seed demo posts when discovery is empty so the pipeline is testable.
+  const posts =
+    mode === "live"
+      ? realPosts
+      : realPosts.length > 0
+        ? realPosts
+        : [
+            `Baru coba ${listener.query} dan hasilnya lumayan. Ada tips biar lebih optimal?`,
+            `Lagi riset ${listener.query}. Rekomendasi tools yang worth it buat tim kecil?`,
+            `Diskusi ${listener.query} lagi rame. Siapa yang sudah implement end-to-end?`,
+          ].map((content, i) => {
+            const externalId = `${listener.platform}_${listener.id}_${Date.now()}_${i}`;
+            return {
+              externalId,
+              authorHandle: `user_${100 + i}`,
+              content,
+              url: `https://example.com/p/${externalId}`,
+              platform: listener.platform,
+            };
+          });
+
+  if (mode === "live" && !discovery.ok) {
+    throw new Error(discovery.message || "Listener poll failed in live mode");
+  }
 
   const createdPosts = [] as string[];
-  for (let i = 0; i < samples.length; i += 1) {
-    const externalId = `${listener.platform}_${listener.id}_${Date.now()}_${i}`;
-    const post = await db.targetPost.create({
-      data: {
-        workspaceId: workspace.id,
-        campaignId: listener.campaignId,
-        listenerId: listener.id,
-        platform: listener.platform,
-        externalId,
-        authorHandle: `user_${100 + i}`,
-        content: samples[i],
-        url: `https://example.com/p/${externalId}`,
-        status: "new",
-      },
-    });
-    createdPosts.push(post.id);
+  for (const sample of posts) {
+    try {
+      const post = await db.targetPost.upsert({
+        where: {
+          workspaceId_platform_externalId: {
+            workspaceId: workspace.id,
+            platform: listener.platform,
+            externalId: sample.externalId,
+          },
+        },
+        create: {
+          workspaceId: workspace.id,
+          campaignId: listener.campaignId,
+          listenerId: listener.id,
+          platform: listener.platform,
+          externalId: sample.externalId,
+          authorHandle: sample.authorHandle,
+          content: sample.content,
+          url: sample.url,
+          status: "new",
+        },
+        update: {
+          // Refresh discovery metadata but do not reset an in-flight pipeline status.
+          authorHandle: sample.authorHandle,
+          content: sample.content,
+          url: sample.url,
+          listenerId: listener.id,
+          campaignId: listener.campaignId,
+        },
+        select: { id: true, status: true },
+      });
+      if (post.status === "new") createdPosts.push(post.id);
+    } catch {
+      // Skip malformed / race duplicates without failing the whole poll.
+    }
   }
 
   await writeAuditLog({
@@ -96,7 +156,12 @@ export async function pollListener(listenerId: string) {
     action: "listener.polled",
     resourceType: "listener",
     resourceId: listener.id,
-    metadata: { created: createdPosts.length },
+    metadata: {
+      created: createdPosts.length,
+      mode,
+      invented: mode === "simulator" && realPosts.length === 0,
+      connector: discovery.connector,
+    },
   });
 
   revalidatePath("/app/listeners");

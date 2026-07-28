@@ -40,6 +40,9 @@ export function LocaleProvider({
     }
     document.documentElement.lang = locale;
     writeLocaleCookie(locale);
+    // Mount-only initializer: reads persisted locale once. `locale` here is the
+    // initial state and must not be a dependency, or this would re-run on change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const setLocale = React.useCallback((next: Locale) => {

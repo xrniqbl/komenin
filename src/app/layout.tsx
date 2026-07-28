@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "@/styles/globals.css";
 import { AppProviders } from "@/components/providers/app-providers";
-import { getRequestLocale } from "@/lib/i18n/locale";
+import { getRequestLocale } from "@/lib/i18n/request-locale";
 import {
   DEFAULT_OG_IMAGE,
   SITE_DESCRIPTION,

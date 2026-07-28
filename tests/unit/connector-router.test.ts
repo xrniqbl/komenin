@@ -4,6 +4,7 @@ import {
   runConnectorAction,
   type ConnectorActionInput,
 } from "@/lib/connectors";
+import { runThreadsNative } from "@/lib/connectors/official/native";
 
 describe("connector router", () => {
   afterEach(() => {
@@ -78,5 +79,54 @@ describe("connector router", () => {
     expect(result.ok).toBe(true);
     expect(result.connector).toBe("simulator");
     expect(result.posts?.length).toBeGreaterThan(0);
+  });
+
+  it("publishes a Threads native reply via create -> publish with reply_to_id", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: "creation_1" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: "reply_99" }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runThreadsNative({
+      action: "sendComment",
+      runtimeMode: "live",
+      policy: "prefer_official",
+      target: { platform: "threads", username: "brand" },
+      payload: { body: "great post!", targetPostExternalId: "post_42" },
+      webhook: null,
+      official: { provider: "threads", accessToken: "tok_123" },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.externalId).toBe("reply_99");
+
+    const createBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    expect(createBody.reply_to_id).toBe("post_42");
+    expect(createBody.media_type).toBe("TEXT");
+
+    const publishBody = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    expect(publishBody.creation_id).toBe("creation_1");
+  });
+
+  it("requires targetPostExternalId for a Threads native reply", async () => {
+    const result = await runThreadsNative({
+      action: "sendComment",
+      runtimeMode: "live",
+      policy: "prefer_official",
+      target: { platform: "threads", username: "brand" },
+      payload: { body: "hi" },
+      webhook: null,
+      official: { provider: "threads", accessToken: "tok_123" },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/targetPostExternalId/i);
   });
 });

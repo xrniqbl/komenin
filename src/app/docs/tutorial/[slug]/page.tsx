@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { DocsArticle } from "@/components/docs/docs-article";
 import { JsonLd } from "@/components/seo/json-ld";
 import { getAllTutorialSlugs, getDocsPage } from "@/data/docs";
-import { getRequestLocale } from "@/lib/i18n/locale";
+import { getRequestLocale } from "@/lib/i18n/request-locale";
 import { breadcrumbJsonLd, buildMetadata } from "@/lib/seo";
 
 export function generateStaticParams() {

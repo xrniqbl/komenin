@@ -51,10 +51,10 @@ export default async function PublisherSettingsPage({
     <div>
       <PageHeader
         title="Publisher"
-        description="Hybrid connector policy, webhook receiver, and delivery history."
+        description="Hybrid connector policy and social delivery bridge. SOCIAL_PUBLISH_WEBHOOK_URL must be an external bridge — not this app’s /api/publish/webhook logger, and not Settings → Webhooks (those are outbound notify endpoints only)."
         action={
           <form action={runTest}>
-            <Button type="submit">Test webhook</Button>
+            <Button type="submit">Test publish bridge</Button>
           </form>
         }
       />

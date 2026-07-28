@@ -7,6 +7,11 @@ import type {
   PublishPayload,
   RotatePayload,
 } from "@/lib/connectors/types";
+import {
+  BRIDGE_CONTRACT_HEADER,
+  BRIDGE_CONTRACT_VERSION,
+  parseBridgeSuccessPayload,
+} from "@/lib/connectors/bridge-contract";
 import { safeOutboundFetch, UnsafeUrlError } from "@/lib/url-safety";
 
 function asDiscover(payload: ConnectorActionInput["payload"]): DiscoverPayload {
@@ -55,11 +60,30 @@ async function postWebhook(
         "content-type": "application/json",
         ...(webhook.token ? { authorization: `Bearer ${webhook.token}` } : {}),
         "x-aether-action": input.action,
+        [BRIDGE_CONTRACT_HEADER]: BRIDGE_CONTRACT_VERSION,
       },
       body: JSON.stringify(body),
     });
 
-    const payload = (await response.json().catch(() => ({}))) as {
+    const rawText = await response.text();
+    let rawPayload: unknown = {};
+    if (rawText.trim()) {
+      try {
+        rawPayload = JSON.parse(rawText);
+      } catch {
+        return {
+          ok: false,
+          mode: "live",
+          connector: "webhook",
+          message: "Invalid bridge response: body is not JSON",
+          details: { status: response.status, action: input.action },
+        };
+      }
+    }
+
+    const payload = (rawPayload && typeof rawPayload === "object"
+      ? rawPayload
+      : {}) as {
       id?: string;
       externalId?: string;
       externalPostId?: string;
@@ -83,22 +107,42 @@ async function postWebhook(
       };
     }
 
+    const parsed = parseBridgeSuccessPayload({
+      action: input.action,
+      payload: rawPayload,
+      platform: input.target.platform,
+      httpStatus: response.status,
+    });
+
+    if (!parsed.ok) {
+      return {
+        ok: false,
+        mode: "live",
+        connector: "webhook",
+        message: parsed.message,
+        details: {
+          status: response.status,
+          action: input.action,
+          ...(parsed.details || {}),
+        },
+      };
+    }
+
     return {
       ok: true,
       mode: "live",
       connector: "webhook",
-      externalId:
-        payload.externalId || payload.externalPostId || payload.id || undefined,
-      posts: payload.posts,
-      healthy: payload.healthy,
-      ip: payload.ip,
-      message:
-        payload.message ||
-        `Webhook accepted ${input.action} for ${input.target.platform}`,
+      externalId: parsed.externalId,
+      posts: parsed.posts,
+      healthy: parsed.healthy,
+      ip: parsed.ip,
+      message: parsed.message,
       details: {
         platform: input.target.platform,
         username: input.target.username || null,
         accountId: input.target.accountId || null,
+        contract: BRIDGE_CONTRACT_VERSION,
+        ...(parsed.details || {}),
       },
     };
   } catch (error) {
@@ -132,6 +176,7 @@ export async function runWebhookConnector(
         platform,
         username,
         accountId,
+        workspaceId,
         query: payload.query,
         limit: payload.limit || 5,
         listenerId: payload.listenerId || null,
@@ -144,6 +189,7 @@ export async function runWebhookConnector(
         platform,
         username,
         accountId,
+        workspaceId,
         body: payload.body,
         targetPostExternalId: payload.targetPostExternalId || null,
         targetPostUrl: payload.targetPostUrl || null,
@@ -174,6 +220,7 @@ export async function runWebhookConnector(
         platform,
         username,
         accountId,
+        workspaceId,
         hasSession: payload.hasSession !== false,
         proxyHealthy: payload.proxyHealthy !== false,
       });
@@ -185,6 +232,7 @@ export async function runWebhookConnector(
         platform,
         username,
         accountId,
+        workspaceId,
         proxyId: payload.proxyId || null,
         seed: payload.seed || null,
       });

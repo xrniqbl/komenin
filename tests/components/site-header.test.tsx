@@ -6,16 +6,18 @@ import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { SiteHeader } from "@/components/marketing/site-header";
 
 const push = vi.fn();
+const refresh = vi.fn();
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, refresh }),
 }));
 
 beforeEach(() => {
   window.localStorage.clear();
   document.documentElement.lang = "en";
   push.mockReset();
+  refresh.mockReset();
 });
 
 afterEach(() => {

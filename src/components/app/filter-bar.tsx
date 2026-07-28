@@ -70,6 +70,9 @@ export function FilterBar({
       });
     }, 300);
     return () => clearTimeout(timer);
+    // Debounced on `q` only; router/searchParams/pathname are read fresh inside
+    // the timeout and must not retrigger the debounce.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
   const updateFilter = (key: string, value: string) => {

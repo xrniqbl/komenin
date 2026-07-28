@@ -247,6 +247,70 @@ export async function runThreadsNative(
       };
     }
 
+    if (input.action === "sendComment") {
+      const payloadIn = input.payload as {
+        body: string;
+        targetPostExternalId?: string | null;
+      };
+      if (!payloadIn.targetPostExternalId) {
+        return {
+          ok: false,
+          mode: "live",
+          connector: "official",
+          message: "Threads sendComment requires targetPostExternalId",
+        };
+      }
+      // A Threads reply is a TEXT thread created with reply_to_id, then published
+      // via the same two-step create → publish flow used for a normal post.
+      const create = await fetch(`${base}/me/threads`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          media_type: "TEXT",
+          text: payloadIn.body,
+          reply_to_id: payloadIn.targetPostExternalId,
+        }),
+      });
+      const created = await create.json().catch(() => ({}));
+      if (!create.ok) {
+        return {
+          ok: false,
+          mode: "live",
+          connector: "official",
+          message: created.error?.message || "Threads reply create failed",
+          details: created,
+        };
+      }
+      const publish = await fetch(`${base}/me/threads_publish`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ creation_id: created.id }),
+      });
+      const published = await publish.json().catch(() => ({}));
+      if (!publish.ok) {
+        return {
+          ok: false,
+          mode: "live",
+          connector: "official",
+          message: published.error?.message || "Threads reply publish failed",
+          details: published,
+        };
+      }
+      return {
+        ok: true,
+        mode: "live",
+        connector: "official",
+        externalId: published.id || created.id,
+        message: "Threads reply accepted",
+      };
+    }
+
     return {
       ok: false,
       mode: "live",

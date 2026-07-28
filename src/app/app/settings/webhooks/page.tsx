@@ -9,7 +9,7 @@ export default async function WebhooksPage() {
     <div>
       <PageHeader
         title="External Webhooks"
-        description="Send real-time notifications to Slack, Discord, or any webhook URL when key events happen (account degraded, approval timeout, etc)."
+        description="Outbound event notifications to Slack, Discord, or custom URLs (account degraded, approval timeout, etc). This is not the social publish bridge — configure SOCIAL_PUBLISH_WEBHOOK_URL under Publisher / env for Instagram/Threads/TikTok delivery."
       />
       <WebhooksManager initial={endpoints} />
     </div>

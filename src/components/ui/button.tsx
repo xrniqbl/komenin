@@ -42,6 +42,35 @@ const buttonVariants = cva(
 
 type ButtonProps = ButtonPrimitive.Props & VariantProps<typeof buttonVariants>;
 
+// Link-style composition: keep the host element's native semantics. Base UI
+// Button with nativeButton={false} forces role="button", which incorrectly
+// turns Next.js Link anchors into buttons for a11y queries. Extracted into its
+// own component so `useRender` is always called unconditionally (rules-of-hooks).
+function RenderedButton({
+  classes,
+  variant,
+  size,
+  render,
+  ...props
+}: {
+  classes: string;
+  variant: ButtonProps["variant"];
+  size: ButtonProps["size"];
+} & Omit<ButtonProps, "className" | "variant" | "size">): React.ReactElement {
+  const defaultProps = {
+    className: classes,
+    "data-slot": "button",
+    "data-variant": variant,
+    "data-size": size,
+  };
+
+  return useRender({
+    defaultTagName: "a",
+    props: mergeProps(defaultProps, props as Record<string, unknown>),
+    render: render as useRender.ComponentProps<"a">["render"],
+  });
+}
+
 function Button({
   className,
   variant = "default",
@@ -52,22 +81,16 @@ function Button({
 }: ButtonProps): React.ReactElement {
   const classes = cn(buttonVariants({ variant, size }), className);
 
-  // Link-style composition: keep the host element's native semantics.
-  // Base UI Button with nativeButton={false} forces role="button", which
-  // incorrectly turns Next.js Link anchors into buttons for a11y queries.
   if (render != null && nativeButton === false) {
-    const defaultProps = {
-      className: classes,
-      "data-slot": "button",
-      "data-variant": variant,
-      "data-size": size,
-    };
-
-    return useRender({
-      defaultTagName: "a",
-      props: mergeProps(defaultProps, props as Record<string, unknown>),
-      render: render as useRender.ComponentProps<"a">["render"],
-    });
+    return (
+      <RenderedButton
+        classes={classes}
+        variant={variant}
+        size={size}
+        render={render}
+        {...props}
+      />
+    );
   }
 
   return (

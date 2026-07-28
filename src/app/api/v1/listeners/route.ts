@@ -13,7 +13,7 @@ const createSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const auth = await withApiV1(req, "api:v1:listeners", "campaigns:read");
+  const auth = await withApiV1(req, "api:v1:listeners", "listeners:read");
   if (!auth.ok) return auth.response;
 
   const listeners = await db.listener.findMany({
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await withApiV1(req, "api:v1:listeners:write", "campaigns:write", {
+  const auth = await withApiV1(req, "api:v1:listeners:write", "listeners:write", {
     write: true,
   });
   if (!auth.ok) return auth.response;
