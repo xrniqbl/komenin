@@ -22,7 +22,7 @@ import { requireActiveWorkspace } from "@/server/workspace-access";
 export default async function TeamSettingsPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ inviteToken?: string }>;
+  searchParams?: Promise<{ inviteToken?: string; emailed?: string }>;
 }) {
   const { workspace } = await requireActiveWorkspace();
   const params = searchParams ? await searchParams : {};
@@ -43,7 +43,9 @@ export default async function TeamSettingsPage({
       email,
       role: "operator",
     });
-    redirect(`/app/settings/team?inviteToken=${result.token}`);
+    redirect(
+      `/app/settings/team?inviteToken=${result.token}&emailed=${result.emailDelivered ? "1" : "0"}`,
+    );
   }
 
   return (
@@ -54,7 +56,16 @@ export default async function TeamSettingsPage({
           <Alert variant="info">
             <AlertTitle>Invite created</AlertTitle>
             <AlertDescription>
-              Token: <code className="font-mono text-xs">{params.inviteToken}</code>
+              {params.emailed === "1" ? (
+                <>Invitation email sent. A manual link is also available:</>
+              ) : (
+                <>
+                  Email delivery is not configured (set{" "}
+                  <code className="font-mono text-xs">RESEND_API_KEY</code>), so
+                  share this token manually:
+                </>
+              )}{" "}
+              <code className="font-mono text-xs">{params.inviteToken}</code>
             </AlertDescription>
           </Alert>
         ) : null}

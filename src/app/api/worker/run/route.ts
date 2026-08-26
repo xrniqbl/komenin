@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       job,
       message: error instanceof Error ? error.message : "Worker job crashed",
       count: 0,
+      details: null,
     };
   });
   await writeAuditLog({

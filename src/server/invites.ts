@@ -3,6 +3,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { sendInviteEmail } from "@/lib/email";
 import { assertCanWithCustom } from "@/lib/rbac";
 import { requireMembership } from "@/server/memberships";
 import { cookies } from "next/headers";
@@ -86,7 +87,16 @@ export async function createInvite(input: {
     metadata: { email, role: input.role },
   });
 
-  return { inviteId: invite.id, token };
+  // Best-effort email delivery; the token still surfaces in the UI as the
+  // manual fallback when RESEND_API_KEY is not configured.
+  const delivery = await sendInviteEmail({
+    to: email,
+    workspaceName: membership.workspace.name,
+    role: input.role,
+    token,
+  }).catch(() => ({ delivered: false }));
+
+  return { inviteId: invite.id, token, emailDelivered: delivery.delivered };
 }
 
 export async function acceptInvite(token: string) {
