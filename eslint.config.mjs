@@ -14,6 +14,10 @@ const eslintConfig = [
       "tmp/**",
       "coverage/**",
       "prisma/**",
+      // Build artifacts and packaged deploy copies — not source to lint.
+      "deploy-package/**",
+      "deploy/**",
+      "*.zip",
     ],
   },
   {

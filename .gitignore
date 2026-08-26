@@ -49,3 +49,14 @@ work/
 tmp/
 output/
 docs/superpowers/
+
+# docker env
+.env.docker
+
+aether-upload.tar.gz
+
+# deploy artifacts
+deploy-package/
+aether-deploy.zip
+zip-exclude.txt
+

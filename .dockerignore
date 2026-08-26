@@ -1,0 +1,45 @@
+﻿# Deps & build artefak (di-build ulang di dalam image)
+node_modules
+.next
+out
+dist
+build
+coverage
+
+# Git & tooling
+.git
+.gitignore
+.github
+.vscode
+.idea
+
+# Env & secrets — JANGAN pernah masuk image
+.env
+.env.*
+!.env.example
+
+# Paket deploy lama / arsip
+deploy-package
+*.zip
+aether-deploy.zip
+
+# Data lokal & log
+data
+tmp
+output
+outputs
+logs
+*.log
+
+# Dokumen & test yang tak perlu di runtime
+docs
+tests
+.superpowers
+.claude
+.agents
+.codex
+
+# OS
+.DS_Store
+Thumbs.db
+*.tsbuildinfo

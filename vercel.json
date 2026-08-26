@@ -4,6 +4,18 @@
     {
       "path": "/api/worker/cron",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/worker/cron?job=comment.send",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/worker/cron?job=content.publish",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/worker/cron?job=connector.refresh_tokens",
+      "schedule": "41 * * * *"
     }
   ]
 }
