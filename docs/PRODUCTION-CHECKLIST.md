@@ -129,6 +129,25 @@ Notes:
 - Threads/TikTok native actions may still fall back to webhook.
 - Marketing mocks are intentional demo UI only and never seed product tables.
 
+### Mock bridge (local verification)
+
+```bash
+MOCK_BRIDGE_TOKEN=dev-bridge-token-please-change npm run bridge:mock
+```
+
+```env
+SIMULATOR_MODE=false
+ALLOW_SECURITY_STUBS=true
+SOCIAL_PUBLISH_WEBHOOK_URL=http://127.0.0.1:8787/bridge
+SOCIAL_PUBLISH_WEBHOOK_TOKEN=dev-bridge-token-please-change
+SOCIAL_CONNECTOR_POLICY=prefer_webhook
+```
+
+- [ ] Mock `/healthz` and `POST /bridge` respond
+- [ ] Live poll against mock does not invent `example.com` filler posts outside mock fixtures
+- [ ] Comment send / publish against mock return `externalId` prefixed `mock_`
+- [ ] Read `docs/BRIDGE-CONTRACT.md` and `bridges/mock-social/README.md`
+
 ## 6. Worker process
 
 Run separately from the web process when possible:

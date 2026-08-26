@@ -1,7 +1,7 @@
 # Aether Live Webhook Bridge Design
 
 **Date:** 2026-07-28  
-**Status:** Approved — implementation plan `docs/superpowers/plans/2026-07-28-live-webhook-bridge.md`  
+**Status:** Implemented — 2026-08-26 (plan `docs/superpowers/plans/2026-07-28-live-webhook-bridge.md`, all 5 tasks done)  
 **Product:** Aether (repo: lokarouter)  
 **Epic type:** Harden & complete existing live social delivery (not net-new product features)  
 **Decision locked:** Webhook-bridge end-to-end as the production live path; native platform APIs remain secondary/optional
@@ -54,12 +54,12 @@ Already in tree (as of 2026-07-28 hardening):
 - Production gate + live readiness block self-`APP_URL` + `/api/publish/webhook`.
 - App route `POST /api/publish/webhook` only appends a delivery log and returns a synthetic id — **not** a social network.
 
-Gaps this epic closes:
+Gaps this epic closes (status as of 2026-08-26 — **all closed**):
 
-- No formal, versioned response validation on bridge replies.
-- No runnable mock bridge that implements discover/send/publish/health/rotate.
-- Operator docs still easy to misread as “point webhook at yourself = live.”
-- Optional fields / empty discover success vs failure not fully specified for integrators.
+- ~~No formal, versioned response validation on bridge replies.~~ Shipped: `bridge-contract.ts` + tests; client tests in `tests/unit/webhook-connector.test.ts`.
+- ~~No runnable mock bridge that implements discover/send/publish/health/rotate.~~ Shipped: `bridges/mock-social/` (`npm run bridge:mock`).
+- ~~Operator docs still easy to misread as "point webhook at yourself = live."~~ Shipped: `docs/BRIDGE-CONTRACT.md` + mock section in `docs/PRODUCTION-CHECKLIST.md`.
+- ~~Optional fields / empty discover success vs failure not fully specified for integrators.~~ Shipped: contract doc + fail-closed client tests (empty discover = zero rows; non-array posts = failure).
 
 ---
 
