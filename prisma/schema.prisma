@@ -148,6 +148,9 @@ model Workspace {
   aiFallbackModels    String[] @default([])
   aiTemperature       Float    @default(0.5)
   aiMaxTokens         Int      @default(280)
+  /** Quiet hours (workspace local time, [start, end)). start == end disables. */
+  quietHoursStart     Int      @default(0)
+  quietHoursEnd       Int      @default(0)
   /** Optional agency mode label shown in UI (e.g. "Acme Agency"). */
   agencyLabel         String?
 }
@@ -400,6 +403,7 @@ enum ListenerType {
 
 enum TargetPostStatus {
   new
+  generating
   drafted
   approved
   sent
@@ -630,6 +634,7 @@ model CommentAction {
   scheduledFor    DateTime?
   executedAt      DateTime?
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   campaign      Campaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
@@ -660,6 +665,7 @@ enum ContentDraftStatus {
   approved
   rejected
   scheduled
+  publishing
   published
   failed
 }
@@ -702,6 +708,8 @@ model ContentDraft {
   title             String?
   body              String             @db.Text
   hashtags          String[]
+  /** Public image URL for native Instagram/Threads image posts. */
+  mediaUrl          String?
   status            ContentDraftStatus @default(pending)
   scheduledFor      DateTime?
   publishedAt       DateTime?
@@ -732,6 +740,7 @@ enum ConnectorPolicy {
 
 enum DeliveryKind {
   publish_post
+  publish_webhook
   send_comment
   discover_posts
   health_probe
@@ -828,7 +837,7 @@ model ConnectorCredential {
 
 model DeliveryLog {
   id              String       @id @default(cuid())
-  workspaceId     String
+  workspaceId     String?
   socialAccountId String?
   kind            DeliveryKind
   connector       String
@@ -839,7 +848,7 @@ model DeliveryLog {
   payload         Json?
   createdAt       DateTime     @default(now())
 
-  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace     Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   socialAccount SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, createdAt(sort: Desc)])
