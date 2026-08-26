@@ -1,0 +1,121 @@
+import { BridgeClient } from './bridge-client';
+import { handleMockBridgeRequest, type BridgeAction } from './bridge-contract';
+
+export type BridgeWorkerConfig = {
+  mode?: 'mock' | 'live';
+  liveUrl?: string;
+  mockDelay?: number;
+  retries?: number;
+  timeout?: number;
+};
+
+export class BridgeWorker {
+  private config: BridgeWorkerConfig;
+  private client: BridgeClient;
+
+  constructor(config: BridgeWorkerConfig = {}) {
+    this.config = {
+      mode: 'mock',
+      retries: 3,
+      timeout: 10000,
+      ...config
+    };
+
+    this.client = new BridgeClient({
+      baseUrl: this.config.liveUrl,
+      timeout: this.config.timeout
+    });
+  }
+
+  async discoverPosts(
+    platform: string,
+    query: string,
+    limit = 10
+  ) {
+    return this.execute('discoverPosts', { platform, query, limit });
+  }
+
+  async sendComment(
+    platform: string,
+    body: string,
+    targetPostExternalId: string
+  ) {
+    return this.execute('sendComment', { platform, body, targetPostExternalId });
+  }
+
+  async publishPost(
+    platform: string,
+    caption: string,
+    mediaUrls: string[] = []
+  ) {
+    return this.execute('publishPost', { platform, caption, mediaUrls });
+  }
+
+  async healthProbe() {
+    return this.execute('healthProbe', { platform: 'instagram' });
+  }
+
+  private async execute(
+    action: BridgeAction,
+    payload: any
+  ) {
+    let lastError: Error | null = null;
+    // Mutations have no idempotency key, so only retry transport failures —
+    // retrying an ok=false business failure could duplicate posts/comments.
+    const retryBusinessFailure = action === 'discoverPosts' || action === 'healthProbe';
+
+    for (let attempt = 0; attempt < this.config.retries!; attempt++) {
+      try {
+        const result = await this.callBridge(action, payload);
+
+        if (result.ok) {
+          return {
+            ok: true,
+            ...result
+          };
+        }
+
+        lastError = new Error(result.error || 'Bridge returned ok=false');
+        if (!retryBusinessFailure) break;
+        await this.delay(attempt * 200);
+
+      } catch (error) {
+        lastError = error as Error;
+        await this.delay(attempt * 200);
+      }
+    }
+
+    throw lastError || new Error('Bridge execution failed after retries');
+  }
+
+  private async callBridge(action: BridgeAction, payload: any) {
+    if (this.config.mode === 'mock') {
+      // Delegate to the shared contract handler so mock responses match the
+      // real bridge shape (e.g. discoverPosts returns a posts array, healthProbe
+      // returns healthy). Previously this returned a hardcoded shape that omitted
+      // `posts` and created an unused Express server on every call.
+      const res = handleMockBridgeRequest({ action, ...payload });
+      const body = res.body as Record<string, unknown>;
+      return {
+        ok: res.status >= 200 && res.status < 300 && body.ok !== false,
+        ...body,
+      };
+    }
+
+    // Live mode
+    const result = await this.client.call(action, payload.platform || 'unknown', payload);
+    return {
+      ok: result.status === 200,
+      ...result.body
+    };
+  }
+
+  private async delay(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+// Factory
+export const createBridgeWorker = (config: BridgeWorkerConfig = {}) => {
+  return new BridgeWorker(config);
+};
