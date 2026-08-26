@@ -1,4 +1,13 @@
-﻿import { z } from "zod";
+import { z } from "zod";
+
+// Treat declared-but-blank env vars (e.g. `FOO=""` in .env / docker-compose) as
+// undefined so `.url()` validation never throws on empty strings. Without this,
+// a single blank URL env var crashes getEnv() (and every caller such as the
+// production gate) with a ZodError "Invalid URL".
+const optionalUrl = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+  z.string().url().optional(),
+);
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
@@ -17,20 +26,20 @@ const envSchema = z.object({
   // Vercel Cron authenticates scheduled GET requests with `Authorization: Bearer $CRON_SECRET`.
   CRON_SECRET: z.string().min(16).optional(),
   AI_GATEWAY_ENABLED: z.enum(["true", "false"]).default("true"),
-  AI_GATEWAY_BASE_URL: z.string().url().optional(),
+  AI_GATEWAY_BASE_URL: optionalUrl,
   AI_GATEWAY_API_KEY: z.string().optional(),
   AI_MODEL_PRIMARY: z.string().optional(),
   AI_MODEL_FALLBACKS: z.string().optional(),
   AI_PROVIDERS: z.string().optional(),
   AI_TIMEOUT_MS: z.string().optional(),
-  SOCIAL_PUBLISH_WEBHOOK_URL: z.string().url().optional(),
+  SOCIAL_PUBLISH_WEBHOOK_URL: optionalUrl,
   SOCIAL_PUBLISH_WEBHOOK_TOKEN: z.string().optional(),
   SOCIAL_CONNECTOR_POLICY: z.string().optional(),
-  SOCIAL_OFFICIAL_API_BASE_URL: z.string().url().optional(),
+  SOCIAL_OFFICIAL_API_BASE_URL: optionalUrl,
   SOCIAL_OFFICIAL_API_TOKEN: z.string().optional(),
-  INSTAGRAM_API_BASE_URL: z.string().url().optional(),
-  THREADS_API_BASE_URL: z.string().url().optional(),
-  TIKTOK_API_BASE_URL: z.string().url().optional(),
+  INSTAGRAM_API_BASE_URL: optionalUrl,
+  THREADS_API_BASE_URL: optionalUrl,
+  TIKTOK_API_BASE_URL: optionalUrl,
   INSTAGRAM_ACCESS_TOKEN: z.string().optional(),
   THREADS_ACCESS_TOKEN: z.string().optional(),
   TIKTOK_ACCESS_TOKEN: z.string().optional(),
@@ -39,7 +48,7 @@ const envSchema = z.object({
   MIDTRANS_CLIENT_KEY: z.string().optional(),
   MIDTRANS_MERCHANT_ID: z.string().optional(),
   AETHER_REGION: z.string().optional(),
-  INSTAGRAM_GRAPH_BASE_URL: z.string().url().optional(),
+  INSTAGRAM_GRAPH_BASE_URL: optionalUrl,
   INSTAGRAM_APP_ID: z.string().optional(),
   INSTAGRAM_APP_SECRET: z.string().optional(),
   THREADS_APP_ID: z.string().optional(),

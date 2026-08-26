@@ -1,5 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-import { isProductionRuntime } from "@/lib/security";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 export type OAuthProvider = "instagram" | "threads" | "tiktok";
 
@@ -73,14 +72,19 @@ export function createOAuthState(input: {
     workspaceId: input.workspaceId,
     provider: input.provider,
     socialAccountId: input.socialAccountId || null,
-    nonce: b64url(Buffer.from(`${Date.now()}-${Math.random()}`)),
+    nonce: randomBytes(16).toString("base64url"),
     exp: Math.floor(Date.now() / 1000) + ttl,
   });
 }
 
+/** Generate base URL from env (production-ready). */
 export function appBaseUrl(): string {
   return (process.env.APP_URL || process.env.AUTH_URL || "").replace(/\/$/, "");
 }
+
+/** Rate limit helper for OAuth callbacks. */
+export const OAUTH_CALLBACK_RATE_LIMIT = 10; // requests per minute
+export const OAUTH_CALLBACK_WINDOW_MS = 60 * 1000; // 1-minute sliding window
 
 export function oauthCallbackUrl(provider: OAuthProvider): string {
   return `${appBaseUrl()}/api/connectors/${provider}/callback`;
@@ -120,10 +124,4 @@ export function isOAuthProviderConfigured(provider: OAuthProvider): boolean {
   if (provider === "instagram") return isInstagramOAuthConfigured();
   if (provider === "threads") return isThreadsOAuthConfigured();
   return isTikTokOAuthConfigured();
-}
-
-export function assertOAuthAllowedInRuntime(): void {
-  if (!isInstagramOAuthConfigured() && isProductionRuntime()) {
-    throw new Error("Instagram OAuth is not configured");
-  }
 }

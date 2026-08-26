@@ -444,8 +444,22 @@ export async function applyPaidOrder(orderCode: string, payment?: {
   }
 
   // Only treat settlement/capture/success/simulation as paid transitions.
+  // Any other (possibly new) status is acknowledged and logged for manual
+  // review — throwing would make Midtrans retry the notification for hours.
   if (!["settlement", "capture", "success", "simulation"].includes(status)) {
-    throw new Error(`Unsupported payment status: ${status}`);
+    await writeAuditLog({
+      workspaceId: order.workspaceId,
+      actorUserId: order.userId,
+      action: "billing.order_unhandled_status",
+      resourceType: "subscription_order",
+      resourceId: order.id,
+      metadata: {
+        transactionStatus: status,
+        paymentType: payment?.paymentType || null,
+        transactionId: payment?.transactionId || null,
+      },
+    });
+    return { ok: true, unhandled: true, orderId: order.id, status };
   }
 
   // settlement / capture / success / simulation

@@ -1,9 +1,15 @@
 /**
  * Fixed-window rate limiter.
  *
- * Default backend is in-memory (single Node process). For multi-instance
- * production, set a durable backend later (Redis/Upstash) behind the same
- * `consumeRateLimit` API — do not rely on this Map across replicas.
+ * Backends:
+ * - "upstash": durable, shared across instances (serverless-safe). Used when
+ *   UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are configured.
+ * - "memory": single-process fallback. On Vercel/serverless each function
+ *   instance has its own budget, so memory limiting only softens abuse —
+ *   configure Upstash for any real protection.
+ *
+ * All callers must `await consumeRateLimit(...)`; the async signature lets
+ * the durable backend work without changing call sites again.
  */
 
 type RateBucket = {
@@ -13,7 +19,7 @@ type RateBucket = {
 
 const buckets = new Map<string, RateBucket>();
 
-export type RateLimitBackend = "memory" | "redis-unconfigured";
+export type RateLimitBackend = "memory" | "upstash";
 
 export type RateLimitResult = {
   ok: boolean;
@@ -23,20 +29,15 @@ export type RateLimitResult = {
   backend: RateLimitBackend;
 };
 
-/**
- * Future multi-node hook.
- * When REDIS_URL / UPSTASH_REDIS_REST_URL is present we still use memory today,
- * but label the backend so ops can detect missing durable limiter wiring.
- */
-function resolveBackendLabel(): RateLimitBackend {
-  if (
-    process.env.REDIS_URL?.trim() ||
-    process.env.UPSTASH_REDIS_REST_URL?.trim() ||
-    process.env.RATE_LIMIT_REDIS_URL?.trim()
-  ) {
-    return "redis-unconfigured";
-  }
-  return "memory";
+function upstashConfig(): { url: string; token: string } | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  if (!url || !token) return null;
+  return { url, token };
+}
+
+export function resolveBackendLabel(): RateLimitBackend {
+  return upstashConfig() ? "upstash" : "memory";
 }
 
 function pruneExpired(now: number) {
@@ -47,14 +48,13 @@ function pruneExpired(now: number) {
   }
 }
 
-export function consumeRateLimit(input: {
+export function consumeRateLimitMemory(input: {
   key: string;
   limit: number;
   windowMs: number;
 }): RateLimitResult {
   const now = Date.now();
   pruneExpired(now);
-  const backend = resolveBackendLabel();
 
   const existing = buckets.get(input.key);
   if (!existing || existing.resetAt <= now) {
@@ -65,7 +65,7 @@ export function consumeRateLimit(input: {
       limit: input.limit,
       remaining: Math.max(input.limit - 1, 0),
       resetAt,
-      backend,
+      backend: "memory",
     };
   }
 
@@ -75,7 +75,7 @@ export function consumeRateLimit(input: {
       limit: input.limit,
       remaining: 0,
       resetAt: existing.resetAt,
-      backend,
+      backend: "memory",
     };
   }
 
@@ -86,8 +86,67 @@ export function consumeRateLimit(input: {
     limit: input.limit,
     remaining: Math.max(input.limit - existing.count, 0),
     resetAt: existing.resetAt,
-    backend,
+    backend: "memory",
   };
+}
+
+async function upstashCommand(
+  config: { url: string; token: string },
+  command: Array<string | number>,
+): Promise<unknown> {
+  const res = await fetch(config.url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.token}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(command),
+    signal: AbortSignal.timeout(2_500),
+  });
+  if (!res.ok) throw new Error(`Upstash HTTP ${res.status}`);
+  const data = (await res.json()) as { result?: unknown };
+  return data.result ?? null;
+}
+
+async function consumeUpstash(
+  input: { key: string; limit: number; windowMs: number },
+  config: { url: string; token: string },
+): Promise<RateLimitResult> {
+  const redisKey = `aether:rl:${input.key}`;
+  const count = await upstashCommand(config, ["INCR", redisKey]);
+  if (typeof count !== "number") throw new Error("Unexpected Upstash INCR result");
+  // Fix the window only on the first hit so the TTL is not reset per request.
+  if (count === 1) {
+    await upstashCommand(config, ["PEXPIRE", redisKey, input.windowMs]);
+  }
+  return {
+    ok: count <= input.limit,
+    limit: input.limit,
+    remaining: Math.max(input.limit - count, 0),
+    resetAt: Date.now() + input.windowMs,
+    backend: "upstash",
+  };
+}
+
+/**
+ * Consume one rate-limit token for `input.key`. Prefers the durable Upstash
+ * backend; transparently falls back to the in-memory bucket on outage so a
+ * Redis failure never takes the endpoint down.
+ */
+export async function consumeRateLimit(input: {
+  key: string;
+  limit: number;
+  windowMs: number;
+}): Promise<RateLimitResult> {
+  const config = upstashConfig();
+  if (config) {
+    try {
+      return await consumeUpstash(input, config);
+    } catch (error) {
+      console.warn("[rate-limit] upstash backend failed, using memory", error);
+    }
+  }
+  return consumeRateLimitMemory(input);
 }
 
 function isPrivateOrLocalIp(ip: string): boolean {
@@ -106,11 +165,23 @@ function isPrivateOrLocalIp(ip: string): boolean {
 }
 
 /**
- * Prefer the right-most public X-Forwarded-For hop when present.
- * Left-most is client-spoofable unless the edge proxy strips untrusted hops.
- * Still not a substitute for trusted-proxy configuration at the load balancer.
+ * Extract the client IP for rate limiting.
+ *
+ * Priority: platform-set headers that the edge overwrites (not client-settable
+ * in practice), then X-Forwarded-For as a last resort. Reading a generic
+ * X-Forwarded-For FIRST is a known bypass: clients prepend arbitrary hops and
+ * the app ends up keying on attacker-controlled values.
  */
 export function extractClientIp(request: Request): string {
+  // Vercel sets x-vercel-forwarded-for at the edge (client value is ignored).
+  const vercel = request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim();
+  if (vercel) return vercel;
+
+  // Cloudflare overwrites cf-connecting-ip with the real client address.
+  const cf = request.headers.get("cf-connecting-ip")?.trim();
+  if (cf) return cf;
+
+  // Generic fallback: right-most public hop (added by the last proxy).
   const forwarded = request.headers.get("x-forwarded-for") || "";
   const parts = forwarded
     .split(",")
@@ -124,11 +195,7 @@ export function extractClientIp(request: Request): string {
     return parts[parts.length - 1];
   }
 
-  return (
-    request.headers.get("x-real-ip")?.trim() ||
-    request.headers.get("cf-connecting-ip")?.trim() ||
-    "unknown"
-  );
+  return request.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
 export function getRequestRateKey(request: Request, prefix: string): string {

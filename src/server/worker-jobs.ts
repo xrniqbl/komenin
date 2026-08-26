@@ -1,12 +1,22 @@
 ﻿import { Prisma } from "@prisma/client";
+import { dailyActionIncrementData, effectiveActionsToday } from "@/lib/account-quota";
 import { FREE_ENTITLEMENTS } from "@/lib/billing/entitlements";
 import { db } from "@/lib/db";
 import { generateContextualCommentHybrid } from "@/lib/comment-engine";
 import { executeSocialAction } from "@/lib/connectors/runtime";
 import { buildContentSchedule, generateContentPosts } from "@/lib/content-engine";
 import { publishSocialPost } from "@/lib/publish-connector";
+import { refreshDueCredentials } from "@/lib/connectors/token-refresh";
 import { describeSendResult, getRuntimeModeLabel } from "@/lib/runtime-mode";
 import { simulateIp } from "@/lib/session-routing";
+import { hourInTimezone, isInQuietHours } from "@/lib/workspace-time";
+import {
+  claimCommentAction,
+  claimContentCampaign,
+  claimContentDraft,
+  claimTargetPost,
+  releaseStaleClaims,
+} from "@/lib/worker-claims";
 import {
   chunkText,
   rankChunks,
@@ -31,6 +41,7 @@ export type WorkerJobName =
   | "usage.rollup"
   | "notify.dispatch"
   | "billing.expire"
+  | "connector.refresh_tokens"
   | "worker.tick";
 
 export type WorkerJobResult = {
@@ -587,6 +598,10 @@ async function runCommentGenerate(limit = 20): Promise<WorkerJobResult> {
 
   let generated = 0;
   for (const post of posts) {
+    // Atomic claim: overlapping cron ticks must not generate two drafts for
+    // the same post. The claim is released only if generation throws.
+    const claimed = await claimTargetPost(post.id);
+    if (!claimed) continue;
     const agent = post.campaign?.agent;
     const chunks = agent
       ? await db.knowledgeChunk.findMany({
@@ -721,9 +736,32 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
   let failed = 0;
   let blockedPreflight = 0;
   for (const action of due) {
+    // Atomic claim before any side effect: overlapping cron ticks must not
+    // deliver the same comment twice.
+    const claimed = await claimCommentAction(action.id);
+    if (!claimed) continue;
+
     const workspace = await db.workspace.findUnique({
       where: { id: action.workspaceId },
     });
+
+    // Quiet hours: release the claim and leave the action scheduled so it is
+    // retried once the window ends — never fail a send for being too early.
+    if (
+      workspace &&
+      isInQuietHours({
+        date: new Date(),
+        timeZone: workspace.timezone,
+        startHour: workspace.quietHoursStart,
+        endHour: workspace.quietHoursEnd,
+      })
+    ) {
+      await db.commentAction.updateMany({
+        where: { id: action.id, status: "sending" },
+        data: { status: "scheduled" },
+      });
+      continue;
+    }
     const periodKey = currentPeriodKey();
     const usage = await db.usageCounter.findUnique({
       where: {
@@ -781,7 +819,7 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
         ? {
             status: action.socialAccount.status,
             healthScore: action.socialAccount.healthScore,
-            actionsToday: action.socialAccount.actionsToday,
+            actionsToday: effectiveActionsToday(action.socialAccount),
             dailyQuota: action.socialAccount.dailyQuota,
           }
         : null,
@@ -882,12 +920,11 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
         where: { id: action.targetPostId },
         data: { status: result.ok ? "sent" : "failed" },
       });
-      if (result.ok && action.socialAccountId) {
+      if (result.ok && action.socialAccountId && action.socialAccount) {
         await tx.socialAccount.update({
           where: { id: action.socialAccountId },
           data: {
-            actionsToday: { increment: 1 },
-            lastActionAt: new Date(),
+            ...dailyActionIncrementData(action.socialAccount),
             currentIp:
               result.mode === "simulator"
                 ? simulateIp(`${action.socialAccountId}:${Date.now()}`)
@@ -944,6 +981,10 @@ async function runContentGenerate(limit = 10): Promise<WorkerJobResult> {
   let generated = 0;
   for (const campaign of campaigns) {
     if (campaign.drafts.length > 0) continue;
+    // Atomic claim: overlapping ticks must not generate a full draft set
+    // twice for the same campaign.
+    const claimed = await claimContentCampaign(campaign.id);
+    if (!claimed) continue;
     const posts = await generateContentPosts({
       topic: campaign.topic,
       postCount: campaign.postCount,
@@ -1022,6 +1063,11 @@ async function runContentPublish(limit = 30): Promise<WorkerJobResult> {
   let published = 0;
   let failed = 0;
   for (const draft of due) {
+    // Atomic claim before publishing: overlapping ticks must not publish the
+    // same draft twice.
+    const claimed = await claimContentDraft(draft.id);
+    if (!claimed) continue;
+
     const workspace = await db.workspace.findUnique({
       where: { id: draft.workspaceId },
     });
@@ -1062,6 +1108,7 @@ async function runContentPublish(limit = 30): Promise<WorkerJobResult> {
         body: draft.body,
         hashtags: draft.hashtags,
         scheduledFor: draft.scheduledFor,
+        mediaUrl: draft.mediaUrl,
       },
       policy: workspace?.connectorPolicy,
     });
@@ -1287,7 +1334,12 @@ async function runNotifyDispatch(limit = 20): Promise<WorkerJobResult> {
       message: `Dispatched ${totalDispatched} notifications, checked ${staleApprovals.length} stale approvals`,
       count: totalDispatched,
     };
-  } catch {
+  } catch (error) {
+    // Surface the failure instead of pretending the dispatcher is healthy —
+    // operators watching jobRun/status would otherwise never see a breakage.
+    const message =
+      error instanceof Error ? error.message : String(error);
+    console.error("[notify.dispatch] failed", error);
     const unread = await db.notification.findMany({
       where: { status: "unread" },
       orderBy: { createdAt: "asc" },
@@ -1295,8 +1347,8 @@ async function runNotifyDispatch(limit = 20): Promise<WorkerJobResult> {
     });
     return {
       job: "notify.dispatch",
-      ok: true,
-      message: `Unread notifications in queue: ${unread.length}`,
+      ok: false,
+      message: `Dispatch failed: ${message} (unread in queue: ${unread.length})`,
       count: unread.length,
     };
   }
@@ -1383,7 +1435,63 @@ async function runBillingExpire(limit = 50): Promise<WorkerJobResult> {
   };
 }
 
+/**
+ * Refresh OAuth connector tokens before they expire (IG/Threads ~60d,
+ * TikTok ~24h). Without this, official adapters start failing silently once
+ * credentials expire.
+ */
+async function runConnectorRefreshTokens(limit = 20): Promise<WorkerJobResult> {
+  const { checked, refreshed, failures } = await refreshDueCredentials(limit);
+
+  // Surface failures as in-app notifications so operators can reconnect.
+  for (const failure of failures.slice(0, 5)) {
+    const credential = await db.connectorCredential.findUnique({
+      where: { id: failure.credentialId },
+      select: { workspaceId: true },
+    });
+    if (!credential) continue;
+    await createNotification({
+      workspaceId: credential.workspaceId,
+      title: `Connector token refresh failed (${failure.provider})`,
+      body: failure.message.slice(0, 200),
+      href: "/app/settings/publisher",
+    });
+  }
+
+  return {
+    job: "connector.refresh_tokens",
+    ok: failures.length === 0,
+    message: `Refreshed ${refreshed}/${checked} due credentials`,
+    count: refreshed,
+    details: { checked, failures: failures.length },
+  };
+}
+
 export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult> {
+  // Re-entrancy guard: cron invocations can overlap (5-minute schedule vs
+  // 60s function timeout), so skip the job if a run is already in flight.
+  // Runs older than 15 minutes are considered stale leftovers from a dead
+  // function and do not block — the per-row atomic claims still protect
+  // against duplicate side effects.
+  const staleCutoff = new Date(Date.now() - 15 * 60 * 1000);
+  const inFlight = await db.jobRun.findFirst({
+    where: {
+      job,
+      status: "running",
+      startedAt: { gt: staleCutoff },
+    },
+    select: { id: true },
+  });
+  if (inFlight) {
+    return {
+      job,
+      ok: true,
+      message: `Skipped: ${job} is already running (${inFlight.id})`,
+      count: 0,
+      details: { skipped: true },
+    };
+  }
+
   const started = await db.jobRun.create({
     data: {
       job,
@@ -1431,7 +1539,13 @@ export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult>
       case "billing.expire":
         result = await runBillingExpire();
         break;
+      case "connector.refresh_tokens":
+        result = await runConnectorRefreshTokens();
+        break;
       case "worker.tick": {
+        // Recover work stranded in a transient claim state from a crashed or
+        // timed-out previous tick before fanning out.
+        await releaseStaleClaims().catch(() => 0);
         const settled = await Promise.allSettled([
           runSessionHealthChecks(),
           runProxyRotate(),
@@ -1445,6 +1559,7 @@ export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult>
           runUsageRollup(),
           runNotifyDispatch(),
           runBillingExpire(),
+          runConnectorRefreshTokens(),
         ]);
         const results = settled.map((s) =>
           s.status === "fulfilled"
@@ -1506,5 +1621,6 @@ export const WORKER_JOBS: WorkerJobName[] = [
   "usage.rollup",
   "notify.dispatch",
   "billing.expire",
+  "connector.refresh_tokens",
 ];
 

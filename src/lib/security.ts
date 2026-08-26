@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 
 export function isProductionRuntime(): boolean {
   // Treat any deployed (non-development) environment as production for the
@@ -11,9 +11,10 @@ export function isProductionRuntime(): boolean {
 }
 
 export function safeEqual(a: string, b: string): boolean {
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
-  if (left.length !== right.length) return false;
+  // Hash first so timingSafeEqual always sees equal-length buffers — the
+  // previous length early-return leaked whether lengths matched.
+  const left = createHash("sha256").update(a).digest();
+  const right = createHash("sha256").update(b).digest();
   return timingSafeEqual(left, right);
 }
 

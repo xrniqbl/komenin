@@ -8,6 +8,8 @@ import { publishSocialPost } from "@/lib/publish-connector";
 import { assertWorkspacePermission } from "@/lib/rbac";
 import { getRuntimeModeLabel } from "@/lib/runtime-mode";
 import { db } from "@/lib/db";
+import { dailyActionIncrementData } from "@/lib/account-quota";
+import { claimContentDraft } from "@/lib/worker-claims";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { ensureDefaultAgent } from "@/server/agents";
 import { writeAuditLog } from "@/server/audit";
@@ -295,17 +297,24 @@ export async function publishDueContentDrafts(limit = 30) {
   let failed = 0;
 
   for (const draft of due) {
+    // Atomic claim so the worker cron and this manual trigger cannot publish
+    // the same draft twice.
+    const claimed = await claimContentDraft(draft.id);
+    if (!claimed) continue;
+
     const result = await publishSocialPost({
       target: {
         platform: draft.contentCampaign.platform,
         username: draft.socialAccount?.username,
         accountId: draft.socialAccountId,
+        workspaceId: draft.workspaceId,
       },
       payload: {
         title: draft.title,
         body: draft.body,
         hashtags: draft.hashtags,
         scheduledFor: draft.scheduledFor,
+        mediaUrl: draft.mediaUrl,
       },
     });
 
@@ -326,13 +335,10 @@ export async function publishDueContentDrafts(limit = 30) {
           where: { id: draft.contentCampaignId },
           data: { publishedCount: { increment: 1 } },
         });
-        if (draft.socialAccountId) {
+        if (draft.socialAccountId && draft.socialAccount) {
           await tx.socialAccount.update({
             where: { id: draft.socialAccountId },
-            data: {
-              actionsToday: { increment: 1 },
-              lastActionAt: new Date(),
-            },
+            data: dailyActionIncrementData(draft.socialAccount),
           });
         }
       });

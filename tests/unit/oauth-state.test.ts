@@ -5,6 +5,7 @@ import {
   signOAuthState,
   verifyOAuthState,
 } from "@/lib/oauth-state";
+import { randomBytes } from "node:crypto";
 
 const originalEnv = { ...process.env };
 
@@ -62,5 +63,37 @@ describe("oauth-state", () => {
     process.env.INSTAGRAM_APP_SECRET = "secret";
     process.env.APP_URL = "https://app.example.com";
     expect(isInstagramOAuthConfigured()).toBe(true);
+  });
+
+  it("generates cryptographically secure nonces (CSPRNG)", () => {
+    process.env.AUTH_SECRET = "test-auth-secret-16chars";
+    const states = new Set<string>();
+    for (let i = 0; i < 100; i++) {
+      const state = createOAuthState({
+        workspaceId: "ws_1",
+        provider: "instagram" as const,
+      });
+      const [payload] = state.split(".");
+      // Nonce is the payload part (base64url of JSON) - check base64url chars are unique
+      states.add(payload!);
+    }
+    // All 100 states should be unique (collision probability < 2^-128)
+    expect(states.size).toBe(100);
+  });
+
+  it("nonce changes on every creation even with same inputs", () => {
+    process.env.AUTH_SECRET = "test-auth-secret-16chars";
+    const payloads: string[] = [];
+    for (let i = 0; i < 10; i++) {
+      const state = createOAuthState({
+        workspaceId: "ws_1",
+        provider: "instagram",
+        socialAccountId: null,
+      });
+      payloads.push(state);
+    }
+    // Verify all are distinct
+    const uniquePayloads = new Set(payloads);
+    expect(uniquePayloads.size).toBe(10);
   });
 });

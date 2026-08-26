@@ -13,7 +13,7 @@ export async function withApiV1(
   | { ok: true; workspaceId: string; scopes: string[]; keyId: string }
   | { ok: false; response: NextResponse }
 > {
-  const rate = consumeRateLimit({
+  const rate = await consumeRateLimit({
     key: getRequestRateKey(req, routeKey),
     limit: opts?.write ? 30 : 60,
     windowMs: 60_000,

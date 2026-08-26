@@ -22,6 +22,16 @@ function setBaseEnv(overrides: Record<string, string | undefined> = {}) {
   );
   vi.stubEnv("WORKER_SECRET", overrides.WORKER_SECRET ?? "worker-secret-16xx");
   vi.stubEnv("SIMULATOR_MODE", overrides.SIMULATOR_MODE ?? "false");
+  // Vitest leaks the local .env into process.env, so pin these values to keep
+  // the gate tests hermetic across machines.
+  vi.stubEnv(
+    "SOCIAL_CONNECTOR_POLICY",
+    overrides.SOCIAL_CONNECTOR_POLICY ?? "prefer_webhook",
+  );
+  vi.stubEnv(
+    "SOCIAL_PUBLISH_WEBHOOK_URL",
+    overrides.SOCIAL_PUBLISH_WEBHOOK_URL ?? "https://bridge.example/hooks/aether",
+  );
   setEnv(
     "SOCIAL_PUBLISH_WEBHOOK_TOKEN",
     "SOCIAL_PUBLISH_WEBHOOK_TOKEN" in overrides

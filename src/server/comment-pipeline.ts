@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { dailyActionIncrementData } from "@/lib/account-quota";
 import { assertWorkspacePermission } from "@/lib/rbac";
 import { generateContextualCommentHybrid, pickDelaySeconds } from "@/lib/comment-engine";
-import { describeSendResult } from "@/lib/runtime-mode";
 import { db } from "@/lib/db";
+import { runWorkerJob } from "@/server/worker-jobs";
+import { claimTargetPost } from "@/lib/worker-claims";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 
@@ -71,6 +73,10 @@ export async function generateDraftsForCampaign(campaignId: string) {
 
   let created = 0;
   for (const post of posts) {
+    // Atomic claim so a concurrent manual run and the worker cannot both
+    // generate a draft for the same post.
+    const claimed = await claimTargetPost(post.id);
+    if (!claimed) continue;
     const generated = await generateContextualCommentHybrid({
       postContent: post.content,
       goal: campaign.goal,
@@ -360,47 +366,18 @@ export async function executeDueSends() {
   const { userId, workspace } = await requireActiveWorkspace();
   assertWorkspacePermission(workspace, "campaigns.manage");
 
-  const due = await db.commentAction.findMany({
+  const due = await db.commentAction.count({
     where: {
       workspaceId: workspace.id,
       status: "scheduled",
       scheduledFor: { lte: new Date() },
     },
-    include: { commentDraft: true, targetPost: true },
-    take: 20,
   });
 
-  for (const action of due) {
-    await db.$transaction(async (tx) => {
-      await tx.commentAction.update({
-        where: { id: action.id },
-        data: {
-          status: "sent",
-          executedAt: new Date(),
-          resultMessage: describeSendResult(),
-        },
-      });
-      if (action.commentDraftId) {
-        await tx.commentDraft.update({
-          where: { id: action.commentDraftId },
-          data: { status: "sent" },
-        });
-      }
-      await tx.targetPost.update({
-        where: { id: action.targetPostId },
-        data: { status: "sent" },
-      });
-      if (action.socialAccountId) {
-        await tx.socialAccount.update({
-          where: { id: action.socialAccountId },
-          data: {
-            actionsToday: { increment: 1 },
-            lastActionAt: new Date(),
-          },
-        });
-      }
-    });
-  }
+  // Delegate to the real send pipeline (connector + preflight + quota +
+  // delivery log). The previous implementation marked actions "sent" without
+  // ever contacting the platform.
+  const result = await runWorkerJob("comment.send");
 
   await writeAuditLog({
     workspaceId: workspace.id,
@@ -408,11 +385,16 @@ export async function executeDueSends() {
     action: "comment.due_sends_executed",
     resourceType: "workspace",
     resourceId: workspace.id,
-    metadata: { executed: due.length },
+    metadata: {
+      due,
+      ok: result.ok,
+      message: result.message,
+      sent: result.count ?? 0,
+    },
   });
 
   revalidatePath("/app/activity");
   revalidatePath("/app/accounts");
   revalidatePath("/app");
-  return { executed: due.length };
+  return { executed: result.count ?? 0, due, ok: result.ok, message: result.message };
 }

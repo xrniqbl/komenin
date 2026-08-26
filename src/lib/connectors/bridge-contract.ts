@@ -1,4 +1,12 @@
-import type { ConnectorAction, DiscoveredPost } from "@/lib/connectors/types";
+import type { ConnectorAction, DiscoveredPost } from "./types";
+
+/** All valid bridge actions */
+export type BridgeAction =
+  | 'discoverPosts'
+  | 'sendComment'
+  | 'publishPost'
+  | 'healthProbe'
+  | 'rotateProxy';
 
 /** Request/response contract version for the external social bridge. */
 export const BRIDGE_CONTRACT_VERSION = "v1";
@@ -155,4 +163,84 @@ export function parseBridgeSuccessPayload(input: {
     message,
     details: Object.keys(details).length ? details : undefined,
   };
+}
+
+/**
+ * Handle a mock bridge request — used by BridgeServer in mock mode.
+ * Returns a simulated { status, body } response without hitting a real bridge.
+ */
+export function handleMockBridgeRequest(input: {
+  action: BridgeAction;
+  platform?: string;
+  [key: string]: unknown;
+}): { status: number; body: Record<string, unknown> } {
+  const { action, platform = 'unknown', ...rest } = input;
+
+  switch (action) {
+    case 'discoverPosts':
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          posts: [
+            {
+              externalId: `mock_post_${Date.now()}`,
+              authorHandle: `@mock_user_${platform}`,
+              content: `Mock post content for query: ${rest.query ?? ''}`,
+              url: `https://mock.${platform}.com/post/${Date.now()}`,
+              platform,
+            },
+          ],
+          message: `Mock discoverPosts for ${platform}`,
+        },
+      };
+
+    case 'sendComment':
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          externalId: `mock_comment_${Date.now()}`,
+          message: `Mock comment sent on ${platform}`,
+        },
+      };
+
+    case 'publishPost':
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          externalId: `mock_published_${Date.now()}`,
+          message: `Mock post published on ${platform}`,
+        },
+      };
+
+    case 'healthProbe':
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          healthy: true,
+          message: `Mock bridge healthy for ${platform}`,
+        },
+      };
+
+    case 'rotateProxy':
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          ip: '127.0.0.1',
+          message: `Mock proxy rotated for ${platform}`,
+        },
+      };
+
+    default: {
+      const _exhaustive: never = action;
+      return {
+        status: 400,
+        body: { ok: false, error: `Unknown bridge action: ${String(_exhaustive)}` },
+      };
+    }
+  }
 }

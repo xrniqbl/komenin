@@ -53,6 +53,8 @@ export type PublishPayload = {
   body: string;
   hashtags?: string[];
   scheduledFor?: Date | null;
+  /** Public media URL required for native Instagram/Threads image posts. */
+  mediaUrl?: string | null;
 };
 
 export type HealthPayload = {

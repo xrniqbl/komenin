@@ -63,36 +63,82 @@ export async function runInstagramNative(
         };
       }
       case "publishPost": {
-        const body = (input.payload as { body: string; title?: string | null }).body;
-        // Native publish often requires media container flow. Support text-caption endpoint bridge first.
-        const { response, payload } = await graphFetch({
-          url: `${base}/me/media`,
-          token,
-          method: "POST",
-          body: {
-            caption: body,
-            // media publish requires image/video URL in real Graph usage; keep bridge-compatible payload
-            access_token: token,
-          },
-        });
-        if (!response.ok) {
+        const publish = input.payload as {
+          body: string;
+          title?: string | null;
+          mediaUrl?: string | null;
+          hashtags?: string[];
+        };
+        const caption = [publish.body, (publish.hashtags || []).map((tag) => `#${tag}`).join(" ")]
+          .filter(Boolean)
+          .join("\n");
+
+        // Instagram Graph requires a media container flow: create a container
+        // from a public image URL, then publish it. Text-only posts are not
+        // supported — fail loudly with an actionable message instead of
+        // posting an empty container.
+        if (!publish.mediaUrl) {
           return {
             ok: false,
             mode: "live",
             connector: "official",
             message:
-              payload.error?.message ||
-              "Instagram publish requires approved app + media container flow",
-            details: payload,
+              "Instagram native publish requires a public image URL (mediaUrl). Attach media to the draft or switch the connector policy to prefer_webhook.",
+          };
+        }
+
+        const createRes = await graphFetch({
+          url: `${base}/me/media`,
+          token,
+          method: "POST",
+          body: { image_url: publish.mediaUrl, caption, access_token: token },
+        });
+        if (!createRes.response.ok) {
+          return {
+            ok: false,
+            mode: "live",
+            connector: "official",
+            message:
+              createRes.payload.error?.message ||
+              `Instagram container create failed (${createRes.response.status})`,
+            details: createRes.payload,
+          };
+        }
+        const creationId = createRes.payload.id as string | undefined;
+        if (!creationId) {
+          return {
+            ok: false,
+            mode: "live",
+            connector: "official",
+            message: "Instagram container create returned no id",
+            details: createRes.payload,
+          };
+        }
+
+        const publishRes = await graphFetch({
+          url: `${base}/me/media_publish`,
+          token,
+          method: "POST",
+          body: { creation_id: creationId, access_token: token },
+        });
+        if (!publishRes.response.ok) {
+          return {
+            ok: false,
+            mode: "live",
+            connector: "official",
+            message:
+              publishRes.payload.error?.message ||
+              `Instagram publish failed (${publishRes.response.status})`,
+            details: publishRes.payload,
           };
         }
         return {
           ok: true,
           mode: "live",
           connector: "official",
-          externalId: payload.id,
+          externalId: publishRes.payload.id,
           message: "Instagram publish accepted",
-          details: payload,
+          details: publishRes.payload,
         };
       }
       case "sendComment": {

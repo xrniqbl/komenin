@@ -1,6 +1,9 @@
 "use server";
 
 import { listPublishDeliveries } from "@/lib/publish-delivery-log";
+import {
+  listPublishDeliveriesFromDb,
+} from "@/lib/publish-delivery-store";
 import { publishSocialPost } from "@/lib/publish-connector";
 import { getRuntimeModeLabel } from "@/lib/runtime-mode";
 import { assertWorkspacePermission } from "@/lib/rbac";
@@ -14,7 +17,16 @@ export async function getPublisherStatus() {
     process.env.SOCIAL_PUBLISH_WEBHOOK_URL?.trim() ||
     "http://localhost:3000/api/publish/webhook";
   const hasToken = Boolean(process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN?.trim());
-  const deliveries = await listPublishDeliveries(30, workspace.id);
+
+  // Database rows are the source of truth; the legacy JSONL file is merged
+  // in for deliveries recorded before the DB-backed store shipped.
+  const [dbRows, fileRows] = await Promise.all([
+    listPublishDeliveriesFromDb(30, workspace.id),
+    listPublishDeliveries(30, workspace.id).catch(() => []),
+  ]);
+  const seen = new Set(dbRows.map((row) => row.id));
+  const deliveries = [...dbRows, ...fileRows.filter((row) => !seen.has(row.id))]
+    .slice(0, 30);
 
   return {
     mode,

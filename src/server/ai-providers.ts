@@ -10,12 +10,13 @@ import {
 } from "@/lib/ai/config";
 import { routeChatCompletion } from "@/lib/ai/router";
 import type { AiProviderConfig, AiProviderKind } from "@/lib/ai/types";
-import { encryptSecret } from "@/lib/encryption";
+import { decryptSecret, encryptSecret } from "@/lib/encryption";
 import { assertWorkspacePermission } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 import type { AiProviderKind as PrismaAiProviderKind } from "@prisma/client";
+import { assertSafeOutboundUrl, UnsafeUrlError } from "@/lib/url-safety";
 
 export type WorkspaceAiProviderSummary = {
   id: string;
@@ -113,6 +114,13 @@ export async function createWorkspaceAiProvider(input: {
   const models = (input.models || []).map((m) => m.trim()).filter(Boolean);
   if (models.length === 0) throw new Error("At least one model is required");
   const baseUrl = resolveBaseUrl(kind, input.baseUrl);
+  if (baseUrl && kind !== "anthropic") {
+    try {
+      assertSafeOutboundUrl(baseUrl);
+    } catch {
+      throw new UnsafeUrlError("Invalid or unsafe API base URL");
+    }
+  }
   const apiKey = input.apiKey?.trim();
   if ((kind === "openai" || kind === "anthropic") && !apiKey) {
     throw new Error("API key required for this provider");
@@ -190,10 +198,16 @@ export async function updateWorkspaceAiProvider(input: {
   if (input.clearApiKey) apiKeyEnc = null;
   if (input.apiKey?.trim()) apiKeyEnc = encryptSecret(input.apiKey.trim());
 
-  const baseUrl =
-    input.baseUrl !== undefined
-      ? resolveBaseUrl(kind, input.baseUrl)
-      : existing.baseUrl;
+  const baseUrl = input.baseUrl !== undefined ? resolveBaseUrl(kind, input.baseUrl) : existing.baseUrl;
+
+  // Validate new/updated baseUrl against safe outbound URL policy
+  if (baseUrl && kind !== "anthropic" && baseUrl !== existing.baseUrl) {
+    try {
+      assertSafeOutboundUrl(baseUrl);
+    } catch {
+      throw new UnsafeUrlError("Invalid or unsafe API base URL");
+    }
+  }
 
   const row = await db.workspaceAiProvider.update({
     where: { id: existing.id },

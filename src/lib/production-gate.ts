@@ -46,6 +46,13 @@ export function evaluateProductionGate(): ProductionGateResult {
     errors.push("WORKER_SECRET is required");
   }
 
+  const authSecret = process.env.AUTH_SECRET || "";
+  if (authSecret.includes("placeholder")) {
+    errors.push(
+      "AUTH_SECRET is still a build-time placeholder — set a real secret before running in production",
+    );
+  }
+
   // Vercel Cron needs CRON_SECRET. External schedulers can use WORKER_SECRET.
   if (process.env.VERCEL === "1" || process.env.VERCEL_ENV) {
     if (!env.CRON_SECRET) {

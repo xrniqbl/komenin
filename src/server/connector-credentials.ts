@@ -6,6 +6,7 @@ import { decryptSecret, encryptSecret } from "@/lib/encryption";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
+import { assertSafeOutboundUrl, UnsafeUrlError } from "@/lib/url-safety";
 
 export type ConnectorProvider = "instagram" | "threads" | "tiktok" | string;
 
@@ -98,15 +99,30 @@ async function upsertConnectorCredentialInternal(input: {
     if (!account) throw new Error("Social account not found");
   }
 
-  const existing = await db.connectorCredential.findFirst({
-    where: {
-      workspaceId: input.workspaceId,
-      provider,
-      socialAccountId: input.socialAccountId || null,
-      isActive: true,
-    },
-    select: { id: true },
-  });
+  // Validate apiBaseUrl against safe outbound URL policy
+  let validatedApiBaseUrl: string | null = null;
+  if (input.apiBaseUrl?.trim()) {
+    try {
+      const url = assertSafeOutboundUrl(input.apiBaseUrl);
+      // Restrict to known provider hosts only
+      const allowedHosts = [
+        "graph.facebook.com",
+        "graph.tiktok.com",
+        "api.tiktok.com",
+        "open.tiktokapis.com",
+      ];
+      const host = url.hostname.toLowerCase();
+      const isAllowed = allowedHosts.some((h) => host.endsWith(h));
+      if (!isAllowed && !host.endsWith(".internal") && !host.endsWith(".local")) {
+        throw new UnsafeUrlError(
+          `API base URL hostname must be from an approved provider domain`,
+        );
+      }
+      validatedApiBaseUrl = url.toString();
+    } catch {
+      throw new UnsafeUrlError("Invalid or unsafe API base URL");
+    }
+  }
 
   const data = {
     label: input.label?.trim() || null,
@@ -114,32 +130,50 @@ async function upsertConnectorCredentialInternal(input: {
     refreshTokenEnc: input.refreshToken?.trim()
       ? encryptSecret(input.refreshToken.trim())
       : null,
-    apiBaseUrl: input.apiBaseUrl?.trim() || null,
+    apiBaseUrl: validatedApiBaseUrl,
     scopes: input.scopes || [],
     expiresAt: input.expiresAt || null,
     isActive: input.isActive ?? true,
   };
 
-  const credential = existing
-    ? await db.connectorCredential.update({
-        where: { id: existing.id },
+  // Transaction + advisory lock: two concurrent OAuth callbacks for the same
+  // (workspace, provider, account) must not create two active credential rows.
+  const lockKey = `${input.workspaceId}:${provider}:${input.socialAccountId || "none"}`;
+  const { credential, wasUpdate } = await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+    const current = await tx.connectorCredential.findFirst({
+      where: {
+        workspaceId: input.workspaceId,
+        provider,
+        socialAccountId: input.socialAccountId || null,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+    if (current) {
+      const updated = await tx.connectorCredential.update({
+        where: { id: current.id },
         data,
         select: summarySelect,
-      })
-    : await db.connectorCredential.create({
-        data: {
-          workspaceId: input.workspaceId,
-          provider,
-          socialAccountId: input.socialAccountId || null,
-          ...data,
-        },
-        select: summarySelect,
       });
+      return { credential: updated, wasUpdate: true };
+    }
+    const created = await tx.connectorCredential.create({
+      data: {
+        workspaceId: input.workspaceId,
+        provider,
+        socialAccountId: input.socialAccountId || null,
+        ...data,
+      },
+      select: summarySelect,
+    });
+    return { credential: created, wasUpdate: false };
+  });
 
   await writeAuditLog({
     workspaceId: input.workspaceId,
     actorUserId: input.userId,
-    action: existing ? "connector_credential.updated" : "connector_credential.created",
+    action: wasUpdate ? "connector_credential.updated" : "connector_credential.created",
     resourceType: "connector_credential",
     resourceId: credential.id,
     metadata: {

@@ -20,6 +20,8 @@ export type PublishPayload = {
   body: string;
   hashtags?: string[];
   scheduledFor?: Date | null;
+  /** Public image URL required for native Instagram/Threads image posts. */
+  mediaUrl?: string | null;
 };
 
 export type PublishResult = {
