@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getEnv } from "@/lib/env";
+import { reportError } from "@/lib/error-reporting";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 import { safeEqual } from "@/lib/security";
 import { runWorkerJob, type WorkerJobName, WORKER_JOBS } from "@/server/worker-jobs";
@@ -41,7 +42,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await runWorkerJob(job);
+  const result = await runWorkerJob(job).catch(async (error) => {
+    await reportError(error, { scope: `worker:${job}` });
+    return {
+      ok: false as const,
+      job,
+      message: error instanceof Error ? error.message : "Worker job crashed",
+      count: 0,
+    };
+  });
   await writeAuditLog({
     action: `worker.${job}`,
     resourceType: "worker",

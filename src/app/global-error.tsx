@@ -10,7 +10,9 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("Global app error", error.digest || error.name);
+    console.error("Global app error", error.digest || error.name, error.message);
+    // Client-side hint to the server logs; server errors are reported
+    // server-side via @/lib/error-reporting (SENTRY_DSN).
   }, [error]);
 
   return (
