@@ -9,7 +9,7 @@
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:mock-bridge": "vitest run tests/unit/mock-social-bridge.test.ts tests/unit/webhook-client.test.ts tests/e2e/mock-bridge.e2e.ts",
+    "test:mock-bridge": "vitest run tests/unit/mock-social-bridge.test.ts tests/unit/webhook-connector.test.ts",
     "test:live-bridge": "vitest run tests/unit/live-bridge.test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",

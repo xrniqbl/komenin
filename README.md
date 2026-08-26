@@ -1,127 +1,75 @@
-# Social Bridge - Mock + Live
+# Aether (Lokarouter)
 
-## Overview
+Social media automation platform for Instagram, Threads, and TikTok —
+discovery, AI comment drafting with approval flows, scheduled publishing,
+leads, and agency multi-client management.
 
-Social Bridge is a unified API layer that abstracts social media platforms (Instagram, Threads, etc.) into a simple interface. It supports both **mock mode** (for development) and **live mode** (for production).
+**Stack:** Next.js (App Router) · TypeScript · Prisma + PostgreSQL ·
+NextAuth · Midtrans billing · Vitest
 
-## Features
+## Modules
 
-- **Mock Mode**: Full mock implementation with realistic responses
-- **Live Mode**: Real API calls to external social platforms
-- **Worker Integration**: Easy integration with your worker/services
-- **Security**: Rate limiting, auth headers, error masking
-- **Performance**: Connection pooling, caching, circuit breaker
+| Area | Path | What it does |
+|---|---|---|
+| Campaigns | `src/app/app/campaigns` | Multi-platform campaign config (limits, delays, approval mode) |
+| Listeners & discovery | `src/app/app/listeners` | Keyword polling → target posts (live via bridge, never invented) |
+| Approvals & inbox | `src/app/app/approvals`, `inbox` | Human-in-the-loop review before any send |
+| Content publishing | `src/app/app/content` | Drafts, schedules, publisher settings |
+| Agents & AI | `src/app/app/agents` | AI providers, prompts, skill execution |
+| Leads & clients | `src/app/app/leads`, `clients` | Lead capture + agency client workspaces |
+| Sessions & proxies | `src/app/app/sessions`, `proxies` | Account session health, proxy rotation |
+| Analytics & activity | `src/app/app/analytics`, `activity`, `runs` | Metrics and audit trails |
+| Public REST API | `src/app/api/v1` | API-key scoped: accounts, activity, analytics, campaigns, leads, listeners |
+| Admin | `src/app/admin` | SSO policy, vouchers, platform admin |
+| Billing | `src/app/api/billing` | Midtrans Snap + voucher redemption |
 
-## Quick Start
+Live social I/O (discover / comment / publish / health / rotate) is delegated
+to an **external bridge** implementing the versioned contract — see
+[docs/BRIDGE-CONTRACT.md](docs/BRIDGE-CONTRACT.md). An in-repo mock bridge
+(`npm run bridge:mock`) implements the same contract for local verification.
+
+## Quick start
 
 ```bash
-# Install dependencies
 npm install
-
-# Start mock bridge server
-npm run dev:bridge
-
-# Start live bridge server
-BRIDGE_MODE=live npm run dev:bridge
-
-# Start worker
-npm run worker
+cp .env.example .env.local        # fill DATABASE_URL, AUTH_SECRET, ENCRYPTION_KEY…
+npx prisma generate
+npx prisma migrate deploy         # or db push for a fresh dev DB
+npm run dev                       # http://localhost:3000
 ```
 
-## Environment Variables
+Workers (separate process):
 
 ```bash
-# Bridge Mode
-BRIDGE_MODE=mock          # or 'live'
-BRIDGE_LIVE_URL=https://api.your-social.com/bridge
-
-# Auth (for live mode)
-BRIDGE_AUTH_TOKEN=your_token
-BRIDGE_API_KEY=your_api_key
-
-# Server
-PORT=3001
-RATE_LIMIT=100/15m
-
-# Worker
-BRIDGE_RETRIES=3
-BRIDGE_TIMEOUT=10000
+npm run worker            # full loop
+npm run worker:tick       # single tick
+npm run worker:health     # session health checks
 ```
 
-## API Reference
-
-### Bridge Endpoints
-
-```
-GET    /health          - Check bridge status
-POST   /bridge         - Main bridge endpoint
-POST   /bridge/raw     - Raw request for testing
-```
-
-### Bridge Actions
-
-| Action | Description | Required Params |
-|--------|-------------|-----------------|
-| `discoverPosts` | Get posts for a query | `query`, `limit` |
-| `sendComment` | Send a comment | `body`, `targetPostExternalId` |
-| `publishPost` | Publish a post | `caption`, `mediaUrls[]` |
-| `healthProbe` | Check proxy health | - |
-
-## Integration Examples
-
-### Worker/Service
-
-```ts
-import { bridgeWorker, discoverPosts, publishPost } from '@/workers/social-bridge.worker';
-
-const posts = await discoverPosts('instagram', 'coffee', 10);
-await publishPost('instagram', 'Hello world!', ['media1.jpg']);
-```
-
-### Direct Server
-
-```ts
-import { createLiveBridgeServer } from '@/lib/connectors/bridge-server';
-
-const server = createLiveBridgeServer({
-  port: 3001,
-  liveUrl: process.env.BRIDGE_LIVE_URL
-});
-
-await server.start();
-```
-
-## Security
-
-- **Rate limiting**: 100 requests per 15 minutes
-- **Error masking**: Production errors are masked
-- **Auth header support**: Supports `Authorization` and `x-api-key`
-- **Circuit breaker**: Prevents cascading failures
-
-## Performance
-
-- **Connection pooling**: Axios connection pooling enabled
-- **Response compression**: Gzip compression enabled
-- **Caching**: Redis cache support for discoverPosts
-- **Circuit breaker**: Prevents cascading failures
-
-## Production Checklist
-
-- [ ] Set `BRIDGE_MODE=real`
-- [ ] Configure `BRIDGE_LIVE_URL`
-- [ ] Set proper auth headers
-- [ ] Set up monitoring
-- [ ] Test failover to mock mode
-- [ ] Review logs for bridge calls
-
-## Testing
+Local live-mode verification against the mock bridge:
 
 ```bash
-npm test:mock-bridge    # Run all bridge tests
-npm test:live-bridge    # Run live mode tests
-npm test:watch          # Watch mode
+MOCK_BRIDGE_TOKEN=dev-bridge-token-please-change npm run bridge:mock
+# then in .env.local: SIMULATOR_MODE=false, ALLOW_SECURITY_STUBS=true,
+# SOCIAL_PUBLISH_WEBHOOK_URL=http://127.0.0.1:8787/bridge
 ```
 
-## Support
+## Verification gates
 
-For questions or issues, please open an issue in the repository.
+```bash
+npx tsc --noEmit   # types
+npm test           # 232 unit/integration tests
+npm run lint       # eslint --max-warnings 0
+npm run build      # production build
+```
+
+## Deployment
+
+- **Docker / self-hosted:** `docker compose up -d` (see [docs/deploy/DEPLOYMENT-GUIDE.md](docs/deploy/DEPLOYMENT-GUIDE.md))
+- **Vercel:** import repo, set env vars from `.env.example`, add Postgres (Neon)
+- **Before going live:** walk [docs/PRODUCTION-CHECKLIST.md](docs/PRODUCTION-CHECKLIST.md) — runtime gates fail closed in production when secrets or the external bridge URL are misconfigured
+
+## Docs
+
+Index: [docs/README.md](docs/README.md) — architecture ADRs, security audit,
+testing/monitoring strategy, integrator guides, bridge contract.
