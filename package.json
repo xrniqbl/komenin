@@ -22,6 +22,7 @@
     "worker": "tsx src/workers/social-bridge.worker.ts",
     "worker:dev": "tsx watch src/workers/social-bridge.worker.ts",
     "bridge:dev": "tsx src/lib/connectors/bridge-server.ts",
+    "bridge:mock": "tsx bridges/mock-social/server.ts",
     "dev:bridge": "tsx src/lib/connectors/bridge-server.ts",
     "dev:worker": "tsx src/workers/social-bridge.worker.ts"
   },
