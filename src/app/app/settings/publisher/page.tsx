@@ -12,6 +12,20 @@ import {
   updateConnectorPolicy,
 } from "@/server/publisher-settings";
 
+/** Map generic OAuth error codes to human-friendly copy. */
+const OAUTH_ERROR_LABELS: Record<string, string> = {
+  provider_error: "The provider reported an error during authorization. Try reconnecting.",
+  oauth_failed: "Token exchange failed. Check app credentials, then try reconnecting.",
+  invalid_state: "The authorization state was invalid or expired. Start the connection again.",
+};
+
+function errorLabel(code: string): string {
+  return (
+    OAUTH_ERROR_LABELS[code] ||
+    "The connection attempt failed. Try again in a moment."
+  );
+}
+
 export default async function PublisherSettingsPage({
   searchParams,
 }: {
@@ -105,7 +119,7 @@ export default async function PublisherSettingsPage({
             </CardTitle>
             <CardDescription>
               {params.oauth === "error" && params.error
-                ? params.error
+                ? errorLabel(params.error)
                 : "Use Instagram authorize when app credentials are configured, session-cookie import under Accounts, or a publish webhook."}
             </CardDescription>
           </CardHeader>

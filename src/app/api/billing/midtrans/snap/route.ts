@@ -1,12 +1,18 @@
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 import { jsonErrorFromUnknown } from "@/lib/api-route";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { createCheckoutSnap } from "@/server/billing";
 
 export const runtime = "nodejs";
 
+const snapSchema = z.object({
+  planCode: z.string().trim().min(1).max(40),
+  voucherCode: z.string().trim().max(40).optional(),
+});
+
 export async function POST(request: Request) {
-  const rate = consumeRateLimit({
+  const rate = await consumeRateLimit({
     key: getRequestRateKey(request, "api:billing:snap"),
     limit: 20,
     windowMs: 60_000,
@@ -23,16 +29,22 @@ export async function POST(request: Request) {
     );
   }
   try {
-    const body = (await request.json()) as {
-      planCode?: string;
-      voucherCode?: string;
-    };
-    if (!body.planCode) {
-      return NextResponse.json({ error: "planCode required" }, { status: 400 });
+    let raw: unknown;
+    try {
+      raw = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    const parsed = snapSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message || "Invalid payload" },
+        { status: 400 },
+      );
     }
     const result = await createCheckoutSnap({
-      planCode: body.planCode,
-      voucherCode: body.voucherCode,
+      planCode: parsed.data.planCode,
+      voucherCode: parsed.data.voucherCode,
     });
     return NextResponse.json(result);
   } catch (error) {

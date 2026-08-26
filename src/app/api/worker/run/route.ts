@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 
 import { getEnv } from "@/lib/env";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
-import { isProductionRuntime, safeEqual } from "@/lib/security";
+import { safeEqual } from "@/lib/security";
 import { runWorkerJob, type WorkerJobName, WORKER_JOBS } from "@/server/worker-jobs";
 import { writeAuditLog } from "@/server/audit";
 
 export async function POST(request: Request) {
-  const rate = consumeRateLimit({
+  const rate = await consumeRateLimit({
     key: getRequestRateKey(request, "api:worker:run"),
     limit: 120,
     windowMs: 60_000,
@@ -39,10 +39,6 @@ export async function POST(request: Request) {
       { error: `Invalid job. Allowed: ${WORKER_JOBS.join(", ")}` },
       { status: 400 },
     );
-  }
-
-  if (isProductionRuntime() && env.SIMULATOR_MODE && job.startsWith("content.publish")) {
-    // allow, but mode is visible to callers
   }
 
   const result = await runWorkerJob(job);

@@ -1,191 +1,469 @@
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { withApiV1 } from "@/lib/api-v1";
-import { db } from "@/lib/db";
-import { writeAuditLog } from "@/server/audit";
+/**
+ * Campaign Management API v1
+ *
+ * Full CRUD operations for social media campaigns with authentication,
+ * validation, and rate limiting.
+ *
+ * Endpoints:
+ *   GET    /api/v1/campaigns          - List campaigns (paginated)
+ *   POST   /api/v1/campaigns          - Create new campaign
+ */
 
-const createSchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  platform: z.enum(["instagram", "threads", "tiktok"]),
-  mode: z.enum(["draft", "approval_required", "auto"]).optional(),
-  goal: z.string().trim().max(500).optional(),
-  dailyLimit: z.number().int().min(1).max(500).optional(),
-  minDelaySec: z.number().int().min(5).max(3600).optional(),
-  maxDelaySec: z.number().int().min(10).max(7200).optional(),
-  socialAccountIds: z.array(z.string().min(1)).max(50).optional(),
-  listenerQuery: z.string().trim().max(200).optional(),
-  clientId: z.string().min(1).optional(),
-  status: z.enum(["draft", "active", "paused"]).optional(),
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { PrismaClient } from '@prisma/client';
+
+// Import utilities
+import { successResponse, errorResponse, handlePromise, BadRequestError, ConflictError, UnauthorizedError, ForbiddenError } from '@/lib/api-response';
+import { validateInput, campaignSchema } from '@/lib/validation';
+import { checkAuthRateLimit, defaultRateLimiter } from '@/lib/rate-limiter';
+import { metrics } from '@/lib/metrics';
+import { authenticateRequest, AuthContext } from '@/middleware/auth-middleware';
+import { getPrismaClient } from '@/lib/db-client';
+
+const prisma = new PrismaClient();
+
+// Validation schemas
+const createCampaignSchema = z.object({
+  name: z.string().min(3).max(100),
+  platform: z.enum(['instagram', 'threads', 'tiktok']),
+  dailyLimit: z.number().int().positive().max(100),
+  minDelaySec: z.number().int().positive(),
+  maxDelaySec: z.number().int().positive(),
+  agentId: z.string().uuid().optional(),
+  clientId: z.string().uuid().optional(),
 });
 
-export async function GET(req: NextRequest) {
-  const auth = await withApiV1(req, "api:v1:campaigns", "campaigns:read");
-  if (!auth.ok) return auth.response;
+const listCampaignsParams = z.object({
+  page: z.string().optional(),
+  limit: z.string().optional(),
+  status: z.enum(['draft', 'active', 'paused', 'completed']).optional(),
+});
 
-  const campaigns = await db.campaign.findMany({
-    where: { workspaceId: auth.workspaceId },
-    include: {
-      client: { select: { id: true, name: true, slug: true } },
-      _count: { select: { targetPosts: true, drafts: true, approvals: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+// Helper function to validate authentication
+async function verifyAuthentication(request: NextRequest): Promise<{
+  success: boolean;
+  context?: AuthContext;
+  response?: Response;
+}> {
+  const ip = request.headers.get('x-forwarded-for') || 'unknown';
 
-  return NextResponse.json({
-    data: campaigns.map((c) => ({
-      id: c.id,
-      name: c.name,
-      platform: c.platform,
-      status: c.status,
-      mode: c.mode,
-      goal: c.goal,
-      dailyLimit: c.dailyLimit,
-      clientId: c.clientId,
-      client: c.client,
-      createdAt: c.createdAt,
-      targetPosts: c._count.targetPosts,
-      drafts: c._count.drafts,
-      approvals: c._count.approvals,
-    })),
-    meta: { count: campaigns.length, workspaceId: auth.workspaceId, keyId: auth.keyId },
-  });
+  // Rate limit auth attempts
+  const rateCheck = checkAuthRateLimit(`campaigns:${ip}`);
+  if (!rateCheck.allowed) {
+    return {
+      success: false,
+      response: errorResponse(new TooManyRequestsError('Too many requests')),
+    };
+  }
+
+  // Authenticate user
+  const authResult = await authenticateRequest(request, { requireAuth: true });
+
+  if (!authResult.authenticated) {
+    return {
+      success: false,
+      response: errorResponse(new UnauthorizedError(authResult.error)),
+    };
+  }
+
+  return {
+    success: true,
+    context: authResult.context!,
+  };
 }
 
-export async function POST(req: NextRequest) {
-  const auth = await withApiV1(req, "api:v1:campaigns:write", "campaigns:write", {
-    write: true,
-  });
-  if (!auth.ok) return auth.response;
+export async function GET(request: NextRequest) {
+  const startTime = Date.now();
 
-  let body: unknown;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const parsed = createSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message || "Invalid payload" },
-      { status: 400 },
-    );
-  }
-
-  const input = parsed.data;
-  if (
-    input.minDelaySec != null &&
-    input.maxDelaySec != null &&
-    input.minDelaySec > input.maxDelaySec
-  ) {
-    return NextResponse.json(
-      { error: "minDelaySec must be <= maxDelaySec" },
-      { status: 400 },
-    );
-  }
-
-  if (input.socialAccountIds?.length) {
-    const count = await db.socialAccount.count({
-      where: {
-        workspaceId: auth.workspaceId,
-        deletedAt: null,
-        id: { in: input.socialAccountIds },
-      },
-    });
-    if (count !== input.socialAccountIds.length) {
-      return NextResponse.json(
-        { error: "One or more socialAccountIds are invalid for this workspace" },
-        { status: 400 },
-      );
-    }
-  }
-
-  let clientId: string | null = null;
-  if (input.clientId) {
-    const client = await db.clientProfile.findFirst({
-      where: { id: input.clientId, workspaceId: auth.workspaceId, isActive: true },
-      select: { id: true },
-    });
-    if (!client) {
-      return NextResponse.json({ error: "Client not found" }, { status: 400 });
-    }
-    clientId = client.id;
-  }
-
-  const defaultAgent = await db.agent.findFirst({
-    where: { workspaceId: auth.workspaceId },
-    orderBy: { createdAt: "asc" },
-  });
-
-  const campaign = await db.$transaction(async (tx) => {
-    const created = await tx.campaign.create({
-      data: {
-        workspaceId: auth.workspaceId,
-        name: input.name,
-        platform: input.platform,
-        mode: input.mode || "approval_required",
-        status: input.status || "active",
-        agentId: defaultAgent?.id || null,
-        clientId,
-        goal: input.goal || null,
-        dailyLimit: input.dailyLimit ?? 30,
-        minDelaySec: input.minDelaySec ?? 45,
-        maxDelaySec: input.maxDelaySec ?? 180,
-      },
-    });
-
-    if (input.socialAccountIds?.length) {
-      await tx.campaignAccount.createMany({
-        data: input.socialAccountIds.map((socialAccountId) => ({
-          campaignId: created.id,
-          socialAccountId,
-        })),
-      });
+    // Verify authentication first
+    const authCheck = await verifyAuthentication(request);
+    if (!authCheck.success) {
+      metrics.recordRequest('/api/v1/campaigns', 'GET', authCheck.response!.status, Date.now() - startTime);
+      return authCheck.response!;
     }
 
-    if (input.listenerQuery) {
-      await tx.listener.create({
-        data: {
-          workspaceId: auth.workspaceId,
-          campaignId: created.id,
-          platform: input.platform,
-          type: "keyword",
-          query: input.listenerQuery,
-          isActive: true,
+    const url = new URL(request.url);
+    const queryParams = Object.fromEntries(url.searchParams.entries());
+
+    // Validate query params
+    const validation = validateInput(queryParams, listCampaignsParams);
+    if (!validation.valid) {
+      return errorResponse(new BadRequestError(validation.errors?.join(', ')));
+    }
+
+    const page = parseInt(validation.data?.page || '1', 10);
+    const limit = Math.min(parseInt(validation.data?.limit || '20', 10), 50);
+    const status = validation.data?.status;
+    const workspaceId = authCheck.context?.workspaceId || '';
+
+    // Fetch campaigns with pagination
+    const [campaigns, total] = await Promise.all([
+      prisma.campaign.findMany({
+        where: {
+          workspaceId,
+          ...(status && { status }),
         },
-      });
+        include: {
+          agent: true,
+          client: true,
+          accounts: {
+            include: {
+              socialAccount: true,
+            },
+          },
+          _count: {
+            select: { listeners: true, targetPosts: true, drafts: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.campaign.count({
+        where: {
+          workspaceId,
+          ...(status && { status }),
+        },
+      }),
+    ]);
+
+    metrics.recordRequest('/api/v1/campaigns', 'GET', 200, Date.now() - startTime);
+
+    return successResponse({
+      ok: true,
+      data: campaigns.map(c => ({
+        id: c.id,
+        name: c.name,
+        platform: c.platform,
+        mode: c.mode,
+        status: c.status,
+        dailyLimit: c.dailyLimit,
+        minDelaySec: c.minDelaySec,
+        maxDelaySec: c.maxDelaySec,
+        agent: c.agent ? {
+          id: c.agent.id,
+          name: c.agent.name,
+          tone: c.agent.tone,
+        } : null,
+        client: c.client ? {
+          id: c.client.id,
+          name: c.client.name,
+        } : null,
+        accountsCount: c.accounts.length,
+        stats: c._count,
+        createdAt: c.createdAt.toISOString(),
+      })),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total,
+      },
+    });
+
+  } catch (error) {
+    console.error('[CAMPAIGNS LIST] Error:', error);
+    metrics.recordRequest('/api/v1/campaigns', 'GET', 500, Date.now() - startTime);
+
+    return errorResponse(new InternalServerError('Failed to fetch campaigns'));
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  const ip = request.headers.get('x-forwarded-for') || 'unknown';
+
+  // Strict rate limiting for creation
+  const rateCheck = checkAuthRateLimit(`campaigns:create:${ip}`);
+  if (!rateCheck.allowed) {
+    return errorResponse(new TooManyRequestsError('Too many campaign creation attempts'));
+  }
+
+  try {
+    // Parse request body
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return errorResponse(new BadRequestError('Invalid JSON body'));
     }
 
-    return created;
-  });
+    // Authenticate user
+    const authCheck = await verifyAuthentication(request);
+    if (!authCheck.success) {
+      metrics.recordRequest('/api/v1/campaigns', 'POST', authCheck.response!.status, Date.now() - startTime);
+      return authCheck.response!;
+    }
 
-  await writeAuditLog({
-    workspaceId: auth.workspaceId,
-    action: "api.campaign.created",
-    resourceType: "campaign",
-    resourceId: campaign.id,
-    metadata: {
-      name: campaign.name,
-      platform: campaign.platform,
-      keyId: auth.keyId,
-    },
-  });
+    // Validate input
+    const validation = validateInput(body, createCampaignSchema);
+    if (!validation.valid) {
+      return errorResponse(new BadRequestError(validation.errors?.join(', ')));
+    }
 
-  return NextResponse.json(
-    {
+    // Check if agent exists (if provided)
+    if (validation.data?.agentId) {
+      const agentExists = await prisma.agent.findUnique({
+        where: { id: validation.data.agentId },
+      });
+
+      if (!agentExists) {
+        return errorResponse(new NotFoundError('Agent not found'));
+      }
+    }
+
+    // Check if client exists (if provided)
+    if (validation.data?.clientId) {
+      const clientExists = await prisma.clientProfile.findUnique({
+        where: { id: validation.data.clientId },
+      });
+
+      if (!clientExists) {
+        return errorResponse(new NotFoundError('Client profile not found'));
+      }
+    }
+
+    // Create campaign
+    const campaign = await prisma.campaign.create({
+      data: {
+        ...validation.data,
+        workspaceId: authCheck.context.workspaceId!,
+        status: 'draft',
+        mode: 'approval_required',
+      },
+      include: {
+        agent: true,
+        client: true,
+      },
+    });
+
+    metrics.recordRequest('/api/v1/campaigns', 'POST', 201, Date.now() - startTime);
+
+    return successResponse({
+      ok: true,
+      message: 'Campaign created successfully',
       data: {
         id: campaign.id,
         name: campaign.name,
         platform: campaign.platform,
         status: campaign.status,
         mode: campaign.mode,
-        goal: campaign.goal,
         dailyLimit: campaign.dailyLimit,
-        clientId: campaign.clientId,
-        createdAt: campaign.createdAt,
+        createdAt: campaign.createdAt.toISOString(),
       },
-    },
-    { status: 201 },
-  );
+    });
+
+  } catch (error) {
+    console.error('[CREATE CAMPAIGN] Error:', error);
+    metrics.recordRequest('/api/v1/campaigns', 'POST', 500, Date.now() - startTime);
+
+    // Handle specific Prisma errors
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2003') {
+        return errorResponse(new BadRequestError('Invalid foreign key reference'));
+      }
+    }
+
+    return errorResponse(new InternalServerError('Failed to create campaign'));
+  }
+}
+
+interface Context {
+  params?: Record<string, string>;
+}
+
+// GET /api/v1/campaigns/:id
+export async function GET_BY_ID(
+  request: NextRequest,
+  context: Context
+): Promise<Response> {
+  if (!context.params?.id) {
+    return errorResponse(new BadRequestError('Campaign ID required'));
+  }
+
+  const campaignId = context.params.id;
+
+  try {
+    // Authenticate
+    const authCheck = await verifyAuthentication(request);
+    if (!authCheck.success) return authCheck.response!;
+
+    // Get full campaign details
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      include: {
+        agent: true,
+        client: true,
+        accounts: {
+          include: {
+            socialAccount: true,
+          },
+        },
+        listeners: true,
+        targetPosts: {
+          take: 10,
+          orderBy: { discoveredAt: 'desc' },
+        },
+        drafts: {
+          take: 10,
+          orderBy: { createdAt: 'desc' },
+        },
+        _count: {
+          select: {
+            accounts: true,
+            listeners: true,
+            targetPosts: true,
+            drafts: true,
+            approvals: true,
+          },
+        },
+      },
+    });
+
+    if (!campaign) {
+      return errorResponse(new NotFoundError('Campaign not found'));
+    }
+
+    // Verify ownership
+    if (campaign.workspaceId !== authCheck.context?.workspaceId) {
+      return errorResponse(new ForbiddenError('Access denied'));
+    }
+
+    metrics.recordRequest(`/api/v1/campaigns/${campaignId}`, 'GET', 200, Date.now() - startTimestamp);
+
+    return successResponse({
+      id: campaign.id,
+      name: campaign.name,
+      platform: campaign.platform,
+      mode: campaign.mode,
+      status: campaign.status,
+      dailyLimit: campaign.dailyLimit,
+      minDelaySec: campaign.minDelaySec,
+      maxDelaySec: campaign.maxDelaySec,
+      goal: campaign.goal,
+      agent: campaign.agent,
+      client: campaign.client,
+      accounts: campaign.accounts.map((a: any) => ({
+        id: a.socialAccountId,
+        username: a.socialAccount.username,
+        displayName: a.socialAccount.displayName,
+        platform: a.socialAccount.platform,
+      })),
+      listenersCount: campaign._count.listeners,
+      postsCount: campaign._count.targetPosts,
+      draftsCount: campaign._count.drafts,
+      createdAt: campaign.createdAt.toISOString(),
+    });
+
+  } catch (error) {
+    console.error('[GET CAMPAIGN] Error:', error);
+    return errorResponse(new InternalServerError('Failed to fetch campaign'));
+  }
+}
+
+// PATCH /api/v1/campaigns/:id
+export async function PATCH(
+  request: NextRequest,
+  context: Context
+): Promise<Response> {
+  if (!context.params?.id) {
+    return errorResponse(new BadRequestError('Campaign ID required'));
+  }
+
+  const campaignId = context.params.id;
+
+  try {
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return errorResponse(new BadRequestError('Invalid JSON'));
+    }
+
+    // Authenticate
+    const authCheck = await verifyAuthentication(request);
+    if (!authCheck.success) return authCheck.response!;
+
+    // Check if campaign exists and belongs to user's workspace
+    const existingCampaign = await prisma.campaign.findFirst({
+      where: { id: campaignId, workspaceId: authCheck.context!.workspaceId! },
+    });
+
+    if (!existingCampaign) {
+      return errorResponse(new NotFoundError('Campaign not found'));
+    }
+
+    // Build update object
+    const allowedFields = ['name', 'dailyLimit', 'minDelaySec', 'maxDelaySec'];
+    const updateData: Record<string, unknown> = {};
+
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        updateData[field] = body[field];
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return errorResponse(new BadRequestError('No valid fields to update'));
+    }
+
+    // Update campaign
+    const updatedCampaign = await prisma.campaign.update({
+      where: { id: campaignId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        dailyLimit: true,
+        minDelaySec: true,
+        maxDelaySec: true,
+        updatedAt: true,
+      },
+    });
+
+    return successResponse({
+      ok: true,
+      message: 'Campaign updated successfully',
+      data: updatedCampaign,
+    });
+
+  } catch (error) {
+    console.error('[UPDATE CAMPAIGN] Error:', error);
+    return errorResponse(new InternalServerError('Failed to update campaign'));
+  }
+}
+
+// DELETE /api/v1/campaigns/:id
+export async function DELETE(
+  request: NextRequest,
+  context: Context
+): Promise<Response> {
+  if (!context.params?.id) {
+    return errorResponse(new BadRequestError('Campaign ID required'));
+  }
+
+  const campaignId = context.params.id;
+
+  try {
+    // Authenticate
+    const authCheck = await verifyAuthentication(request);
+    if (!authCheck.success) return authCheck.response!;
+
+    // Delete campaign (soft delete not implemented yet)
+    await prisma.campaign.delete({
+      where: { id: campaignId },
+    });
+
+    return successResponse({
+      ok: true,
+      message: 'Campaign deleted successfully',
+    });
+
+  } catch (error) {
+    console.error('[DELETE CAMPAIGN] Error:', error);
+    return errorResponse(new InternalServerError('Failed to delete campaign'));
+  }
 }

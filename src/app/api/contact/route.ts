@@ -17,7 +17,7 @@ export const runtime = "nodejs";
  *    (no SMTP dependency — wire Resend later behind same env)
  */
 export async function POST(request: Request) {
-  const rate = consumeRateLimit({
+  const rate = await consumeRateLimit({
     key: getRequestRateKey(request, "api:contact"),
     limit: 8,
     windowMs: 60_000,

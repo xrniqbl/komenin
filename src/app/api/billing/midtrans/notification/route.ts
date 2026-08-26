@@ -59,7 +59,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Notification failed";
-    const status = message.includes("amount mismatch") ? 409 : 400;
-    return NextResponse.json({ error: message }, { status });
+    // Business-rule rejections are acknowledged (200) so Midtrans does not
+    // retry them for hours — the payment event / audit log already records
+    // them for manual reconciliation. Only true internal errors get 5xx so
+    // Midtrans legitimately retries.
+    const isDeterministicRejection =
+      message.includes("amount mismatch") ||
+      message.startsWith("Voucher ") ||
+      message === "Order not found" ||
+      message === "Payment signature invalid";
+    if (isDeterministicRejection) {
+      return NextResponse.json({ ok: false, error: message, acknowledged: true });
+    }
+    return NextResponse.json({ error: "Internal notification failure" }, { status: 500 });
   }
 }

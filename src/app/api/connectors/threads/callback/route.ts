@@ -4,7 +4,10 @@ import {
   isThreadsOAuthConfigured,
   oauthCallbackUrl,
   verifyOAuthState,
+  OAUTH_CALLBACK_RATE_LIMIT,
+  OAUTH_CALLBACK_WINDOW_MS,
 } from "@/lib/oauth-state";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { isProductionRuntime } from "@/lib/security";
 import { upsertConnectorCredentialFromOAuth } from "@/server/connector-credentials";
 
@@ -23,14 +26,19 @@ async function exchangeMetaCode(code: string): Promise<{
     ""
   );
   const redirectUri = oauthCallbackUrl("threads");
+  const tokenEndpoint = "https://graph.facebook.com/v21.0/oauth/access_token";
 
-  const tokenUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
-  tokenUrl.searchParams.set("client_id", appId);
-  tokenUrl.searchParams.set("client_secret", appSecret);
-  tokenUrl.searchParams.set("redirect_uri", redirectUri);
-  tokenUrl.searchParams.set("code", code);
-
-  const shortRes = await fetch(tokenUrl.toString());
+  // POST form-encoded so client_secret and code never appear in query strings.
+  const shortRes = await fetch(tokenEndpoint, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: appId,
+      client_secret: appSecret,
+      redirect_uri: redirectUri,
+      code,
+    }),
+  });
   const shortPayload = (await shortRes.json().catch(() => ({}))) as {
     access_token?: string;
     expires_in?: number;
@@ -42,12 +50,16 @@ async function exchangeMetaCode(code: string): Promise<{
     );
   }
 
-  const longUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
-  longUrl.searchParams.set("grant_type", "fb_exchange_token");
-  longUrl.searchParams.set("client_id", appId);
-  longUrl.searchParams.set("client_secret", appSecret);
-  longUrl.searchParams.set("fb_exchange_token", shortPayload.access_token);
-  const longRes = await fetch(longUrl.toString());
+  const longRes = await fetch(tokenEndpoint, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "fb_exchange_token",
+      client_id: appId,
+      client_secret: appSecret,
+      fb_exchange_token: shortPayload.access_token,
+    }),
+  });
   const longPayload = (await longRes.json().catch(() => ({}))) as {
     access_token?: string;
     expires_in?: number;
@@ -71,9 +83,10 @@ export async function GET(request: Request) {
   const stateRaw = searchParams.get("state") || "";
 
   if (error) {
+    // Never reflect the provider's raw error into the redirect URL.
     return NextResponse.redirect(
       new URL(
-        `/app/settings/publisher?oauth=error&provider=threads&error=${encodeURIComponent(error)}`,
+        `/app/settings/publisher?oauth=error&provider=threads&error=provider_error`,
         request.url,
       ),
     );
@@ -92,6 +105,20 @@ export async function GET(request: Request) {
   }
 
   if (!code) return NextResponse.json({ error: "missing code" }, { status: 400 });
+
+  // Rate limit: prevent spam to provider API quota
+  const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0] ||
+                   request.headers.get("cf-connecting-ip") ||
+                   "unknown";
+  const rateKey = `oauth:threads:${clientIp}`;
+  try {
+    await consumeRateLimit(rateKey, OAUTH_CALLBACK_RATE_LIMIT, OAUTH_CALLBACK_WINDOW_MS);
+  } catch {
+    return NextResponse.json(
+      { error: "Too many attempts, please try again later" },
+      { status: 429 }
+    );
+  }
 
   const state = verifyOAuthState(stateRaw);
   if (!state || state.provider !== "threads") {
@@ -132,10 +159,10 @@ export async function GET(request: Request) {
       new URL(`/app/settings/publisher?oauth=connected&provider=threads`, request.url),
     );
   } catch (e) {
-    const message = e instanceof Error ? e.message : "oauth_failed";
+    console.error("[threads-oauth] token exchange failed", e);
     return NextResponse.redirect(
       new URL(
-        `/app/settings/publisher?oauth=error&provider=threads&error=${encodeURIComponent(message)}`,
+        `/app/settings/publisher?oauth=error&provider=threads&error=oauth_failed`,
         request.url,
       ),
     );

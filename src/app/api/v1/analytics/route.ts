@@ -8,7 +8,7 @@ function currentPeriodKey(): string {
 }
 
 export async function GET(req: NextRequest) {
-  const rate = consumeRateLimit({
+  const rate = await consumeRateLimit({
     key: getRequestRateKey(req, 'api:v1:analytics'),
     limit: 60,
     windowMs: 60_000,

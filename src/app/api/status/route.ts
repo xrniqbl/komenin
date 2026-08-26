@@ -5,7 +5,7 @@ import { isProductionRuntime } from "@/lib/security";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 
 export async function GET(request: Request) {
-  const rate = consumeRateLimit({
+  const rate = await consumeRateLimit({
     key: getRequestRateKey(request, "api:status"),
     limit: 60,
     windowMs: 60_000,

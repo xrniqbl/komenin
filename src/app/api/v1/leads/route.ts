@@ -25,6 +25,14 @@ const createSchema = z.object({
     .optional(),
 });
 
+const LEAD_STATUSES = ["new", "contacted", "qualified", "won", "lost", "archived"] as const;
+
+const listQuerySchema = z.object({
+  status: z.enum(LEAD_STATUSES).or(z.literal("all")).optional(),
+  clientId: z.string().trim().max(64).optional(),
+  q: z.string().trim().max(200).optional(),
+});
+
 export async function GET(req: NextRequest) {
   const auth = await withApiV1(req, "api:v1:leads", "leads:read");
   if (!auth.ok) return auth.response;
@@ -37,9 +45,18 @@ export async function GET(req: NextRequest) {
   }
 
   const url = new URL(req.url);
-  const status = url.searchParams.get("status") || undefined;
-  const clientId = url.searchParams.get("clientId") || undefined;
-  const q = url.searchParams.get("q")?.trim() || undefined;
+  const queryParsed = listQuerySchema.safeParse({
+    status: url.searchParams.get("status") || undefined,
+    clientId: url.searchParams.get("clientId") || undefined,
+    q: url.searchParams.get("q") || undefined,
+  });
+  if (!queryParsed.success) {
+    return NextResponse.json(
+      { error: queryParsed.error.issues[0]?.message || "Invalid query" },
+      { status: 400 },
+    );
+  }
+  const { status, clientId, q } = queryParsed.data;
 
   const where: Record<string, unknown> = { workspaceId: auth.workspaceId };
   if (status && status !== "all") where.status = status;

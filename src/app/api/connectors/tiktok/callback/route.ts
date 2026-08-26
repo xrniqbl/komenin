@@ -4,7 +4,10 @@ import {
   isTikTokOAuthConfigured,
   oauthCallbackUrl,
   verifyOAuthState,
+  OAUTH_CALLBACK_RATE_LIMIT,
+  OAUTH_CALLBACK_WINDOW_MS,
 } from "@/lib/oauth-state";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { isProductionRuntime } from "@/lib/security";
 import { upsertConnectorCredentialFromOAuth } from "@/server/connector-credentials";
 
@@ -68,9 +71,10 @@ export async function GET(request: Request) {
   const stateRaw = searchParams.get("state") || "";
 
   if (error) {
+    // Never reflect the provider's raw error into the redirect URL.
     return NextResponse.redirect(
       new URL(
-        `/app/settings/publisher?oauth=error&provider=tiktok&error=${encodeURIComponent(error)}`,
+        `/app/settings/publisher?oauth=error&provider=tiktok&error=provider_error`,
         request.url,
       ),
     );
@@ -89,6 +93,20 @@ export async function GET(request: Request) {
   }
 
   if (!code) return NextResponse.json({ error: "missing code" }, { status: 400 });
+
+  // Rate limit: prevent spam to provider API quota
+  const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0] ||
+                   request.headers.get("cf-connecting-ip") ||
+                   "unknown";
+  const rateKey = `oauth:tiktok:${clientIp}`;
+  try {
+    await consumeRateLimit(rateKey, OAUTH_CALLBACK_RATE_LIMIT, OAUTH_CALLBACK_WINDOW_MS);
+  } catch {
+    return NextResponse.json(
+      { error: "Too many attempts, please try again later" },
+      { status: 429 }
+    );
+  }
 
   const state = verifyOAuthState(stateRaw);
   if (!state || state.provider !== "tiktok") {
@@ -130,10 +148,10 @@ export async function GET(request: Request) {
       new URL(`/app/settings/publisher?oauth=connected&provider=tiktok`, request.url),
     );
   } catch (e) {
-    const message = e instanceof Error ? e.message : "oauth_failed";
+    console.error("[tiktok-oauth] token exchange failed", e);
     return NextResponse.redirect(
       new URL(
-        `/app/settings/publisher?oauth=error&provider=tiktok&error=${encodeURIComponent(message)}`,
+        `/app/settings/publisher?oauth=error&provider=tiktok&error=oauth_failed`,
         request.url,
       ),
     );

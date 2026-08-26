@@ -4,7 +4,7 @@ import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 import { db } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
-  const rate = consumeRateLimit({
+  const rate = await consumeRateLimit({
     key: getRequestRateKey(req, 'api:v1:activity'),
     limit: 60,
     windowMs: 60_000,

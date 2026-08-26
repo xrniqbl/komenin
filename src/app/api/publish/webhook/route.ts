@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { appendPublishDelivery } from "@/lib/publish-delivery-log";
+import { recordPublishDelivery } from "@/lib/publish-delivery-store";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 import { isProductionRuntime, safeEqual } from "@/lib/security";
 
@@ -25,7 +25,7 @@ function allowInsecurePublishWebhook(): boolean {
 }
 
 export async function POST(request: Request) {
-  const rate = consumeRateLimit({
+  const rate = await consumeRateLimit({
     key: getRequestRateKey(request, "api:publish:webhook"),
     limit: 120,
     windowMs: 60_000,
@@ -61,31 +61,39 @@ export async function POST(request: Request) {
     );
   }
 
-  const delivery = await appendPublishDelivery({
-    workspaceId: payload.workspaceId ? String(payload.workspaceId).slice(0, 120) : null,
-    platform: String(payload.platform || "unknown").slice(0, 40),
-    username: payload.username ? String(payload.username).slice(0, 120) : null,
-    accountId: payload.accountId ? String(payload.accountId).slice(0, 120) : null,
-    title: payload.title ? String(payload.title).slice(0, 200) : null,
-    body: payload.body.trim().slice(0, 10000),
-    hashtags: Array.isArray(payload.hashtags)
-      ? payload.hashtags.map(String).slice(0, 30)
-      : [],
-    caption: String(payload.caption || payload.body).trim().slice(0, 10000),
-    scheduledFor: payload.scheduledFor ? String(payload.scheduledFor) : null,
-    publishedAt: payload.publishedAt ? String(payload.publishedAt) : new Date().toISOString(),
-    sourceIp: request.headers.get("x-forwarded-for"),
-    userAgent: request.headers.get("user-agent"),
-  });
+  // Database is the source of truth (serverless FS is read-only/ephemeral).
+  try {
+    const recorded = await recordPublishDelivery({
+      workspaceId: payload.workspaceId ? String(payload.workspaceId).slice(0, 120) : null,
+      platform: String(payload.platform || "unknown").slice(0, 40),
+      username: payload.username ? String(payload.username).slice(0, 120) : null,
+      accountId: payload.accountId ? String(payload.accountId).slice(0, 120) : null,
+      title: payload.title ? String(payload.title).slice(0, 200) : null,
+      body: payload.body.trim().slice(0, 10000),
+      hashtags: Array.isArray(payload.hashtags)
+        ? payload.hashtags.map(String).slice(0, 30)
+        : [],
+      caption: String(payload.caption || payload.body).trim().slice(0, 10000),
+      scheduledFor: payload.scheduledFor ? String(payload.scheduledFor) : null,
+      publishedAt: payload.publishedAt ? String(payload.publishedAt) : new Date().toISOString(),
+      sourceIp: request.headers.get("x-forwarded-for"),
+      userAgent: request.headers.get("user-agent"),
+    });
 
-  return NextResponse.json({
-    ok: true,
-    id: delivery.externalPostId,
-    externalPostId: delivery.externalPostId,
-    message: "Local publish webhook accepted delivery",
-    deliveryId: delivery.id,
-    receivedAt: delivery.receivedAt,
-  });
+    return NextResponse.json({
+      ok: true,
+      message: "Publish webhook accepted delivery",
+      deliveryId: recorded.id,
+      receivedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    // Never acknowledge a delivery we failed to persist.
+    console.error("[publish-webhook] failed to persist delivery", error);
+    return NextResponse.json(
+      { error: "Failed to persist delivery" },
+      { status: 500 },
+    );
+  }
 }
 
 export async function GET() {

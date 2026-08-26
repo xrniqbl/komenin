@@ -100,7 +100,7 @@ export default async function RootLayout({
   const locale = await getRequestLocale();
 
   return (
-    <html lang={locale} className={interTight.variable}>
+    <html lang={locale} className={interTight.variable} data-scroll-behavior="smooth">
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         <AppProviders initialLocale={locale}>{children}</AppProviders>
       </body>
