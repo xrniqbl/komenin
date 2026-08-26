@@ -1,4 +1,5 @@
 import type { AiChatMessage, AiProviderConfig } from "@/lib/ai/types";
+import { safeOutboundFetch } from "@/lib/url-safety";
 
 type ChatCompletionResponse = {
   choices?: Array<{
@@ -37,22 +38,28 @@ export async function chatCompletionsOpenAiCompatible(input: {
   );
 
   try {
-    const response = await fetch(`${input.provider.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(input.provider.apiKey
-          ? { authorization: `Bearer ${input.provider.apiKey}` }
-          : {}),
+    // safeOutboundFetch re-resolves DNS at call time and refuses redirects,
+    // so a provider baseUrl cannot be repointed at private/metadata targets
+    // between validation and the actual request.
+    const response = await safeOutboundFetch(
+      `${input.provider.baseUrl}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(input.provider.apiKey
+            ? { authorization: `Bearer ${input.provider.apiKey}` }
+            : {}),
+        },
+        body: JSON.stringify({
+          model: input.model,
+          messages: input.messages,
+          temperature: input.temperature ?? 0.4,
+          max_tokens: input.maxTokens ?? 280,
+        }),
+        signal: controller.signal,
       },
-      body: JSON.stringify({
-        model: input.model,
-        messages: input.messages,
-        temperature: input.temperature ?? 0.4,
-        max_tokens: input.maxTokens ?? 280,
-      }),
-      signal: controller.signal,
-    });
+    );
 
     const payload = (await response.json().catch(() => ({}))) as ChatCompletionResponse;
     if (!response.ok) {

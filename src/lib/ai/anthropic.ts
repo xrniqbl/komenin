@@ -1,4 +1,5 @@
 import type { AiChatMessage, AiProviderConfig } from "@/lib/ai/types";
+import { safeOutboundFetch } from "@/lib/url-safety";
 
 type AnthropicMessageResponse = {
   content?: Array<{ type?: string; text?: string }>;
@@ -55,7 +56,9 @@ export async function chatCompletionsAnthropic(input: {
   const base = input.provider.baseUrl.replace(/\/$/, "");
 
   try {
-    const response = await fetch(`${base}/v1/messages`, {
+    // safeOutboundFetch re-resolves DNS at call time and refuses redirects,
+    // closing the SSRF redirect/DNS-repoint window on the stored baseUrl.
+    const response = await safeOutboundFetch(`${base}/v1/messages`, {
       method: "POST",
       headers: {
         "content-type": "application/json",

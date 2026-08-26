@@ -61,6 +61,38 @@ export function verifyOAuthState(raw: string): OAuthStatePayload | null {
   }
 }
 
+/**
+ * Single-use nonce registry: a signed state may only be consumed once.
+ * Guards against callback replay inside the state TTL window. Entries are
+ * pruned lazily on insert; the map lives per server process which is
+ * sufficient because a replayed callback would also need a valid,
+ * unexchanged provider `code`.
+ */
+const consumedNonces = new Map<string, number>();
+
+function pruneConsumedNonces(now: number) {
+  if (consumedNonces.size < 512) return;
+  for (const [nonce, exp] of consumedNonces) {
+    if (exp * 1000 < now) consumedNonces.delete(nonce);
+  }
+}
+
+/** Verify the signed state AND mark its nonce consumed (single-use). */
+export function consumeOAuthState(raw: string): OAuthStatePayload | null {
+  const payload = verifyOAuthState(raw);
+  if (!payload) return null;
+
+  const now = Date.now();
+  pruneConsumedNonces(now);
+
+  const nonce = payload.nonce || "";
+  if (nonce) {
+    if (consumedNonces.has(nonce)) return null;
+    consumedNonces.set(nonce, payload.exp);
+  }
+  return payload;
+}
+
 export function createOAuthState(input: {
   workspaceId: string;
   provider: OAuthProvider;

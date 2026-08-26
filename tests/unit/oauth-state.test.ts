@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  consumeOAuthState,
   createOAuthState,
   isInstagramOAuthConfigured,
   signOAuthState,
@@ -95,5 +96,51 @@ describe("oauth-state", () => {
     // Verify all are distinct
     const uniquePayloads = new Set(payloads);
     expect(uniquePayloads.size).toBe(10);
+  });
+
+  describe("consumeOAuthState (single-use)", () => {
+    it("succeeds once then rejects replay of the same state", () => {
+      process.env.AUTH_SECRET = "test-auth-secret-16chars";
+      const state = createOAuthState({
+        workspaceId: "ws_replay",
+        provider: "instagram",
+      });
+
+      const first = consumeOAuthState(state);
+      expect(first?.workspaceId).toBe("ws_replay");
+
+      const second = consumeOAuthState(state);
+      expect(second).toBeNull();
+    });
+
+    it("still allows verifyOAuthState (read-only) after consumption", () => {
+      process.env.AUTH_SECRET = "test-auth-secret-16chars";
+      const state = createOAuthState({
+        workspaceId: "ws_readonly",
+        provider: "tiktok",
+      });
+
+      consumeOAuthState(state);
+      // Read-only verification remains usable (e.g. diagnostics)
+      expect(verifyOAuthState(state)?.workspaceId).toBe("ws_readonly");
+    });
+
+    it("different states remain consumable independently", () => {
+      process.env.AUTH_SECRET = "test-auth-secret-16chars";
+      const a = createOAuthState({ workspaceId: "ws_a", provider: "instagram" });
+      const b = createOAuthState({ workspaceId: "ws_b", provider: "instagram" });
+
+      expect(consumeOAuthState(a)?.workspaceId).toBe("ws_a");
+      expect(consumeOAuthState(b)?.workspaceId).toBe("ws_b");
+    });
+
+    it("rejects tampered state without consuming anything", () => {
+      process.env.AUTH_SECRET = "test-auth-secret-16chars";
+      const state = createOAuthState({ workspaceId: "ws_t", provider: "instagram" });
+
+      expect(consumeOAuthState(`${state}x`)).toBeNull();
+      // Untampered state still consumable after a failed attempt
+      expect(consumeOAuthState(state)?.workspaceId).toBe("ws_t");
+    });
   });
 });

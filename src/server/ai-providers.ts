@@ -114,7 +114,7 @@ export async function createWorkspaceAiProvider(input: {
   const models = (input.models || []).map((m) => m.trim()).filter(Boolean);
   if (models.length === 0) throw new Error("At least one model is required");
   const baseUrl = resolveBaseUrl(kind, input.baseUrl);
-  if (baseUrl && kind !== "anthropic") {
+  if (baseUrl) {
     try {
       assertSafeOutboundUrl(baseUrl);
     } catch {
@@ -201,7 +201,7 @@ export async function updateWorkspaceAiProvider(input: {
   const baseUrl = input.baseUrl !== undefined ? resolveBaseUrl(kind, input.baseUrl) : existing.baseUrl;
 
   // Validate new/updated baseUrl against safe outbound URL policy
-  if (baseUrl && kind !== "anthropic" && baseUrl !== existing.baseUrl) {
+  if (baseUrl && baseUrl !== existing.baseUrl) {
     try {
       assertSafeOutboundUrl(baseUrl);
     } catch {

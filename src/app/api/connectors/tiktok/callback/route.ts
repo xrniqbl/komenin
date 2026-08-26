@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import {
   isTikTokOAuthConfigured,
   oauthCallbackUrl,
-  verifyOAuthState,
+  consumeOAuthState,
   OAUTH_CALLBACK_RATE_LIMIT,
   OAUTH_CALLBACK_WINDOW_MS,
 } from "@/lib/oauth-state";
@@ -112,7 +112,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const state = verifyOAuthState(stateRaw);
+  const state = consumeOAuthState(stateRaw);
   if (!state || state.provider !== "tiktok") {
     return NextResponse.redirect(
       new URL(
