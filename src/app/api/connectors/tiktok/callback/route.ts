@@ -100,7 +100,11 @@ export async function GET(request: Request) {
                    "unknown";
   const rateKey = `oauth:tiktok:${clientIp}`;
   try {
-    await consumeRateLimit(rateKey, OAUTH_CALLBACK_RATE_LIMIT, OAUTH_CALLBACK_WINDOW_MS);
+    await consumeRateLimit({
+      key: rateKey,
+      limit: OAUTH_CALLBACK_RATE_LIMIT,
+      windowMs: OAUTH_CALLBACK_WINDOW_MS,
+    });
   } catch {
     return NextResponse.json(
       { error: "Too many attempts, please try again later" },

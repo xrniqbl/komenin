@@ -185,21 +185,34 @@ interface WebhookRequest extends Request {
   webhookPayload?: unknown;
 }
 
+// Minimal Node/Express-style shapes for the middleware below
+interface NodeLikeRequest {
+  on(event: 'data', listener: (chunk: Buffer | string) => void): void;
+  on(event: 'end', listener: () => void): void;
+  headers: Record<string, string | string[] | undefined>;
+}
+
+interface NodeLikeResponse {
+  writeHead(status: number, headers: Record<string, string>): void;
+  end(body?: string): void;
+}
+
 /**
  * Express/Fastify compatible middleware
  */
 export function createWebhookMiddleware(verifier: WebhookVerifier) {
-  return async (req: WebhookRequest, res: any, next: () => void): Promise<void> => {
+  return async (req: NodeLikeRequest, res: NodeLikeResponse, next: () => void): Promise<void> => {
     try {
       // Get payload
       let body = '';
       req.on('data', chunk => {
-        body += chunk.toString();
+        body += typeof chunk === 'string' ? chunk : chunk.toString('utf8');
       });
 
       req.on('end', () => {
         // Extract signature from headers
-        const signature = req.headers[verifier.getHeaderName()] as string;
+        const rawHeader = req.headers[verifier.getHeaderName()];
+        const signature = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
 
         // Verify signature
         if (!signature || !verifier.verifySignature(body, signature)) {
@@ -209,8 +222,8 @@ export function createWebhookMiddleware(verifier: WebhookVerifier) {
         }
 
         // Mark request as verified
-        req.webhookVerified = true;
-        req.webhookPayload = JSON.parse(body);
+        (req as unknown as WebhookRequest).webhookVerified = true;
+        (req as unknown as WebhookRequest).webhookPayload = JSON.parse(body);
 
         next();
       });

@@ -104,7 +104,7 @@ export class RequestMetrics {
    */
   private exportToMonitoring(
     metricName: string,
-    labels: Record<string, string>,
+    labels: Record<string, string | number>,
     value: number
   ) {
     // Build label string

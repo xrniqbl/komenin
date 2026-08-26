@@ -52,7 +52,9 @@ export class APIError extends Error {
       error: this.message,
       code: this.code,
       status: this.status,
-      ...(this.details && { details: this.details }),
+      ...(this.details !== undefined && this.details !== null
+        ? { details: this.details as object }
+        : {}),
     };
   }
 }
@@ -271,15 +273,17 @@ export function createPaginatedResponse<T>(
   paginationParams: PaginationParams,
   total: number
 ): PaginatedResponse<T> {
-  const totalPages = Math.ceil(total / paginationParams.limit);
-  const hasMore = paginationParams.page < totalPages;
+  const limit = paginationParams.limit ?? 20;
+  const page = paginationParams.page ?? 1;
+  const totalPages = Math.ceil(total / limit);
+  const hasMore = page < totalPages;
 
   return {
     ok: true,
     data,
     pagination: {
-      page: paginationParams.page,
-      limit: paginationParams.limit,
+      page,
+      limit,
       total,
       totalPages,
       hasMore,
@@ -321,5 +325,5 @@ export default {
   getPaginationParams,
 };
 
-// Export individual classes and types
-export type { PaginatedResponse, PaginationParams };
+// Export remaining types (PaginationParams is already exported at declaration)
+export type { PaginatedResponse };

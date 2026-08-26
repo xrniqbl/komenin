@@ -6,21 +6,18 @@
  */
 
 import crypto from 'node:crypto';
+import type { CSSProperties } from 'react';
 
-// Store nonces per request
-declare global {
-  namespace NodeJS {
-    interface Global {
-      cspNonces?: Map<string, string>;
-    }
-  }
+// Store nonces per request (global to survive module reloads in dev)
+const globalStore = globalThis as unknown as {
+  cspNonces?: Map<string, string>;
+};
+
+if (!globalStore.cspNonces) {
+  globalStore.cspNonces = new Map();
 }
 
-if (!global.cspNonces) {
-  global.cspNonces = new Map();
-}
-
-const NONCE_HEADER_KEY = 'x-csp-nonce';
+const nonceStore = globalStore.cspNonces;
 
 /**
  * Generate a new CSP nonce
@@ -33,21 +30,18 @@ export function generateNonce(): string {
  * Get or create nonce for current request
  */
 export function getOrCreateNonce(requestId: string): string {
-  let nonces = global.cspNonces!;
-
-  if (!nonces.has(requestId)) {
-    nonces.set(requestId, generateNonce());
+  if (!nonceStore.has(requestId)) {
+    nonceStore.set(requestId, generateNonce());
   }
 
-  return nonces.get(requestId)!;
+  return nonceStore.get(requestId)!;
 }
 
 /**
  * Clear all nonces (call after request completes)
  */
 export function clearNonces() {
-  const nonces = global.cspNonces!;
-  nonces.clear();
+  nonceStore.clear();
 }
 
 /**
@@ -83,27 +77,27 @@ export function addNonceToScript(html: string, nonce: string): string {
 }
 
 /**
- * Middleware to extract nonce from headers
+ * Look up the nonce previously issued for a request id
  */
 export function getCSPNonceFromRequest(requestId: string): string | null {
-  const storedNonce = global.cspNonces?.get(requestId);
-  return storedNonce || null;
+  return nonceStore.get(requestId) || null;
 }
 
 /**
- * For React/Next.js - inject nonce into style tags
+ * For React/Next.js - inject nonce into style keys
  */
-export function injectNonceIntoStyles(styles: React.CSSProperties[] = [], nonce: string) {
+export function injectNonceIntoStyles(styles: CSSProperties[] = [], nonce: string) {
   return styles.map(style => ({
     ...style,
-    key: `${style.key || ''}-${nonce}`, // For emotion/styled-components
+    // React style objects don't carry keys; cast for emotion/styled-components consumers
+    key: `${String((style as Record<string, unknown>).key || '')}-${nonce}`,
   }));
 }
 
 /**
  * Create CSP policy for API responses (no nonce needed)
  */
-export function buildAPICSP(isProduction: boolean): string {
+export function buildAPICSP(_isProduction: boolean): string {
   const directives = [
     "default-src 'self'",
     "object-src 'none'",

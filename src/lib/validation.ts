@@ -225,8 +225,9 @@ export function validateInput<T>(input: unknown, schema: z.ZodSchema<T>): {
     const errors: string[] = [];
 
     if (error instanceof z.ZodError) {
-      // Zod v4 renamed `errors` to `issues`; support both for safety
-      const issues = (error.issues ?? error.errors) as Array<{ path: (string | number | symbol)[]; message: string }>;
+      // Zod v4 uses `issues` (older versions exposed `errors`)
+      const zodError = error as z.ZodError & { errors?: typeof error.issues };
+      const issues = zodError.issues ?? zodError.errors ?? [];
       issues.forEach(err => {
         errors.push(`${err.path.join('.')}: ${err.message}`);
       });

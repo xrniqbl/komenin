@@ -17,7 +17,7 @@ import {
   buildCSPPolicy,
   shouldEnforceCSP
 } from '@/lib/csp-nonce';
-import { checkAuthRateLimit } from '@/lib/rate-limiter';
+import { consumeRateLimitMemory } from '@/lib/rate-limit';
 import { verifyWebhookSignature } from '@/lib/webhook-verifier';
 import {
   successResponse,
@@ -34,15 +34,13 @@ import crypto from 'node:crypto';
 
 describe('Integration: Security & Validation', () => {
   beforeEach(() => {
-    // Reset global state before each test
-    global.cspNonces = new Map();
-
     // Mock console.warn for cleaner output
     vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   describe('Input Validation', () => {
@@ -128,45 +126,34 @@ describe('Integration: Security & Validation', () => {
 
   describe('Rate Limiting', () => {
     it('allows requests within limit', () => {
-      const ip = '192.168.1.100';
-
-      // First request should be allowed
-      const result1 = checkAuthRateLimit(ip);
-      expect(result1.allowed).toBe(true);
+      const key = `test:allow:${Math.random()}`;
+      const result1 = consumeRateLimitMemory({ key, limit: 5, windowMs: 60_000 });
+      expect(result1.ok).toBe(true);
       expect(result1.remaining).toBeGreaterThanOrEqual(0);
     });
 
-    it('blocks requests exceeding limit', async () => {
-      const ip = '192.168.1.101';
-
-      // Manually exceed limit by calling multiple times
+    it('blocks requests exceeding limit', () => {
+      const key = `test:block:${Math.random()}`;
       for (let i = 0; i < 5; i++) {
-        checkAuthRateLimit(ip);
+        consumeRateLimitMemory({ key, limit: 5, windowMs: 60_000 });
       }
-
-      // At this point, we've exceeded the 5 request limit for auth endpoints
-      // Note: This test may need adjustment based on actual windowMs logic
-      const result = checkAuthRateLimit(ip);
-
-      // Rate limiter should either allow or block based on window configuration
-      expect(typeof result.allowed).toBe('boolean');
-      expect(result.resetAt instanceof Date).toBe(true);
+      const result = consumeRateLimitMemory({ key, limit: 5, windowMs: 60_000 });
+      expect(result.ok).toBe(false);
+      expect(result.remaining).toBe(0);
     });
 
-    it('tracks separate limits per IP', () => {
-      // Use unique IPs so earlier tests in this file don't consume the window
-      const ip1 = `10.0.${Math.floor(Math.random() * 250) + 1}.1`;
-      const ip2 = `10.1.${Math.floor(Math.random() * 250) + 1}.2`;
+    it('tracks separate limits per key', () => {
+      const key1 = `test:sep1:${Math.random()}`;
+      const key2 = `test:sep2:${Math.random()}`;
 
-      checkAuthRateLimit(ip1);
-      checkAuthRateLimit(ip2);
+      consumeRateLimitMemory({ key: key1, limit: 5, windowMs: 60_000 });
+      consumeRateLimitMemory({ key: key2, limit: 5, windowMs: 60_000 });
 
-      // Both IPs should have independent counters
-      const result1 = checkAuthRateLimit(ip1);
-      const result2 = checkAuthRateLimit(ip2);
+      const result1 = consumeRateLimitMemory({ key: key1, limit: 5, windowMs: 60_000 });
+      const result2 = consumeRateLimitMemory({ key: key2, limit: 5, windowMs: 60_000 });
 
-      expect(result1.allowed).toBe(true);
-      expect(result2.allowed).toBe(true);
+      expect(result1.ok).toBe(true);
+      expect(result2.ok).toBe(true);
       expect(result1.remaining).toBe(result2.remaining);
     });
   });
@@ -176,13 +163,11 @@ describe('Integration: Security & Validation', () => {
       const payload = JSON.stringify({ type: 'test', data: 'important' });
       const secret = 'test-webhook-secret-key';
 
-      // Generate signature
       const signature = crypto
         .createHmac('sha256', secret)
         .update(payload, 'utf8')
         .digest('hex');
 
-      // Verify signature
       const isValid = verifyWebhookSignature(payload, signature, secret);
       expect(isValid).toBe(true);
     });
@@ -243,7 +228,7 @@ describe('Integration: Security & Validation', () => {
       const result = await handlePromise(
         Promise.resolve(mockData),
         data => successResponse(data),
-        error => errorResponse(new InternalServerError())
+        error => errorResponse(new InternalServerError(error.message))
       );
 
       expect(result.status).toBe(200);
@@ -255,7 +240,7 @@ describe('Integration: Security & Validation', () => {
       const result = await handlePromise(
         Promise.reject(mockError),
         data => successResponse(data),
-        error => errorResponse(new InternalServerError('Failed'))
+        error => errorResponse(new InternalServerError(error.message))
       );
 
       expect(result.status).toBe(500);
@@ -308,7 +293,6 @@ describe('Integration: Security & Validation', () => {
 
   describe('End-to-End Validation Flow', () => {
     it('validates complete user registration flow', async () => {
-      // Simulate registration request
       const requestBody = {
         email: 'user@example.com',
         username: 'john_doe',
@@ -316,7 +300,6 @@ describe('Integration: Security & Validation', () => {
         name: 'John Doe',
       };
 
-      // Step 1: Validate input
       const validation = validateInput(requestBody, z.object({
         email: emailSchema,
         username: z.string().min(3).max(30),
@@ -326,19 +309,12 @@ describe('Integration: Security & Validation', () => {
 
       expect(validation.valid).toBe(true);
 
-      // Step 2: Check rate limit
-      const ip = '192.168.1.100';
-      const rateResult = checkAuthRateLimit(`register:${ip}`);
-      expect(rateResult.allowed).toBe(true);
+      const rateKey = `register:${Math.random()}`;
+      const rateResult = consumeRateLimitMemory({ key: rateKey, limit: 5, windowMs: 60_000 });
+      expect(rateResult.ok).toBe(true);
 
-      // Step 3: Sanitize outputs
-      if (requestBody.name) {
-        const safeName = sanitizeHTML(requestBody.name);
-        expect(safeName).toBe('John Doe');
-      }
-
-      // All checks passed - proceed with business logic
-      expect(true).toBe(true);
+      const safeName = sanitizeHTML(requestBody.name!);
+      expect(safeName).toBe('John Doe');
     });
 
     it('handles invalid input gracefully', async () => {
@@ -377,19 +353,16 @@ describe('Integration: Security & Validation', () => {
       expect(typeof sanitized).toBe('string');
     });
 
-    it('rate limit respects time windows', async () => {
-      const ip = 'test.ip.rate.limit';
+    it('rate limit respects time windows', () => {
+      const key = `test:window:${Math.random()}`;
 
-      // Make requests
       for (let i = 0; i < 3; i++) {
-        checkAuthRateLimit(ip);
+        consumeRateLimitMemory({ key, limit: 5, windowMs: 60_000 });
       }
 
-      const result = checkAuthRateLimit(ip);
+      const result = consumeRateLimitMemory({ key, limit: 5, windowMs: 60_000 });
 
-      // Result should have reset time set
-      expect(result.resetAt).toBeInstanceOf(Date);
-      expect(result.resetAt.getTime() > Date.now()).toBe(true);
+      expect(result.resetAt).toBeGreaterThan(Date.now());
     });
   });
 });
