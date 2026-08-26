@@ -61,7 +61,7 @@ export default async function TeamSettingsPage({
               ) : (
                 <>
                   Email delivery is not configured (set{" "}
-                  <code className="font-mono text-xs">RESEND_API_KEY</code>), so
+                  <code className="font-mono text-xs">BREVO_API_KEY</code>), so
                   share this token manually:
                 </>
               )}{" "}

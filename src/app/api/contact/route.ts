@@ -14,7 +14,7 @@ export const runtime = "nodejs";
  * Delivery (best-effort, any configured):
  *  - CONTACT_WEBHOOK_URL POST JSON
  *  - SALES_INBOX_EMAIL / CONTACT_TO_EMAIL via optional mailto-style webhook only
- *    (no SMTP dependency — wire Resend later behind same env)
+ *    (no SMTP dependency — Brevo sendEmail can be wired later behind same env)
  */
 export async function POST(request: Request) {
   const rate = await consumeRateLimit({

@@ -88,7 +88,7 @@ export async function createInvite(input: {
   });
 
   // Best-effort email delivery; the token still surfaces in the UI as the
-  // manual fallback when RESEND_API_KEY is not configured.
+  // manual fallback when BREVO_API_KEY is not configured.
   const delivery = await sendInviteEmail({
     to: email,
     workspaceName: membership.workspace.name,

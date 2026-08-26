@@ -1,11 +1,11 @@
 /**
- * Transactional Email
+ * Transactional Email (Brevo)
  *
- * Sends product emails (invitations, password resets, notifications) through
- * Resend's HTTP API when RESEND_API_KEY is configured. No new runtime
- * dependencies; degrades to no-op + structured log so callers never crash on
- * a missing provider. The invite token continues to surface in the UI as the
- * manual fallback when email is not wired.
+ * Sends product emails (invitations, notifications) through Brevo's v3 HTTP
+ * API when BREVO_API_KEY is configured. No new runtime dependencies; degrades
+ * to no-op + structured log so callers never crash on a missing provider.
+ * The invite token continues to surface in the UI as the manual fallback
+ * when email is not wired.
  *
  * Failures are reported (console.warn) but never thrown — email is
  * best-effort delivery, the source of truth stays in the database.
@@ -19,17 +19,46 @@ export type EmailMessage = {
   replyTo?: string;
 };
 
-const RESEND_ENDPOINT = "https://api.resend.com/emails";
+const BREVO_ENDPOINT = "https://api.brevo.com/v3/smtp/email";
 
-function fromAddress(): string {
-  return (
-    process.env.EMAIL_FROM?.trim() ||
-    "Aether <onboarding@resend.dev>"
-  );
+type BrevoAddress = { email: string; name?: string };
+
+/**
+ * Parse an EMAIL_FROM value like `Aether <noreply@brand.id>` or a bare
+ * `noreply@brand.id` into Brevo's sender object.
+ */
+function parseFromAddress(value: string): BrevoAddress | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const match = trimmed.match(/^(.*)<\s*([^<>@\s]+@[^<>\s]+)\s*>$/);
+  if (match) {
+    const name = match[1].trim().replace(/^["']|["']$/g, "");
+    return name ? { email: match[2], name } : { email: match[2] };
+  }
+  if (/^[^@\s]+@[^@\s]+$/.test(trimmed)) {
+    return { email: trimmed };
+  }
+  return null;
+}
+
+function senderAddress(): BrevoAddress | null {
+  return parseFromAddress(process.env.EMAIL_FROM?.trim() || "");
+}
+
+function parseEmailAddress(value: string): BrevoAddress {
+  const match = value.trim().match(/^(.*)<\s*([^<>@\s]+@[^<>\s]+)\s*>$/);
+  if (match) {
+    const name = match[1].trim().replace(/^["']|["']$/g, "");
+    return name ? { email: match[2], name } : { email: match[2] };
+  }
+  return { email: value.trim() };
 }
 
 export function isEmailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY?.trim());
+  return Boolean(
+    process.env.BREVO_API_KEY?.trim() && senderAddress(),
+  );
 }
 
 /**
@@ -37,14 +66,16 @@ export function isEmailConfigured(): boolean {
  */
 export async function sendEmail(message: EmailMessage): Promise<{
   delivered: boolean;
-  provider: "resend" | "none";
+  provider: "brevo" | "none";
   error?: string;
 }> {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  if (!apiKey) {
+  const apiKey = process.env.BREVO_API_KEY?.trim();
+  const sender = senderAddress();
+
+  if (!apiKey || !sender) {
     console.warn(
-      `[email] RESEND_API_KEY not configured; skipping send to ${message.to} ` +
-        `("${message.subject}")`,
+      `[email] BREVO_API_KEY or EMAIL_FROM not configured; skipping send to ` +
+        `${message.to} ("${message.subject}")`,
     );
     return { delivered: false, provider: "none", error: "not_configured" };
   }
@@ -52,19 +83,20 @@ export async function sendEmail(message: EmailMessage): Promise<{
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10_000);
-    const response = await fetch(RESEND_ENDPOINT, {
+    const response = await fetch(BREVO_ENDPOINT, {
       method: "POST",
       headers: {
-        authorization: `Bearer ${apiKey}`,
+        "api-key": apiKey,
         "content-type": "application/json",
+        accept: "application/json",
       },
       body: JSON.stringify({
-        from: fromAddress(),
-        to: [message.to],
+        sender,
+        to: [parseEmailAddress(message.to)],
         subject: message.subject,
-        html: message.html,
-        text: message.text,
-        reply_to: message.replyTo,
+        htmlContent: message.html,
+        ...(message.text ? { textContent: message.text } : {}),
+        ...(message.replyTo ? { replyTo: parseEmailAddress(message.replyTo) } : {}),
       }),
       signal: controller.signal,
     });
@@ -73,16 +105,16 @@ export async function sendEmail(message: EmailMessage): Promise<{
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
       console.warn(
-        `[email] Resend rejected send to ${message.to}: ${response.status} ${detail.slice(0, 200)}`,
+        `[email] Brevo rejected send to ${message.to}: ${response.status} ${detail.slice(0, 200)}`,
       );
       return {
         delivered: false,
-        provider: "resend",
-        error: `resend_${response.status}`,
+        provider: "brevo",
+        error: `brevo_${response.status}`,
       };
     }
 
-    return { delivered: true, provider: "resend" };
+    return { delivered: true, provider: "brevo" };
   } catch (error) {
     console.warn(
       `[email] send to ${message.to} failed:`,
@@ -90,7 +122,7 @@ export async function sendEmail(message: EmailMessage): Promise<{
     );
     return {
       delivered: false,
-      provider: "resend",
+      provider: "brevo",
       error: "network_error",
     };
   }
