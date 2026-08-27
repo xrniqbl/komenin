@@ -1,27 +1,29 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/json-ld";
+import { getRequestLocale } from "@/lib/i18n/request-locale";
 import {
-  PAGE_SEO,
   breadcrumbJsonLd,
-  buildMetadata,
+  generatePageMetadata,
+  pageSeoFor,
   featureBreadcrumbs,
   webPageJsonLd,
 } from "@/lib/seo";
 
-export const metadata: Metadata = buildMetadata(PAGE_SEO.agentIntelligence);
+export const generateMetadata = generatePageMetadata.bind(null, "agentIntelligence");
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const seo = pageSeoFor(await getRequestLocale(), "agentIntelligence");
   return (
     <>
       <JsonLd
         data={[
           webPageJsonLd({
-            name: PAGE_SEO.agentIntelligence.title,
-            description: PAGE_SEO.agentIntelligence.description,
-            path: PAGE_SEO.agentIntelligence.path,
+            name: seo.title,
+            description: seo.description,
+            path: seo.path,
           }),
           breadcrumbJsonLd(
-            featureBreadcrumbs("Agent Intelligence", PAGE_SEO.agentIntelligence.path),
+            featureBreadcrumbs("Agent Intelligence", seo.path),
           ),
         ]}
       />

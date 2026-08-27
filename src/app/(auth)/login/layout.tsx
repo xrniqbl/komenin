@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
-import { PAGE_SEO, buildMetadata } from "@/lib/seo";
+import { buildMetadata, generatePageMetadata, pageSeoFor } from "@/lib/seo";
 
-export const metadata: Metadata = buildMetadata({
-  ...PAGE_SEO.login,
-  noIndex: true,
-});
+// noindex page — metadata locale-aware, never indexed either way
+export const generateMetadata = async () => {
+  const { getRequestLocale } = await import("@/lib/i18n/request-locale");
+  const seo = pageSeoFor(await getRequestLocale(), "login");
+  return buildMetadata({ ...seo, noIndex: true });
+};
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return children;

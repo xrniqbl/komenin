@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { CtaBand } from "@/components/marketing/cta-band";
 import { FaqSection } from "@/components/marketing/faq-section";
 import { HeroSection } from "@/components/marketing/hero-section";
@@ -8,27 +7,30 @@ import { PricingTeaserSection } from "@/components/marketing/pricing-teaser-sect
 import { SecuritySection } from "@/components/marketing/security-section";
 import { JsonLd } from "@/components/seo/json-ld";
 import { messages } from "@/lib/i18n/messages";
+import { getRequestLocale } from "@/lib/i18n/request-locale";
 import {
-  PAGE_SEO,
   breadcrumbJsonLd,
-  buildMetadata,
   faqJsonLd,
+  generatePageMetadata,
+  pageSeoFor,
   webPageJsonLd,
 } from "@/lib/seo";
 
-export const metadata: Metadata = buildMetadata(PAGE_SEO.home);
+export const generateMetadata = generatePageMetadata.bind(null, "home");
 
-export default function HomePage() {
-  const faqItems = messages.en.faq.items;
+export default async function HomePage() {
+  const locale = await getRequestLocale();
+  const seo = pageSeoFor(locale, "home");
+  const faqItems = messages[locale].faq.items;
 
   return (
     <>
       <JsonLd
         data={[
           webPageJsonLd({
-            name: PAGE_SEO.home.title,
-            description: PAGE_SEO.home.description,
-            path: PAGE_SEO.home.path,
+            name: seo.title,
+            description: seo.description,
+            path: seo.path,
           }),
           faqJsonLd(faqItems),
           breadcrumbJsonLd([{ name: "Home", path: "/" }]),

@@ -499,6 +499,128 @@ export const PAGE_SEO = {
   },
 } as const;
 
+/** Shape of one page's SEO entry (title/description/path). */
+export type PageSeoEntry = {
+  title: string;
+  description: string;
+  path: string;
+};
+
+/** Indonesian translations for public page SEO. Falls back to EN per-key. */
+export const PAGE_SEO_ID: Record<keyof typeof PAGE_SEO, PageSeoEntry> = {
+  home: {
+    title: "Komenin — Platform Otomatisasi Komentar & Konten Sosial",
+    description:
+      "Kelola komentar dan posting otomatis Instagram, Threads, dan TikTok dengan session routing, draf AI, kontrol persetujuan, dan jejak audit lengkap.",
+    path: "/",
+  },
+  features: {
+    title: "Fitur | Komenin",
+    description:
+      "Session routing, comment engine, agent intelligence, dan skill execution untuk operasi sosial yang terkendali.",
+    path: "/features",
+  },
+  sessionRouting: {
+    title: "Session Routing | Fitur Komenin",
+    description:
+      "Pool proxy, sesi anti-detect, dan grid akun multi-tunnel untuk Instagram, Threads, dan TikTok.",
+    path: "/features/session-routing",
+  },
+  commentEngine: {
+    title: "Comment Engine | Fitur Komenin",
+    description:
+      "Listener kata kunci, draf AI, pacing seperti manusia, dan antrean persetujuan untuk engagement yang terkontrol.",
+    path: "/features/comment-engine",
+  },
+  agentIntelligence: {
+    title: "Agent Intelligence | Fitur Komenin",
+    description:
+      "Persona, guardrail, knowledge retrieval, dan memori untuk balasan sosial yang akurat dalam skala besar.",
+    path: "/features/agent-intelligence",
+  },
+  skillExecution: {
+    title: "Skill Execution | Fitur Komenin",
+    description:
+      "Function calling dengan intent trigger dan log chain-of-thought yang transparan untuk kepercayaan operator.",
+    path: "/features/skill-execution",
+  },
+  pricing: {
+    title: "Harga | Komenin",
+    description:
+      "Paket 1, 6, dan 12 bulan untuk operasi sosial. Komitmen lebih lama, tarif bulanan lebih hemat.",
+    path: "/pricing",
+  },
+  enterprise: {
+    title: "Enterprise | Komenin",
+    description:
+      "RBAC, fondasi SSO, audit log, kontrol usage, dan tooling admin untuk tim enterprise social ops.",
+    path: "/enterprise",
+  },
+  security: {
+    title: "Keamanan | Komenin",
+    description:
+      "Vault sesi terenkripsi, alur persetujuan, rate limit, dan jejak audit permanen secara default.",
+    path: "/security",
+  },
+  about: {
+    title: "Tentang | Komenin",
+    description: "Komenin membantu tim dan agensi mengelola komentar, konten, dan akun sosial dari satu tempat.",
+    path: "/about",
+  },
+  contact: {
+    title: "Kontak | Komenin",
+    description: "Hubungi tim Komenin untuk pilot, enterprise rollout, atau pertanyaan produk.",
+    path: "/contact",
+  },
+  status: {
+    title: "Status Sistem | Komenin",
+    description: "Status live untuk web app Komenin, worker, probe sesi, dan layanan delivery.",
+    path: "/status",
+  },
+  docs: {
+    title: "Dokumentasi | Komenin",
+    description:
+      "Tutorial dan referensi API untuk session routing, campaign, agent, worker, billing, dan keamanan Komenin.",
+    path: "/docs",
+  },
+  docsApi: {
+    title: "Referensi API | Dokumentasi Komenin",
+    description: "API worker, billing, dan publish webhook untuk mengintegrasikan Komenin ke stack Anda.",
+    path: "/docs/api",
+  },
+  privacy: {
+    title: "Kebijakan Privasi | Komenin",
+    description: "Bagaimana Komenin mengumpulkan, menggunakan, dan melindungi data workspace dan akun.",
+    path: "/legal/privacy",
+  },
+  terms: {
+    title: "Syarat Layanan | Komenin",
+    description: "Syarat penggunaan platform operasi sosial Komenin.",
+    path: "/legal/terms",
+  },
+  aup: {
+    title: "Kebijakan Penggunaan yang Wajar | Komenin",
+    description: "Aturan penggunaan wajar untuk otomatisasi, publishing, dan akses platform di Komenin.",
+    path: "/legal/aup",
+  },
+  login: {
+    title: "Masuk | Komenin",
+    description: "Masuk ke workspace Komenin Anda.",
+    path: "/login",
+  },
+  signup: {
+    title: "Mulai Gratis | Komenin",
+    description: "Buat workspace Komenin dan mulai operasi sosial dengan persetujuan di setiap langkah.",
+    path: "/signup",
+  },
+  docsTutorial: {
+    title: "Tutorial | Dokumentasi Komenin",
+    description:
+      "Tutorial Komenin langkah demi langkah untuk workspace, akun, campaign, persetujuan, dan worker.",
+    path: "/docs/tutorial/introduction",
+  },
+};
+
 /** Standard breadcrumb trails for marketing feature pages. */
 export function featureBreadcrumbs(
   featureName: string,
@@ -509,4 +631,32 @@ export function featureBreadcrumbs(
     { name: "Features", path: "/features" },
     { name: featureName, path: featurePath },
   ];
+}
+
+import type { Locale } from "@/lib/i18n/messages";
+
+/** Pick the localized PAGE_SEO entry (ID translations fall back to EN per key). */
+export function pageSeoFor(
+  locale: Locale,
+  key: keyof typeof PAGE_SEO,
+): PageSeoEntry {
+  const base = PAGE_SEO[key];
+  if (locale !== "id") return base;
+  const translated = PAGE_SEO_ID[key];
+  return translated ?? base;
+}
+
+/**
+ * Generate locale-aware page metadata. Reads the locale cookie server-side
+ * (same mechanism as the language toggle) and returns the localized
+ * title/description/OG/Twitter while keeping canonical + hreflang identical
+ * for both locales (cookie-based switching on the same URL).
+ */
+export async function generatePageMetadata(
+  key: keyof typeof PAGE_SEO,
+): Promise<Metadata> {
+  const { getRequestLocale } = await import("@/lib/i18n/request-locale");
+  const locale = await getRequestLocale();
+  const seo = pageSeoFor(locale, key);
+  return buildMetadata(seo);
 }

@@ -1,8 +1,7 @@
-import type { Metadata } from "next";
-import { PAGE_SEO, buildMetadata } from "@/lib/seo";
+import { generatePageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = buildMetadata(PAGE_SEO.terms);
+export const generateMetadata = generatePageMetadata.bind(null, "terms");
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
   return children;
 }

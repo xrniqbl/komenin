@@ -1,25 +1,26 @@
-import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/json-ld";
 import { billingPlans } from "@/data/pricing";
 import {
-  PAGE_SEO,
   breadcrumbJsonLd,
-  buildMetadata,
+  generatePageMetadata,
+  pageSeoFor,
   pricingProductJsonLd,
   webPageJsonLd,
 } from "@/lib/seo";
+import { getRequestLocale } from "@/lib/i18n/request-locale";
 
-export const metadata: Metadata = buildMetadata(PAGE_SEO.pricing);
+export const generateMetadata = generatePageMetadata.bind(null, "pricing");
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const seo = pageSeoFor(await getRequestLocale(), "pricing");
   return (
     <>
       <JsonLd
         data={[
           webPageJsonLd({
-            name: PAGE_SEO.pricing.title,
-            description: PAGE_SEO.pricing.description,
-            path: PAGE_SEO.pricing.path,
+            name: seo.title,
+            description: seo.description,
+            path: seo.path,
           }),
           pricingProductJsonLd(billingPlans),
           breadcrumbJsonLd([

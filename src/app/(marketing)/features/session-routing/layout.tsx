@@ -1,27 +1,29 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/json-ld";
+import { getRequestLocale } from "@/lib/i18n/request-locale";
 import {
-  PAGE_SEO,
   breadcrumbJsonLd,
-  buildMetadata,
+  generatePageMetadata,
+  pageSeoFor,
   featureBreadcrumbs,
   webPageJsonLd,
 } from "@/lib/seo";
 
-export const metadata: Metadata = buildMetadata(PAGE_SEO.sessionRouting);
+export const generateMetadata = generatePageMetadata.bind(null, "sessionRouting");
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const seo = pageSeoFor(await getRequestLocale(), "sessionRouting");
   return (
     <>
       <JsonLd
         data={[
           webPageJsonLd({
-            name: PAGE_SEO.sessionRouting.title,
-            description: PAGE_SEO.sessionRouting.description,
-            path: PAGE_SEO.sessionRouting.path,
+            name: seo.title,
+            description: seo.description,
+            path: seo.path,
           }),
           breadcrumbJsonLd(
-            featureBreadcrumbs("Session Routing", PAGE_SEO.sessionRouting.path),
+            featureBreadcrumbs("Session Routing", seo.path),
           ),
         ]}
       />

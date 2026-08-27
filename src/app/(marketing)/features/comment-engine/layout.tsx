@@ -1,27 +1,29 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/json-ld";
+import { getRequestLocale } from "@/lib/i18n/request-locale";
 import {
-  PAGE_SEO,
   breadcrumbJsonLd,
-  buildMetadata,
+  generatePageMetadata,
+  pageSeoFor,
   featureBreadcrumbs,
   webPageJsonLd,
 } from "@/lib/seo";
 
-export const metadata: Metadata = buildMetadata(PAGE_SEO.commentEngine);
+export const generateMetadata = generatePageMetadata.bind(null, "commentEngine");
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const seo = pageSeoFor(await getRequestLocale(), "commentEngine");
   return (
     <>
       <JsonLd
         data={[
           webPageJsonLd({
-            name: PAGE_SEO.commentEngine.title,
-            description: PAGE_SEO.commentEngine.description,
-            path: PAGE_SEO.commentEngine.path,
+            name: seo.title,
+            description: seo.description,
+            path: seo.path,
           }),
           breadcrumbJsonLd(
-            featureBreadcrumbs("Comment Engine", PAGE_SEO.commentEngine.path),
+            featureBreadcrumbs("Comment Engine", seo.path),
           ),
         ]}
       />
