@@ -40,7 +40,8 @@ export async function GET(req: NextRequest) {
       displayName: true,
       status: true,
       healthScore: true,
-      currentIp: true,
+      // currentIp deliberately excluded: proxy IPs are sensitive
+      // infrastructure data, not part of a read-only integration surface.
       dailyQuota: true,
       actionsToday: true,
       createdAt: true,

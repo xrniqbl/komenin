@@ -1,5 +1,6 @@
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 import { jsonErrorFromUnknown } from "@/lib/api-route";
+import { assertSameOrigin } from "@/lib/csrf";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { validateVoucherCode } from "@/server/billing";
@@ -13,6 +14,10 @@ const voucherSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  // Session-cookie authenticated — CSRF guard before voucher probing.
+  const csrf = assertSameOrigin(request);
+  if (csrf) return csrf;
+
   const rate = await consumeRateLimit({
     key: getRequestRateKey(request, "api:billing:voucher"),
     limit: 20,

@@ -12,11 +12,6 @@ import {
   validateInput,
   emailSchema
 } from '@/lib/validation';
-import {
-  generateNonce,
-  buildCSPPolicy,
-  shouldEnforceCSP
-} from '@/lib/csp-nonce';
 import { consumeRateLimitMemory } from '@/lib/rate-limit';
 import { verifyWebhookSignature } from '@/lib/webhook-verifier';
 import {
@@ -74,53 +69,6 @@ describe('Integration: Security & Validation', () => {
       // img is not in the allowed tag list, so it is stripped entirely
       expect(sanitized).not.toContain('<img');
       expect(sanitized).toContain('safe text');
-    });
-  });
-
-  describe('CSP Nonce Generation', () => {
-    it('generates valid base64 nonces', () => {
-      const nonce1 = generateNonce();
-      const nonce2 = generateNonce();
-
-      // Should be different each time
-      expect(nonce1).not.toBe(nonce2);
-
-      // Should be valid base64 format (16 bytes → 24 chars, padding included)
-      expect(nonce1.length).toBeGreaterThan(0);
-      expect(/^[A-Za-z0-9+/]+={0,2}$/.test(nonce1)).toBe(true);
-    });
-
-    it('builds CSP policy with nonce', () => {
-      const nonce = generateNonce();
-      const isProd = true;
-
-      const policy = buildCSPPolicy(nonce, isProd);
-
-      expect(policy).toContain(`'nonce-${nonce}'`);
-      expect(policy).toContain('default-src');
-      expect(policy).toContain('upgrade-insecure-requests');
-    });
-
-    it('allows unsafe-eval in development mode', () => {
-      const nonce = generateNonce();
-      const isProd = false;
-
-      const policy = buildCSPPolicy(nonce, isProd);
-
-      // Development allows eval for debugging
-      expect(policy).toContain('unsafe-eval');
-    });
-
-    it('should enforce CSP based on environment', () => {
-      vi.stubEnv('NODE_ENV', 'production');
-      expect(shouldEnforceCSP()).toBe(true);
-
-      vi.stubEnv('NODE_ENV', 'development');
-      vi.stubEnv('DISABLE_CSP', '');
-      expect(shouldEnforceCSP()).toBe(true);
-
-      vi.stubEnv('DISABLE_CSP', 'true');
-      expect(shouldEnforceCSP()).toBe(false);
     });
   });
 

@@ -24,12 +24,13 @@ function generateCSPNonce(): string {
   return crypto.randomBytes(16).toString("base64");
 }
 
-function buildCSP(nonce: string, isProduction: boolean): string {
-  const isMidtransProduction = process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === "true";
-  // Snap loader + its iframe popup.
-  const midtransScript = isMidtransProduction
-    ? "https://app.midtrans.com"
-    : "https://app.sandbox.midtrans.com";
+function buildCSP(nonce: string, isProduction: boolean, includeMidtrans: boolean): string {
+  // Snap loader + its iframe popup — only included on checkout routes.
+  const midtransScript = includeMidtrans
+    ? isProduction
+      ? " https://app.midtrans.com"
+      : " https://app.sandbox.midtrans.com"
+    : "";
 
   const directives = [
     "default-src 'self'",
@@ -41,11 +42,13 @@ function buildCSP(nonce: string, isProduction: boolean): string {
     "font-src 'self' data: https://fonts.gstatic.com",
     // Next.js inline bootstrap scripts carry the nonce via the request header
     // set below; 'strict-dynamic' lets those scripts load their own chunks.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${midtransScript}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${midtransScript}`,
     `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
-    // Midtrans Snap opens an iframe popup at its host
-    `frame-src ${midtransScript}`,
-    `connect-src 'self' https: wss:`,
+    // Midtrans Snap opens an iframe popup at its host (checkout only)
+    ...(includeMidtrans ? [`frame-src ${midtransScript.trim()}`] : []),
+    // Explicit allowlist — a wildcard `https:` would let any injected script
+    // exfiltrate data to arbitrary hosts, defeating CSP as a second layer.
+    "connect-src 'self' https://api.midtrans.com https://api.sandbox.midtrans.com wss:",
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     ...(isProduction ? ["upgrade-insecure-requests"] : []),
@@ -68,6 +71,7 @@ export function middleware(request: NextRequest): NextResponse | undefined {
 
   const isProduction = process.env.NODE_ENV === "production";
   const cspNonce = generateCSPNonce();
+  const isCheckoutRoute = request.nextUrl.pathname.startsWith("/app/checkout");
 
   // Propagate the nonce to Next.js as a REQUEST header: the framework reads
   // it and stamps nonce="" onto its inline bootstrap scripts. Setting it only
@@ -85,10 +89,27 @@ export function middleware(request: NextRequest): NextResponse | undefined {
     "X-DNS-Prefetch-Control": "on",
   };
 
+  // Authenticated areas must never be cached by intermediaries — a cached
+  // page would serve one user's CSP nonce to another (breaking CSP or
+  // leaking it) and expose private dashboards.
+  const isPrivateArea =
+    request.nextUrl.pathname.startsWith("/app/") ||
+    request.nextUrl.pathname.startsWith("/admin/") ||
+    request.nextUrl.pathname.startsWith("/invite/") ||
+    request.nextUrl.pathname.startsWith("/onboarding");
+  if (isPrivateArea) {
+    securityHeaders["Cache-Control"] = "private, no-store";
+    securityHeaders["X-Robots-Tag"] = "noindex, nofollow";
+  }
+
   if (isProduction) {
     securityHeaders["Strict-Transport-Security"] =
       "max-age=63072000; includeSubDomains; preload";
-    securityHeaders["Content-Security-Policy"] = buildCSP(cspNonce, true);
+    securityHeaders["Content-Security-Policy"] = buildCSP(
+      cspNonce,
+      true,
+      isCheckoutRoute,
+    );
   }
 
   const response = NextResponse.next({

@@ -7,6 +7,25 @@ function redirectDestination(error: { digest: string }): string {
 }
 
 /**
+ * Known-safe user-facing error prefixes thrown by server helpers. Only
+ * messages starting with these are passed through verbatim — anything else
+ * (Prisma internals, env/config errors, stack details) is masked behind the
+ * fallback message so internal structure never reaches the client.
+ */
+const SAFE_ERROR_PREFIXES = [
+  "Voucher ",
+  "Plan ",
+  "Order ",
+  "Workspace ",
+  "Invalid ",
+  "Missing ",
+];
+
+function isSafeClientMessage(message: string): boolean {
+  return SAFE_ERROR_PREFIXES.some((prefix) => message.startsWith(prefix));
+}
+
+/**
  * Map thrown errors from page-oriented server helpers (which may call
  * `redirect()`) into JSON API responses.
  */
@@ -29,7 +48,12 @@ export function jsonErrorFromUnknown(
     );
   }
 
-  const message = error instanceof Error ? error.message : fallbackMessage;
+  const rawMessage = error instanceof Error ? error.message : "";
+  // Full error is always logged server-side; clients only see vetted copy.
+  if (rawMessage) {
+    console.error("[api-route] handler error:", error);
+  }
+  const message = rawMessage && isSafeClientMessage(rawMessage) ? rawMessage : fallbackMessage;
   const lower = message.toLowerCase();
   const status =
     lower.includes("unauthorized") || lower.includes("unauthenticated")
