@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LocaleLink } from "@/components/i18n/locale-link";
 import {
   Bot,
   Cable,
@@ -142,10 +143,10 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <Button size="lg" render={<Link href="/signup" />} nativeButton={false}>
+            <Button size="lg" render={<LocaleLink href="/signup" />} nativeButton={false}>
               {copy.cta}
             </Button>
-            <Button size="lg" variant="outline" render={<Link href="/contact" />} nativeButton={false}>
+            <Button size="lg" variant="outline" render={<LocaleLink href="/contact" />} nativeButton={false}>
               Talk to sales
             </Button>
           </div>
@@ -273,7 +274,7 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
             <Button
               size="lg"
               className="bg-white text-neutral-900 hover:bg-neutral-100"
-              render={<Link href="/signup" />}
+              render={<LocaleLink href="/signup" />}
               nativeButton={false}
             >
               {copy.cta}
@@ -282,7 +283,7 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
               size="lg"
               variant="outline"
               className="border-neutral-600 bg-transparent text-white hover:bg-neutral-800"
-              render={<Link href="/docs" />}
+              render={<LocaleLink href="/docs" />}
               nativeButton={false}
             >
               Read docs

@@ -17,6 +17,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import crypto from "node:crypto";
+import { splitLocalePath } from "@/lib/i18n/paths";
 
 const MAX_PAYLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -69,6 +70,15 @@ export function middleware(request: NextRequest): NextResponse | undefined {
     );
   }
 
+  // Path-based locale: /id/<public path> serves the same single-copy route
+  // tree with the Indonesian locale flagged for SEO metadata + rendering.
+  const { locale: pathLocale, path: unprefixedPath } = splitLocalePath(
+    request.nextUrl.pathname,
+  );
+  if (pathLocale === "id") {
+    request.nextUrl.pathname = unprefixedPath;
+  }
+
   const isProduction = process.env.NODE_ENV === "production";
   const cspNonce = generateCSPNonce();
   const isCheckoutRoute = request.nextUrl.pathname.startsWith("/app/checkout");
@@ -79,6 +89,10 @@ export function middleware(request: NextRequest): NextResponse | undefined {
   // production CSP break every inline script.
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", cspNonce);
+  if (pathLocale === "id") {
+    //getLocale() reads this; falls back to the cookie when absent.
+    requestHeaders.set("x-komenin-locale", "id");
+  }
 
   const securityHeaders: Record<string, string> = {
     "X-Content-Type-Options": "nosniff",

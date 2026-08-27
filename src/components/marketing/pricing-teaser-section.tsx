@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LocaleLink } from "@/components/i18n/locale-link";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -72,7 +73,7 @@ export function PricingTeaserSection() {
                   <Button
                     className="w-full"
                     variant={plan.featured ? "default" : "outline"}
-                    render={<Link href="/pricing" />}
+                    render={<LocaleLink href="/pricing" />}
                     nativeButton={false}
                   >
                     {t.pricingTeaser.viewPlan}
@@ -84,7 +85,7 @@ export function PricingTeaserSection() {
         </div>
 
         <div className="flex justify-center">
-          <Button size="lg" render={<Link href="/pricing" />} nativeButton={false}>
+          <Button size="lg" render={<LocaleLink href="/pricing" />} nativeButton={false}>
             {t.pricingTeaser.compare}
           </Button>
         </div>

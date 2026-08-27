@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LocaleLink } from "@/components/i18n/locale-link";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ export function HeroSection() {
           <Button
             size="lg"
             className="w-full bg-neutral-900 text-white hover:bg-neutral-800 sm:w-auto"
-            render={<Link href="/signup" />}
+            render={<LocaleLink href="/signup" />}
             nativeButton={false}
           >
             {t.hero.startFree}
@@ -37,7 +38,7 @@ export function HeroSection() {
             size="lg"
             variant="outline"
             className="w-full border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50 sm:w-auto"
-            render={<Link href="/features" />}
+            render={<LocaleLink href="/features" />}
             nativeButton={false}
           >
             {t.hero.watchVideo}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LocaleLink } from "@/components/i18n/locale-link";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,7 +23,7 @@ export function CtaBand() {
                 <Button
                   size="lg"
                   className="w-full bg-white text-neutral-900 hover:bg-neutral-100 sm:w-auto"
-                  render={<Link href="/signup" />}
+                  render={<LocaleLink href="/signup" />}
                   nativeButton={false}
                 >
                   {t.cta.startFree}
@@ -31,7 +32,7 @@ export function CtaBand() {
                   size="lg"
                   variant="outline"
                   className="w-full border-neutral-600 bg-transparent text-white hover:bg-white/10 sm:w-auto"
-                  render={<Link href="/contact" />}
+                  render={<LocaleLink href="/contact" />}
                   nativeButton={false}
                 >
                   {t.cta.talkSales}

@@ -1,13 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { alternateLocalePath } from "@/lib/i18n/paths";
 import type { Locale } from "@/lib/i18n/messages";
 
 export function LanguageToggle({ className }: { className?: string }) {
   const router = useRouter();
+  const pathname = usePathname() || "/";
   const { locale, setLocale, t } = useLocale();
 
   return (
@@ -28,9 +30,14 @@ export function LanguageToggle({ className }: { className?: string }) {
             size="xs"
             variant={active ? "default" : "ghost"}
             onClick={() => {
+              // Keep the cookie in sync for client components and the
+              // fallback locale resolution, then move to the localized URL.
               setLocale(code);
-              // Re-render server components (docs content) with the new locale cookie.
-              router.refresh();
+              if (code !== locale) {
+                router.push(alternateLocalePath(pathname, code));
+              } else {
+                router.refresh();
+              }
             }}
             className={cn(
               "rounded-full px-2.5",

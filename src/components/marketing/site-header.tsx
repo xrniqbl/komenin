@@ -3,6 +3,7 @@
 import { MenuIcon, XIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { LocaleLink } from "@/components/i18n/locale-link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 
@@ -46,10 +47,10 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 md:px-6">
-        <Link href="/" className="inline-flex items-center gap-2">
+        <LocaleLink href="/" className="inline-flex items-center gap-2">
           <Image src="/brand/komenin-mono.svg" alt="Komenin" width={28} height={28} priority />
           <span className="text-base font-semibold tracking-tight">Komenin</span>
-        </Link>
+        </LocaleLink>
 
         <nav className="hidden items-center gap-2 md:flex" aria-label="Primary">
           {links.map((link) => {
@@ -86,10 +87,10 @@ export function SiteHeader() {
 
         <div className="hidden items-center gap-2 md:flex">
           <LanguageToggle />
-          <Button variant="ghost" render={<Link href="/login" />} nativeButton={false}>
+          <Button variant="ghost" render={<LocaleLink href="/login" />} nativeButton={false}>
             {t.nav.login}
           </Button>
-          <Button render={<Link href="/signup" />} nativeButton={false}>
+          <Button render={<LocaleLink href="/signup" />} nativeButton={false}>
             {t.nav.startFree}
           </Button>
         </div>
@@ -156,7 +157,7 @@ export function SiteHeader() {
               <Button
                 variant="outline"
                 className="w-full"
-                render={<Link href="/login" />}
+                render={<LocaleLink href="/login" />}
                 nativeButton={false}
                 onClick={() => setMobileOpen(false)}
               >
@@ -164,7 +165,7 @@ export function SiteHeader() {
               </Button>
               <Button
                 className="w-full"
-                render={<Link href="/signup" />}
+                render={<LocaleLink href="/signup" />}
                 nativeButton={false}
                 onClick={() => setMobileOpen(false)}
               >

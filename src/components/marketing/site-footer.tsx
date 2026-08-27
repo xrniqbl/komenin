@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { LocaleLink } from "@/components/i18n/locale-link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -85,7 +86,7 @@ export function SiteFooter() {
                     key={link.href}
                     variant="link"
                     size="sm"
-                    render={<Link href={link.href} />}
+                    render={<LocaleLink href={link.href} />}
                     nativeButton={false}
                     className="h-auto px-0 text-muted-foreground"
                   >

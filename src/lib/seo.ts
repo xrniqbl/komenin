@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import type { Locale } from "@/lib/i18n/messages";
+import { withLocalePath } from "@/lib/i18n/paths";
 
 export const SITE_NAME = "Komenin";
 export const SITE_TAGLINE = "Enterprise social operations control plane";
@@ -60,6 +62,12 @@ export type PageSeoInput = {
   imageHeight?: number;
   noIndex?: boolean;
   type?: "website" | "article";
+  /**
+   * Locale of this page variant. When set to "id", the canonical URL carries
+   * the /id prefix and hreflang pairs the EN and ID URLs so search engines
+   * index both variants separately.
+   */
+  locale?: Locale;
 };
 
 export const DEFAULT_OG_IMAGE = {
@@ -109,8 +117,9 @@ export function buildMetadata({
   imageHeight = DEFAULT_OG_IMAGE.height,
   noIndex = false,
   type = "website",
+  locale = "en",
 }: PageSeoInput): Metadata {
-  const url = absoluteUrl(path);
+  const url = absoluteUrl(withLocalePath(locale, path));
   const imageUrl = image.startsWith("http") ? image : absoluteUrl(image);
   const fullTitle = title === SITE_NAME ? SITE_NAME : title;
   // Avoid double suffix when root layout uses `title.template = "%s | Komenin"`.
@@ -118,6 +127,11 @@ export function buildMetadata({
     path === "/" || fullTitle.includes(`| ${SITE_NAME}`) || fullTitle.startsWith(`${SITE_NAME} |`)
       ? { absolute: fullTitle }
       : fullTitle;
+
+  // Path-based locale pairs: EN at the root path, ID under /id/<path>, each
+  // pointing at the other via hreflang so both are indexed separately.
+  const enUrl = absoluteUrl(withLocalePath("en", path));
+  const idUrl = absoluteUrl(withLocalePath("id", path));
 
   return {
     title: titleValue,
@@ -130,11 +144,10 @@ export function buildMetadata({
     category: "technology",
     alternates: {
       canonical: url,
-      // Locale is cookie-based on the same URLs (en/id); declare both + x-default.
       languages: {
-        en: url,
-        id: url,
-        "x-default": url,
+        en: enUrl,
+        id: idUrl,
+        "x-default": enUrl,
       },
     },
     openGraph: {
@@ -143,8 +156,8 @@ export function buildMetadata({
       siteName: SITE_NAME,
       title: fullTitle,
       description,
-      locale: "en_US",
-      alternateLocale: ["id_ID"],
+      locale: locale === "id" ? "id_ID" : "en_US",
+      alternateLocale: locale === "id" ? ["en_US"] : ["id_ID"],
       images: [
         {
           url: imageUrl,
@@ -633,8 +646,6 @@ export function featureBreadcrumbs(
   ];
 }
 
-import type { Locale } from "@/lib/i18n/messages";
-
 /** Pick the localized PAGE_SEO entry (ID translations fall back to EN per key). */
 export function pageSeoFor(
   locale: Locale,
@@ -647,10 +658,10 @@ export function pageSeoFor(
 }
 
 /**
- * Generate locale-aware page metadata. Reads the locale cookie server-side
- * (same mechanism as the language toggle) and returns the localized
- * title/description/OG/Twitter while keeping canonical + hreflang identical
- * for both locales (cookie-based switching on the same URL).
+ * Generate locale-aware page metadata. Resolves the locale from the request
+ * (path prefix via middleware header, else the locale cookie) and returns the
+ * localized title/description/OG/Twitter. Canonical and hreflang pair the EN
+ * and /id URLs so both variants are indexed separately.
  */
 export async function generatePageMetadata(
   key: keyof typeof PAGE_SEO,
@@ -658,5 +669,5 @@ export async function generatePageMetadata(
   const { getRequestLocale } = await import("@/lib/i18n/request-locale");
   const locale = await getRequestLocale();
   const seo = pageSeoFor(locale, key);
-  return buildMetadata(seo);
+  return buildMetadata({ ...seo, locale });
 }
