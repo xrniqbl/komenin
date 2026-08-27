@@ -130,6 +130,8 @@ export async function generateContentPosts(input: {
     preferredProviderId,
     preferredModel,
     temperature,
+    workspaceId: input.workspaceId ?? null,
+    refType: "content_draft",
     maxTokens,
     messages: [
       {

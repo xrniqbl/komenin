@@ -32,6 +32,11 @@ export type AiChatRequest = {
   fallbackModels?: string[];
   /** Optional workspace context for vault providers (resolved by caller). */
   providers?: AiProviderConfig[];
+  /** Workspace that funds this call (metering + quota). Omit to skip metering. */
+  workspaceId?: string | null;
+  /** Optional reference for usage attribution (e.g. "comment_action"). */
+  refType?: string | null;
+  refId?: string | null;
 };
 
 export type AiChatResult = {

@@ -196,6 +196,8 @@ export async function generateContextualCommentHybrid(
     fallbackModels,
     temperature,
     maxTokens,
+    workspaceId: input.workspaceId ?? null,
+    refType: "comment_draft",
     messages: [
       {
         role: "system",
