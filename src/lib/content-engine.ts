@@ -54,7 +54,7 @@ function localBatch(input: {
       sequence: i,
       title,
       body,
-      hashtags: [topic.split(/\s+/)[0]?.replace(/[^\w]/g, "") || "growth", input.platform, "aether"].filter(Boolean),
+      hashtags: [topic.split(/\s+/)[0]?.replace(/[^\w]/g, "") || "growth", input.platform, "komenin"].filter(Boolean),
       source: "local_fallback",
     });
   }
@@ -99,7 +99,7 @@ export async function generateContentPosts(input: {
   const count = Math.max(1, Math.min(input.postCount, 50));
   const language = input.language || "id";
   const tone = input.tone || "professional";
-  const agentName = input.agentName || "Aether Content Agent";
+  const agentName = input.agentName || "Komenin Content Agent";
   const systemPrompt =
     input.systemPrompt?.trim() ||
     `You are ${agentName}, an enterprise social content strategist. Write concise original posts. Avoid spammy claims.`;

@@ -63,7 +63,7 @@ export function SessionRoutingMock() {
             <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-700">degraded</span>
           </div>
         </MockRail>
-        <MockRail label="@aether_lab · tiktok" color="#06b6d4">
+        <MockRail label="@komenin_lab · tiktok" color="#06b6d4">
           <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground">
             <span className="font-mono">203.0.12.x</span>
             <span>·</span>
@@ -152,13 +152,13 @@ export function AgentIntelligenceMock() {
                 <span className="font-medium">Coupon FAQ:</span> AETHER20 gives 20% off first month.
               </div>
               <div className="rounded bg-muted p-2 text-[11px]">
-                <span className="font-medium">Brand FAQ:</span> Aether is enterprise social ops control plane.
+                <span className="font-medium">Brand FAQ:</span> Komenin is enterprise social ops control plane.
               </div>
             </div>
           </CardContent>
         </Card>
         <div className="rounded-xl rounded-br-sm border bg-card px-3 py-2 text-xs leading-relaxed">
-          Thanks for asking! Aether supports approval-first workflows - good fit for enterprise ops. Our AETHER20 coupon
+          Thanks for asking! Komenin supports approval-first workflows - good fit for enterprise ops. Our AETHER20 coupon
           gives 20% off first month if you want to pilot.
         </div>
         <div className="flex gap-1.5">

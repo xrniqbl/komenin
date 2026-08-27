@@ -60,7 +60,7 @@ function localGenerate(input: CommentGenerationInput): CommentGenerationResult {
         goal: input.goal || "",
         tone: input.tone || "professional",
         postSnippet: input.postContent.slice(0, 80),
-        agentName: input.agentName || "Aether Agent",
+        agentName: input.agentName || "Komenin Agent",
         topic: input.postContent.slice(0, 60),
       });
       if (rendered.trim().length > 5) {

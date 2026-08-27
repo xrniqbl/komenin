@@ -1,7 +1,7 @@
 /**
  * Metrics & Observability Module
  *
- * Provides comprehensive metrics collection for Aether's observability stack.
+ * Provides comprehensive metrics collection for Komenin's observability stack.
  * Tracks application health, performance, business metrics, and security events.
  *
  * Supports both Prometheus-compatible export and SaaS integrations (Datadog, Sentry).

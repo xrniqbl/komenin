@@ -285,15 +285,15 @@ export default async function PublisherSettingsPage({
         <CardHeader>
           <CardTitle className="text-base">How to go live</CardTitle>
           <CardDescription>
-            Live delivery requires env + a worker that accepts Aether webhooks. Threads/TikTok native
+            Live delivery requires env + a worker that accepts Komenin webhooks. Threads/TikTok native
             paths still fall back to webhook for many actions.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <div>1. Set <code>SIMULATOR_MODE=&quot;false&quot;</code></div>
           <div>
-            2. Point Aether at your bridge:{" "}
-            <code>SOCIAL_PUBLISH_WEBHOOK_URL=&quot;https://your-worker/hooks/aether&quot;</code>
+            2. Point Komenin at your bridge:{" "}
+            <code>SOCIAL_PUBLISH_WEBHOOK_URL=&quot;https://your-worker/hooks/komenin&quot;</code>
           </div>
           <div>
             3. Require auth:{" "}

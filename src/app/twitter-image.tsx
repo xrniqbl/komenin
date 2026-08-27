@@ -75,7 +75,7 @@ export default function TwitterImage() {
             <span>·</span>
             <span>AI drafts</span>
           </div>
-          <div>aether</div>
+          <div>komenin</div>
         </div>
       </div>
     ),

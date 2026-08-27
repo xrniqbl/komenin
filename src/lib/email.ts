@@ -24,7 +24,7 @@ const BREVO_ENDPOINT = "https://api.brevo.com/v3/smtp/email";
 type BrevoAddress = { email: string; name?: string };
 
 /**
- * Parse an EMAIL_FROM value like `Aether <noreply@brand.id>` or a bare
+ * Parse an EMAIL_FROM value like `Komenin <noreply@brand.id>` or a bare
  * `noreply@brand.id` into Brevo's sender object.
  */
 function parseFromAddress(value: string): BrevoAddress | null {
@@ -157,7 +157,7 @@ export async function sendInviteEmail(input: {
   <div style="font-family:ui-sans-serif,system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
     <h2 style="color:#0b0f14;">You're invited to ${escapeHtml(input.workspaceName)}</h2>
     <p style="color:#374151;">${escapeHtml(inviter)} invited you to join the
-    <strong>${escapeHtml(input.workspaceName)}</strong> workspace on Aether as
+    <strong>${escapeHtml(input.workspaceName)}</strong> workspace on Komenin as
     <strong>${escapeHtml(input.role)}</strong>.</p>
     <p style="margin:32px 0;">
       <a href="${acceptUrl}"
@@ -177,10 +177,10 @@ export async function sendInviteEmail(input: {
 
   const result = await sendEmail({
     to: input.to,
-    subject: `Invite: join ${input.workspaceName} on Aether`,
+    subject: `Invite: join ${input.workspaceName} on Komenin`,
     html,
     text:
-      `${inviter} invited you to join ${input.workspaceName} on Aether as ${input.role}.\n\n` +
+      `${inviter} invited you to join ${input.workspaceName} on Komenin as ${input.role}.\n\n` +
       `Accept within 7 days: ${acceptUrl}\n\n` +
       `If you weren't expecting this invite, ignore this email.`,
   });

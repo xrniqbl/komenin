@@ -38,9 +38,9 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/brand/aether-logo-256.png", sizes: "256x256", type: "image/png" },
+      { url: "/brand/komenin-logo-256.png", sizes: "256x256", type: "image/png" },
     ],
-    apple: [{ url: "/brand/aether-logo-256.png", sizes: "256x256" }],
+    apple: [{ url: "/brand/komenin-logo-256.png", sizes: "256x256" }],
     shortcut: ["/favicon.svg"],
   },
   openGraph: {

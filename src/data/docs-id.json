@@ -177,12 +177,12 @@
     "introduction": {
       "slug": "introduction",
       "title": "Pendahuluan",
-      "description": "Aether adalah control plane operasi sosial enterprise untuk Instagram, Threads, dan TikTok.",
+      "description": "Komenin adalah control plane operasi sosial enterprise untuk Instagram, Threads, dan TikTok.",
       "sections": [
         {
-          "id": "what-is-aether",
-          "title": "Apa itu Aether?",
-          "body": "Aether adalah satu workspace untuk operasi engagement sosial. Alih-alih berpindah antar aplikasi native hanya untuk meninjau komentar, menyetujui draf, merotasi sesi, atau mempublikasikan konten, operator mengelola semuanya dari satu control plane yang dapat diaudit dan ber-guardrail."
+          "id": "what-is-komenin",
+          "title": "Apa itu Komenin?",
+          "body": "Komenin adalah satu workspace untuk operasi engagement sosial. Alih-alih berpindah antar aplikasi native hanya untuk meninjau komentar, menyetujui draf, merotasi sesi, atau mempublikasikan konten, operator mengelola semuanya dari satu control plane yang dapat diaudit dan ber-guardrail."
         },
         {
           "id": "what-you-can-do",
@@ -207,7 +207,7 @@
         },
         {
           "id": "two-ways",
-          "title": "Dua cara memakai Aether",
+          "title": "Dua cara memakai Komenin",
           "body": "Ikuti Tutorial untuk mengoperasikan semuanya dari dashboard, atau gunakan Referensi API untuk memicu worker, menerima webhook publish, dan mengintegrasikan notifikasi billing ke stack Anda sendiri."
         }
       ]
@@ -542,7 +542,7 @@
         {
           "id": "routing",
           "title": "Routing model",
-          "body": "kampanye/Agent -> Aether AI Router -> OpenAI-compatible gateway (e.g. 9Router) -> local rule-based fallback."
+          "body": "kampanye/Agent -> Komenin AI Router -> OpenAI-compatible gateway (e.g. 9Router) -> local rule-based fallback."
         },
         {
           "id": "env",
@@ -647,7 +647,7 @@
         {
           "id": "compliance-stance",
           "title": "Compliance stance",
-          "body": "Aether is positioned as managed engagement sosial operations with guardrails, not a spam farm or ToS-bypass toolkit."
+          "body": "Komenin is positioned as managed engagement sosial operations with guardrails, not a spam farm or ToS-bypass toolkit."
         }
       ]
     },
@@ -1032,9 +1032,9 @@
       "description": "Short answers to the questions operators and integrators ask most.",
       "sections": [
         {
-          "id": "what-is-aether",
-          "title": "Apa itu Aether?",
-          "body": "Aether adalah control plane operasi sosial enterprise untuk Instagram, Threads, dan TikTok. It centralizes akun, persetujuan, automation, AI drafting, billing, and auditability."
+          "id": "what-is-komenin",
+          "title": "Apa itu Komenin?",
+          "body": "Komenin adalah control plane operasi sosial enterprise untuk Instagram, Threads, dan TikTok. It centralizes akun, persetujuan, automation, AI drafting, billing, and auditability."
         },
         {
           "id": "simulator-vs-live",
@@ -1054,7 +1054,7 @@
         {
           "id": "9router",
           "title": "How does 9Router fit in?",
-          "body": "Aether can call any OpenAI-compatible gateway. 9Router is the recommended hybrid gateway so provider keys stay outside Aether while generation still has tiered fallback."
+          "body": "Komenin can call any OpenAI-compatible gateway. 9Router is the recommended hybrid gateway so provider keys stay outside Komenin while generation still has tiered fallback."
         },
         {
           "id": "worker-secret",
@@ -1199,7 +1199,7 @@
         {
           "id": "endpoint",
           "title": "POST /api/publish/webhook",
-          "body": "Accepts publish payloads from Aether mode live. opsional bearer token via SOCIAL_PUBLISH_WEBHOOK_TOKEN.",
+          "body": "Accepts publish payloads from Komenin mode live. opsional bearer token via SOCIAL_PUBLISH_WEBHOOK_TOKEN.",
           "code": "curl -X POST http://localhost:3000/api/publish/webhook   -H \"Authorization: Bearer $SOCIAL_PUBLISH_WEBHOOK_TOKEN\"   -H \"Content-Type: application/json\"   -d '{\n    \"platform\": \"instagram\",\n    \"username\": \"brand\",\n    \"body\": \"We just shipped a safer approvals flow.\",\n    \"hashtags\": [\"aether\", \"socialops\"]\n  }'"
         },
         {

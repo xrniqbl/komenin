@@ -55,7 +55,7 @@ describe("runWebhookConnector", () => {
     expect(result.externalId).toBe("c_1");
     expect(result.connector).toBe("webhook");
     const init = fetchMock.mock.calls[0][1] as { headers: Record<string, string> };
-    expect(init.headers["x-aether-contract"]).toBe("v1");
+    expect(init.headers["x-komenin-contract"]).toBe("v1");
     expect(init.headers.authorization).toBe("Bearer super-secret-token");
   });
 

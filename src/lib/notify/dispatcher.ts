@@ -62,8 +62,8 @@ export async function dispatchExternal(event: NotificationEvent, workspaceId: st
 
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
-        "x-aether-event": event,
-        "User-Agent": "Aether-Webhook/1.0",
+        "x-komenin-event": event,
+        "User-Agent": "Komenin-Webhook/1.0",
       };
       if (secret) headers["Authorization"] = `Bearer ${secret}`;
 

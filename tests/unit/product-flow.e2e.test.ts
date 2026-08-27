@@ -126,7 +126,7 @@ describe("flow: campaign → approval → publish (live webhook → mock bridge)
     expect(result.ok).toBe(true);
     expect(result.externalId).toMatch(/^mock_comment_instagram_/);
     const init = fetchMock.mock.calls[0][1] as { headers: Record<string, string> };
-    expect(init.headers["x-aether-contract"]).toBe("v1");
+    expect(init.headers["x-komenin-contract"]).toBe("v1");
     expect(init.headers.authorization).toBe("Bearer secret-token");
   });
 

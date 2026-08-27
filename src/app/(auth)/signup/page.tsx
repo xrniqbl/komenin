@@ -13,7 +13,7 @@ export default async function SignupPage() {
     <div className="mx-auto flex min-h-screen max-w-md items-center px-4">
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>Create your Aether workspace</CardTitle>
+          <CardTitle>Create your Komenin workspace</CardTitle>
           <CardDescription>Sign up with Google, then invite your team.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">

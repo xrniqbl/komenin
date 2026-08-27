@@ -74,7 +74,7 @@ export const messages = {
     },
     pricingPage: {
       badge: "Simple pricing",
-      title: "Choose how long you want to run Aether",
+      title: "Choose how long you want to run Komenin",
       subtitle:
         "Only three plans: 1 month, 6 months, and 12 months. Longer commitment, lower monthly rate. No hidden tiers.",
       currencyNote: "Prices in IDR · billed via Midtrans (same amounts as in-app checkout)",
@@ -92,7 +92,7 @@ export const messages = {
       comparisonHeading: "What you get by plan",
       whyTitle: "How to choose",
       whyBody:
-        "Start monthly if you are validating workflows. Move to 6 months once campaigns are live weekly. Choose 12 months when Aether is part of daily production ops.",
+        "Start monthly if you are validating workflows. Move to 6 months once campaigns are live weekly. Choose 12 months when Komenin is part of daily production ops.",
       savingsNote: "Longer plans lower the monthly rate while unlocking higher account limits and stronger support.",
       comparisonRows: [
         {
@@ -299,7 +299,7 @@ export const messages = {
       badge: "Enterprise",
       title: "Built for security reviews and multi-team ops",
       subtitle:
-        "Aether gives enterprise operators governed automation: custom quotas, SSO configuration preview, audit export, and guided onboarding without losing day-to-day control.",
+        "Komenin gives enterprise operators governed automation: custom quotas, SSO configuration preview, audit export, and guided onboarding without losing day-to-day control.",
       cta: "Book demo",
       backHome: "Back to home",
       fitTitle: "When enterprise is the right fit",
@@ -348,7 +348,7 @@ export const messages = {
       badge: "Security",
       title: "Control-plane security for social operations",
       subtitle:
-        "Aether is designed for managed engagement operations with explicit approvals, encrypted credentials, and immutable audit trails—not uncontrolled spam tooling.",
+        "Komenin is designed for managed engagement operations with explicit approvals, encrypted credentials, and immutable audit trails—not uncontrolled spam tooling.",
       cta: "Start free",
       backHome: "Back to home",
       sections: [
@@ -391,7 +391,7 @@ export const messages = {
       ],
     },
     aboutPage: {
-      title: "About Aether",
+      title: "About Komenin",
       subtitle: "A quiet control plane for teams that need scale with governance.",
       cta: "Start free",
       points: [
@@ -428,7 +428,7 @@ export const messages = {
       },
       terms: {
         title: "Terms of Service",
-        subtitle: "Use Aether in compliance with platform policies and applicable law.",
+        subtitle: "Use Komenin in compliance with platform policies and applicable law.",
         points: [
           "Acceptable use required",
           "No warranty of platform compliance",
@@ -460,7 +460,7 @@ export const messages = {
         },
         {
           q: "Can AI create posts from a topic I choose?",
-          a: "Yes. In Auto Post campaigns you enter a topic, choose how many posts you want, and set the interval (minutes, hours, or days). Aether generates drafts via your 9Router AI gateway.",
+          a: "Yes. In Auto Post campaigns you enter a topic, choose how many posts you want, and set the interval (minutes, hours, or days). Komenin generates drafts via your 9Router AI gateway.",
         },
         {
           q: "Do posts publish automatically?",
@@ -472,7 +472,7 @@ export const messages = {
         },
         {
           q: "How does AI connect?",
-          a: "Aether routes generation through an OpenAI-compatible gateway such as 9Router. Provider auth (for example xAI build auth) stays inside 9Router.",
+          a: "Komenin routes generation through an OpenAI-compatible gateway such as 9Router. Provider auth (for example xAI build auth) stays inside 9Router.",
         },
         {
           q: "Is this safe for team operations?",
@@ -504,8 +504,8 @@ export const messages = {
       aup: "AUP",
     },
     docsUi: {
-      brand: "Aether Documentation",
-      brandShort: "Aether Docs",
+      brand: "Komenin Documentation",
+      brandShort: "Komenin Docs",
       home: "Home",
       tutorial: "Tutorial",
       api: "API Reference",
@@ -520,9 +520,9 @@ export const messages = {
       copied: "Copied",
       needProductUi: "Need the product UI?",
       openCommandCenter: "Open command center",
-      homeTitle: "Aether Documentation",
+      homeTitle: "Komenin Documentation",
       homeSubtitle:
-        "Two ways to use Aether: follow the Tutorial to manage everything from the dashboard, or use the API Reference to build your own integration around workers, webhooks, and billing.",
+        "Two ways to use Komenin: follow the Tutorial to manage everything from the dashboard, or use the API Reference to build your own integration around workers, webhooks, and billing.",
       getStarted: "Get Started",
       apiReference: "API Reference",
       quickStart: "Quick Start",
@@ -538,7 +538,7 @@ export const messages = {
         {
           href: "/docs/tutorial/introduction",
           title: "Getting Started",
-          body: "New to Aether? Learn the core concepts and what you can manage from one workspace.",
+          body: "New to Komenin? Learn the core concepts and what you can manage from one workspace.",
         },
         {
           href: "/docs/tutorial/connectors",
@@ -662,7 +662,7 @@ export const messages = {
     },
     pricingPage: {
       badge: "Harga sederhana",
-      title: "Pilih berapa lama Anda ingin memakai Aether",
+      title: "Pilih berapa lama Anda ingin memakai Komenin",
       subtitle:
         "Hanya tiga paket: 1 bulan, 6 bulan, dan 12 bulan. Semakin panjang, semakin rendah harga bulanan. Tanpa tier tersembunyi.",
       currencyNote: "Harga dalam IDR · ditagih via Midtrans (sama dengan checkout di app)",
@@ -680,7 +680,7 @@ export const messages = {
       comparisonHeading: "Yang Anda dapat per paket",
       whyTitle: "Cara memilih",
       whyBody:
-        "Mulai bulanan jika masih validasi workflow. Pindah ke 6 bulan saat campaign sudah jalan mingguan. Pilih 12 bulan ketika Aether jadi bagian operasi produksi harian.",
+        "Mulai bulanan jika masih validasi workflow. Pindah ke 6 bulan saat campaign sudah jalan mingguan. Pilih 12 bulan ketika Komenin jadi bagian operasi produksi harian.",
       savingsNote: "Paket lebih panjang menurunkan harga bulanan sekaligus membuka limit akun lebih tinggi dan support lebih kuat.",
       comparisonRows: [
         {
@@ -887,7 +887,7 @@ export const messages = {
       badge: "Enterprise",
       title: "Dirancang untuk security review dan operasi multi-tim",
       subtitle:
-        "Aether memberi operator enterprise otomatisasi yang terkendali: kuota kustom, preview konfigurasi SSO, export audit, dan onboarding terpandu tanpa kehilangan kontrol harian.",
+        "Komenin memberi operator enterprise otomatisasi yang terkendali: kuota kustom, preview konfigurasi SSO, export audit, dan onboarding terpandu tanpa kehilangan kontrol harian.",
       cta: "Jadwalkan demo",
       backHome: "Kembali ke beranda",
       fitTitle: "Kapan paket enterprise paling pas",
@@ -936,7 +936,7 @@ export const messages = {
       badge: "Keamanan",
       title: "Keamanan control plane untuk social operations",
       subtitle:
-        "Aether dirancang untuk managed engagement operations dengan approval eksplisit, kredensial terenkripsi, dan audit trail imutabel—bukan tooling spam tanpa kontrol.",
+        "Komenin dirancang untuk managed engagement operations dengan approval eksplisit, kredensial terenkripsi, dan audit trail imutabel—bukan tooling spam tanpa kontrol.",
       cta: "Mulai gratis",
       backHome: "Kembali ke beranda",
       sections: [
@@ -979,7 +979,7 @@ export const messages = {
       ],
     },
     aboutPage: {
-      title: "Tentang Aether",
+      title: "Tentang Komenin",
       subtitle: "Control plane yang tenang untuk tim yang butuh skala dengan governance.",
       cta: "Mulai gratis",
       points: [
@@ -1016,7 +1016,7 @@ export const messages = {
       },
       terms: {
         title: "Syarat Layanan",
-        subtitle: "Gunakan Aether sesuai kebijakan platform dan hukum yang berlaku.",
+        subtitle: "Gunakan Komenin sesuai kebijakan platform dan hukum yang berlaku.",
         points: [
           "Wajib mematuhi acceptable use",
           "Tidak ada jaminan kepatuhan platform",
@@ -1049,7 +1049,7 @@ export const messages = {
         },
         {
           q: "Apakah AI bisa membuat postingan dari topik yang saya pilih?",
-          a: "Ya. Di Auto Post Campaign, masukkan topik, tentukan jumlah post, dan atur interval (menit, jam, atau hari). Aether generate draft lewat 9Router AI gateway.",
+          a: "Ya. Di Auto Post Campaign, masukkan topik, tentukan jumlah post, dan atur interval (menit, jam, atau hari). Komenin generate draft lewat 9Router AI gateway.",
         },
         {
           q: "Apakah postingan langsung publish otomatis?",
@@ -1061,7 +1061,7 @@ export const messages = {
         },
         {
           q: "Bagaimana AI terhubung?",
-          a: "Aether mengarahkan generate lewat gateway OpenAI-compatible seperti 9Router. Auth provider (misalnya xAI build auth) tetap di 9Router.",
+          a: "Komenin mengarahkan generate lewat gateway OpenAI-compatible seperti 9Router. Auth provider (misalnya xAI build auth) tetap di 9Router.",
         },
         {
           q: "Apakah aman untuk operasi tim?",
@@ -1094,8 +1094,8 @@ export const messages = {
       aup: "AUP",
     },
     docsUi: {
-      brand: "Dokumentasi Aether",
-      brandShort: "Docs Aether",
+      brand: "Dokumentasi Komenin",
+      brandShort: "Docs Komenin",
       home: "Beranda",
       tutorial: "Tutorial",
       api: "Referensi API",
@@ -1110,9 +1110,9 @@ export const messages = {
       copied: "Disalin",
       needProductUi: "Butuh UI produk?",
       openCommandCenter: "Buka command center",
-      homeTitle: "Dokumentasi Aether",
+      homeTitle: "Dokumentasi Komenin",
       homeSubtitle:
-        "Dua cara memakai Aether: ikuti Tutorial untuk mengelola semuanya dari dashboard, atau gunakan Referensi API untuk membangun integrasi sendiri di sekitar worker, webhook, dan billing.",
+        "Dua cara memakai Komenin: ikuti Tutorial untuk mengelola semuanya dari dashboard, atau gunakan Referensi API untuk membangun integrasi sendiri di sekitar worker, webhook, dan billing.",
       getStarted: "Mulai",
       apiReference: "Referensi API",
       quickStart: "Mulai Cepat",
@@ -1128,7 +1128,7 @@ export const messages = {
         {
           href: "/docs/tutorial/introduction",
           title: "Mulai",
-          body: "Baru di Aether? Pelajari konsep inti dan apa saja yang bisa dikelola dari satu workspace.",
+          body: "Baru di Komenin? Pelajari konsep inti dan apa saja yang bisa dikelola dari satu workspace.",
         },
         {
           href: "/docs/tutorial/connectors",

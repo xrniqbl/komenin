@@ -16,7 +16,7 @@ export type AgentPersonalityInput = {
  * Compose a single system prompt from agent base prompt + characteristics.
  */
 export function buildAgentSystemPrompt(agent: AgentPersonalityInput): string {
-  const name = agent.name?.trim() || "Aether Agent";
+  const name = agent.name?.trim() || "Komenin Agent";
   const base =
     agent.systemPrompt?.trim() ||
     `You are ${name}, an enterprise social operator. Write concise, natural comments. Respect brand safety. Never invent discounts, legal claims, or medical advice.`;

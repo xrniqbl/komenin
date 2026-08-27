@@ -20,7 +20,7 @@ export default async function LoginPage({
     <div className="mx-auto flex min-h-screen max-w-md items-center px-4">
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>Log in to Aether</CardTitle>
+          <CardTitle>Log in to Komenin</CardTitle>
           <CardDescription>Use your Google workspace account to continue.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">

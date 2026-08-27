@@ -36,7 +36,7 @@ function slug(input: string): string {
 
 export function handleMockBridgeRequest(req: MockBridgeRequest): MockBridgeResponse {
   const platform = (req.platform || "instagram").toLowerCase();
-  const headers = { "x-aether-contract": "v1" };
+  const headers = { "x-komenin-contract": "v1" };
 
   switch (req.action) {
     case "discoverPosts": {

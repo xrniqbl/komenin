@@ -59,8 +59,8 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 md:grid-cols-4 md:px-6">
         <div className="flex flex-col gap-4">
           <div className="inline-flex items-center gap-2">
-            <Image src="/brand/aether-mono.svg" alt="Aether" width={24} height={24} />
-            <span className="text-base font-semibold">Aether</span>
+            <Image src="/brand/komenin-mono.svg" alt="Komenin" width={24} height={24} />
+            <span className="text-base font-semibold">Komenin</span>
           </div>
           <p className="max-w-xs text-sm text-muted-foreground">{t.footer.blurb}</p>
         </div>
@@ -99,7 +99,7 @@ export function SiteFooter() {
       </div>
       <Separator />
       <div className="mx-auto flex max-w-6xl items-center px-4 py-6 text-xs text-muted-foreground md:px-6">
-        <span>{`© ${new Date().getFullYear()} Aether`}</span>
+        <span>{`© ${new Date().getFullYear()} Komenin`}</span>
       </div>
     </footer>
   );

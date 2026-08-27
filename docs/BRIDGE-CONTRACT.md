@@ -23,8 +23,8 @@ returns contract-v1 JSON.
 - Method: `POST`
 - Auth: `Authorization: Bearer <SOCIAL_PUBLISH_WEBHOOK_TOKEN>` (required)
 - Content type: `application/json`
-- Action header: `x-aether-action: <action>`
-- Contract header: `x-aether-contract: v1` (required on request; recommended on response)
+- Action header: `x-komenin-action: <action>`
+- Contract header: `x-komenin-contract: v1` (required on request; recommended on response)
 
 ## Actions
 

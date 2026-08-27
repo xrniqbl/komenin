@@ -1,1 +1,1 @@
-export const ACTIVE_WORKSPACE_COOKIE = "aether_active_workspace";
+export const ACTIVE_WORKSPACE_COOKIE = "komenin_active_workspace";

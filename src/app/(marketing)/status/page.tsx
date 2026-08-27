@@ -42,7 +42,7 @@ export default async function StatusPage() {
     <div className="mx-auto max-w-4xl px-6 py-12 sm:py-16">
       <h1 className="text-3xl font-semibold tracking-tight">System status</h1>
       <p className="mt-2 text-muted-foreground">
-        Live operational signals from Aether worker and delivery layer.
+        Live operational signals from Komenin worker and delivery layer.
       </p>
 
       {statusData ? (

@@ -8,8 +8,8 @@
 // List of allowed origins
 // In production, add your actual domain(s) here
 const ALLOWED_ORIGINS = [
-  'https://aether.iniloka.id',
-  'https://app.aether.iniloka.id',
+  'https://komenin.id',
+  'https://app.komenin.id',
   'http://localhost:3000', // Development only
   'http://localhost:3001', // Bridge server dev
 ];

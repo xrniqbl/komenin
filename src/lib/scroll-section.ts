@@ -1,7 +1,7 @@
 ﻿"use client";
 
 const HEADER_OFFSET = 96;
-const STORAGE_KEY = "aether.scrollTo";
+const STORAGE_KEY = "komenin.scrollTo";
 
 export function scrollToSection(
   id: "features" | "pricing" | string,

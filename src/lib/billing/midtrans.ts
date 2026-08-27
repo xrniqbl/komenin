@@ -80,7 +80,7 @@ export async function createMidtransSnapTransaction(input: {
         },
       ],
       customer_details: {
-        first_name: input.customer.name || "Aether",
+        first_name: input.customer.name || "Komenin",
         email: input.customer.email || undefined,
       },
       callbacks: {

@@ -32,7 +32,7 @@ export default function GlobalError({
         }}
       >
         <div style={{ maxWidth: 420, textAlign: "center" }}>
-          <h1 style={{ fontSize: 22, marginBottom: 8 }}>Aether hit an unexpected error</h1>
+          <h1 style={{ fontSize: 22, marginBottom: 8 }}>Komenin hit an unexpected error</h1>
           <p style={{ color: "#9fb0c3", fontSize: 14, lineHeight: 1.5 }}>
             The app could not recover from a root-level failure. Reload the page or sign in again.
           </p>

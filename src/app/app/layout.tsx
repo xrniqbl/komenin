@@ -9,7 +9,7 @@ import { requireActiveWorkspace } from "@/server/workspace-access";
 
 export const metadata: Metadata = buildMetadata({
   title: "Workspace",
-  description: "Aether workspace command center.",
+  description: "Komenin workspace command center.",
   path: "/app",
   noIndex: true,
 });

@@ -59,7 +59,7 @@ async function postWebhook(
       headers: {
         "content-type": "application/json",
         ...(webhook.token ? { authorization: `Bearer ${webhook.token}` } : {}),
-        "x-aether-action": input.action,
+        "x-komenin-action": input.action,
         [BRIDGE_CONTRACT_HEADER]: BRIDGE_CONTRACT_VERSION,
       },
       body: JSON.stringify(body),

@@ -109,13 +109,13 @@ export const docsPages: Record<string, DocsPage> = {
     slug: "introduction",
     title: "Introduction",
     description:
-      "Aether is an enterprise social operations control plane for Instagram, Threads, and TikTok.",
+      "Komenin is an enterprise social operations control plane for Instagram, Threads, and TikTok.",
     sections: [
       {
-        id: "what-is-aether",
-        title: "What is Aether?",
+        id: "what-is-komenin",
+        title: "What is Komenin?",
         body:
-          "Aether is a single workspace for social engagement operations. Instead of jumping between native apps just to review comments, approve drafts, rotate sessions, or publish content, operators manage everything from one control plane with auditability and guardrails.",
+          "Komenin is a single workspace for social engagement operations. Instead of jumping between native apps just to review comments, approve drafts, rotate sessions, or publish content, operators manage everything from one control plane with auditability and guardrails.",
       },
       {
         id: "what-you-can-do",
@@ -140,7 +140,7 @@ export const docsPages: Record<string, DocsPage> = {
       },
       {
         id: "two-ways",
-        title: "Two ways to use Aether",
+        title: "Two ways to use Komenin",
         body:
           "Follow the Tutorial to operate everything from the dashboard, or use the API Reference to trigger workers, receive publish webhooks, and integrate billing notifications into your own stack.",
       },
@@ -508,7 +508,7 @@ curl -X POST http://localhost:3000/api/worker/run ^
         id: "routing",
         title: "Routing model",
         body:
-          "Campaign/Agent -> Aether AI Router -> OpenAI-compatible gateway (e.g. 9Router) -> local rule-based fallback.",
+          "Campaign/Agent -> Komenin AI Router -> OpenAI-compatible gateway (e.g. 9Router) -> local rule-based fallback.",
       },
       {
         id: "env",
@@ -618,7 +618,7 @@ curl -X POST http://localhost:3000/api/worker/run ^
         id: "compliance-stance",
         title: "Compliance stance",
         body:
-          "Aether is positioned as managed social engagement operations with guardrails, not a spam farm or ToS-bypass toolkit.",
+          "Komenin is positioned as managed social engagement operations with guardrails, not a spam farm or ToS-bypass toolkit.",
       },
     ],
   },
@@ -1005,9 +1005,9 @@ curl -X POST http://localhost:3000/api/worker/run ^
     description: "Short answers to the questions operators and integrators ask most.",
     sections: [
       {
-        id: "what-is-aether",
-        title: "What is Aether?",
-        body: "Aether is an enterprise social operations control plane for Instagram, Threads, and TikTok. It centralizes accounts, approvals, automation, AI drafting, billing, and auditability.",
+        id: "what-is-komenin",
+        title: "What is Komenin?",
+        body: "Komenin is an enterprise social operations control plane for Instagram, Threads, and TikTok. It centralizes accounts, approvals, automation, AI drafting, billing, and auditability.",
       },
       {
         id: "simulator-vs-live",
@@ -1027,7 +1027,7 @@ curl -X POST http://localhost:3000/api/worker/run ^
       {
         id: "9router",
         title: "How does 9Router fit in?",
-        body: "Aether can call any OpenAI-compatible gateway. 9Router is the recommended hybrid gateway so provider keys stay outside Aether while generation still has tiered fallback.",
+        body: "Komenin can call any OpenAI-compatible gateway. 9Router is the recommended hybrid gateway so provider keys stay outside Komenin while generation still has tiered fallback.",
       },
       {
         id: "worker-secret",
@@ -1074,7 +1074,7 @@ export const apiPages: Record<string, DocsPage> = {
         id: "auth",
         title: "Authentication",
         body:
-          "Browser session auth protects app routes/server actions. Workspace integrations use aeth_ API keys. Worker and some webhook endpoints use bearer secrets/tokens.",
+          "Browser session auth protects app routes/server actions. Workspace integrations use kmn_ API keys. Worker and some webhook endpoints use bearer secrets/tokens.",
       },
       {
         id: "groups",
@@ -1095,15 +1095,15 @@ export const apiPages: Record<string, DocsPage> = {
     slug: "public-v1",
     title: "Public API v1",
     description:
-      "Workspace-scoped REST endpoints authenticated with aeth_ API keys from Settings → API keys.",
+      "Workspace-scoped REST endpoints authenticated with kmn_ API keys from Settings → API keys.",
     sections: [
       {
         id: "auth",
         title: "Authentication",
         body:
-          "Create a key under /app/settings/api-keys. Send it as x-api-key or Authorization: Bearer aeth_.... Write routes require the public_api_write feature flag (on by default) plus campaigns:write scope.",
+          "Create a key under /app/settings/api-keys. Send it as x-api-key or Authorization: Bearer kmn_.... Write routes require the public_api_write feature flag (on by default) plus campaigns:write scope.",
         code: `curl https://your-app/api/v1/campaigns \\
-  -H "Authorization: Bearer aeth_..."`,
+  -H "Authorization: Bearer kmn_..."`,
       },
       {
         id: "scopes",
@@ -1328,7 +1328,7 @@ export const apiPages: Record<string, DocsPage> = {
       {
         id: "endpoint",
         title: "POST /api/publish/webhook",
-        body: "Accepts publish payloads from Aether live mode. Optional bearer token via SOCIAL_PUBLISH_WEBHOOK_TOKEN.",
+        body: "Accepts publish payloads from Komenin live mode. Optional bearer token via SOCIAL_PUBLISH_WEBHOOK_TOKEN.",
         code: `curl -X POST http://localhost:3000/api/publish/webhook \
   -H "Authorization: Bearer $SOCIAL_PUBLISH_WEBHOOK_TOKEN" \
   -H "Content-Type: application/json" \
@@ -1336,7 +1336,7 @@ export const apiPages: Record<string, DocsPage> = {
     "platform": "instagram",
     "username": "brand",
     "body": "We just shipped a safer approvals flow.",
-    "hashtags": ["aether", "socialops"]
+    "hashtags": ["komenin", "socialops"]
   }'`,
       },
       {

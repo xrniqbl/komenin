@@ -10,7 +10,7 @@ export type BridgeAction =
 
 /** Request/response contract version for the external social bridge. */
 export const BRIDGE_CONTRACT_VERSION = "v1";
-export const BRIDGE_CONTRACT_HEADER = "x-aether-contract";
+export const BRIDGE_CONTRACT_HEADER = "x-komenin-contract";
 
 export type BridgeRawPayload = {
   ok?: unknown;

@@ -87,8 +87,8 @@ export async function POST(request: Request) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "User-Agent": "Aether-Contact/1.0",
-          "x-aether-event": "contact.submitted",
+          "User-Agent": "Komenin-Contact/1.0",
+          "x-komenin-event": "contact.submitted",
         },
         body: JSON.stringify({
           event: "contact.submitted",

@@ -57,9 +57,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <SidebarHeader className="border-b border-sidebar-border">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg" tooltip="Aether Admin" render={<Link href="/admin" />}>
+              <SidebarMenuButton size="lg" tooltip="Komenin Admin" render={<Link href="/admin" />}>
                 <LayoutDashboard className="size-4" />
-                <span className="text-sm font-semibold tracking-tight">Aether Admin</span>
+                <span className="text-sm font-semibold tracking-tight">Komenin Admin</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>

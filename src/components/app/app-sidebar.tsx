@@ -111,12 +111,12 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
-              tooltip="Aether"
+              tooltip="Komenin"
               render={<Link href="/app" />}
               className="data-[slot=sidebar-menu-button]:!px-2"
             >
-              <Image src="/brand/aether-mono.svg" alt="Aether" width={24} height={24} />
-              <span className="text-sm font-semibold tracking-tight">Aether</span>
+              <Image src="/brand/komenin-mono.svg" alt="Komenin" width={24} height={24} />
+              <span className="text-sm font-semibold tracking-tight">Komenin</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

@@ -117,7 +117,7 @@ export async function reportError(error: unknown, context: ErrorContext): Promis
   };
 
   const authHeader =
-    `Sentry sentry_version=7, sentry_client=aether/1.0, ` +
+    `Sentry sentry_version=7, sentry_client=komenin/1.0, ` +
     `sentry_key=${target.publicKey}` +
     (target.secretKey ? `, sentry_secret=${target.secretKey}` : "");
 

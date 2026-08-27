@@ -37,7 +37,7 @@ export default async function NewContentCampaignPage() {
     <div>
       <PageHeader
         title="New auto post campaign"
-        description="Describe a topic. Aether generates N posts and schedules them by interval."
+        description="Describe a topic. Komenin generates N posts and schedules them by interval."
         action={
           <Button variant="link" render={<Link href="/app/content" />} nativeButton={false}>
             Back

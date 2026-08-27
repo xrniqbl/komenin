@@ -48,14 +48,14 @@ export async function testPublishWebhook() {
     forceMode: "live",
     target: {
       platform: "instagram",
-      username: "aether.test",
+      username: "komenin.test",
       accountId: "test-account",
       workspaceId: workspace.id,
     },
     payload: {
-      title: "Aether webhook test",
-      body: "This is a test publish payload from Aether settings.",
-      hashtags: ["aether", "webhook", "test"],
+      title: "Komenin webhook test",
+      body: "This is a test publish payload from Komenin settings.",
+      hashtags: ["komenin", "webhook", "test"],
       scheduledFor: new Date(),
     },
   });

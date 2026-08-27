@@ -1,8 +1,8 @@
-# Aether (Lokarouter)
+# Komenin (Lokarouter)
 
 Social media automation platform for Instagram, Threads, and TikTok —
 discovery, AI comment drafting with approval flows, scheduled publishing,
-leads, and agency multi-client management.
+leads, and agency multi-client management. **Domain: [komenin.id](https://komenin.id)**
 
 **Stack:** Next.js (App Router) · TypeScript · Prisma + PostgreSQL ·
 NextAuth · Midtrans billing · Vitest

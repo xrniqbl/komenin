@@ -47,8 +47,8 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 md:px-6">
         <Link href="/" className="inline-flex items-center gap-2">
-          <Image src="/brand/aether-mono.svg" alt="Aether" width={28} height={28} priority />
-          <span className="text-base font-semibold tracking-tight">Aether</span>
+          <Image src="/brand/komenin-mono.svg" alt="Komenin" width={28} height={28} priority />
+          <span className="text-base font-semibold tracking-tight">Komenin</span>
         </Link>
 
         <nav className="hidden items-center gap-2 md:flex" aria-label="Primary">

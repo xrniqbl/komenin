@@ -5,7 +5,7 @@ import { requireSuperAdmin } from "@/server/admin";
 
 export const metadata: Metadata = buildMetadata({
   title: "Admin",
-  description: "Aether platform control plane.",
+  description: "Komenin platform control plane.",
   path: "/admin",
   noIndex: true,
 });

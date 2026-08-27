@@ -75,7 +75,7 @@ export default function OpenGraphImage() {
             <span>·</span>
             <span>AI drafts</span>
           </div>
-          <div>aether</div>
+          <div>komenin</div>
         </div>
       </div>
     ),

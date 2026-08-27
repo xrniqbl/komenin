@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
-export const SITE_NAME = "Aether";
+export const SITE_NAME = "Komenin";
 export const SITE_TAGLINE = "Enterprise social operations control plane";
 export const SITE_DESCRIPTION =
   "Run Instagram, Threads, and TikTok comments and auto posts with session routing, AI drafts, approval-first controls, and full audit trails.";
 /** Primary contact for Organization schema (public support). */
-export const SITE_SUPPORT_EMAIL = "hello@aether.ops";
+export const SITE_SUPPORT_EMAIL = "halo@komenin.id";
 export const SITE_KEYWORDS = [
   "social media operations",
   "comment automation",
@@ -21,7 +21,8 @@ export const SITE_KEYWORDS = [
   "otomatisasi komentar Instagram",
   "jadwal posting TikTok",
   "agency social ops",
-  "Aether",
+  "Komenin",
+  "komenin.id",
 ] as const;
 
 /** Public marketing/docs routes included in sitemap. */
@@ -112,7 +113,7 @@ export function buildMetadata({
   const url = absoluteUrl(path);
   const imageUrl = image.startsWith("http") ? image : absoluteUrl(image);
   const fullTitle = title === SITE_NAME ? SITE_NAME : title;
-  // Avoid double suffix when root layout uses `title.template = "%s | Aether"`.
+  // Avoid double suffix when root layout uses `title.template = "%s | Komenin"`.
   const titleValue =
     path === "/" || fullTitle.includes(`| ${SITE_NAME}`) || fullTitle.startsWith(`${SITE_NAME} |`)
       ? { absolute: fullTitle }
@@ -195,11 +196,11 @@ export function organizationJsonLd() {
     url: getSiteUrl(),
     logo: {
       "@type": "ImageObject",
-      url: absoluteUrl("/brand/aether-logo-512.png"),
+      url: absoluteUrl("/brand/komenin-logo-512.png"),
       width: 512,
       height: 512,
     },
-    image: absoluteUrl("/brand/aether-logo-512.png"),
+    image: absoluteUrl("/brand/komenin-logo-512.png"),
     description: SITE_DESCRIPTION,
     email: SITE_SUPPORT_EMAIL,
     contactPoint: [
@@ -221,7 +222,7 @@ export function websiteJsonLd() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     name: SITE_NAME,
-    alternateName: ["Aether Social Ops", "Aether Control Plane"],
+    alternateName: ["Komenin Social Ops", "Komenin Control Plane"],
     url: getSiteUrl(),
     description: SITE_DESCRIPTION,
     inLanguage: ["en", "id"],
@@ -230,7 +231,7 @@ export function websiteJsonLd() {
       name: SITE_NAME,
       logo: {
         "@type": "ImageObject",
-        url: absoluteUrl("/brand/aether-logo-512.png"),
+        url: absoluteUrl("/brand/komenin-logo-512.png"),
       },
     },
     potentialAction: {
@@ -344,7 +345,7 @@ export function pricingProductJsonLd(
     offers: plans.map((plan) => ({
       "@type": "Offer",
       name: `${plan.months}-month plan`,
-      sku: `aether-${plan.id}`,
+      sku: `komenin-${plan.id}`,
       price: String(plan.priceTotal),
       priceCurrency: plan.currency || "IDR",
       url: absoluteUrl("/signup"),
@@ -387,113 +388,113 @@ export function breadcrumbJsonLd(items: Array<{ name: string; path: string }>) {
 
 export const PAGE_SEO = {
   home: {
-    title: "Aether | Enterprise Social Operations Control Plane",
+    title: "Komenin — Platform Otomatisasi Komentar & Konten Sosial",
     description: SITE_DESCRIPTION,
     path: "/",
   },
   features: {
-    title: "Features | Aether",
+    title: "Features | Komenin",
     description:
       "Session routing, comment engine, agent intelligence, and skill execution for governed social operations.",
     path: "/features",
   },
   sessionRouting: {
-    title: "Session Routing | Aether Features",
+    title: "Session Routing | Komenin Features",
     description:
       "Proxy pools, anti-detect sessions, and multi-tunnel account grids for Instagram, Threads, and TikTok.",
     path: "/features/session-routing",
   },
   commentEngine: {
-    title: "Comment Engine | Aether Features",
+    title: "Comment Engine | Komenin Features",
     description:
       "Keyword listeners, AI drafts, human-like pacing, and approval queues for controlled engagement.",
     path: "/features/comment-engine",
   },
   agentIntelligence: {
-    title: "Agent Intelligence | Aether Features",
+    title: "Agent Intelligence | Komenin Features",
     description:
       "Personas, guardrails, knowledge retrieval, and memory for accurate social replies at scale.",
     path: "/features/agent-intelligence",
   },
   skillExecution: {
-    title: "Skill Execution | Aether Features",
+    title: "Skill Execution | Komenin Features",
     description:
       "Function calling with intent triggers and transparent chain-of-thought logs for operator trust.",
     path: "/features/skill-execution",
   },
   pricing: {
-    title: "Pricing | Aether",
+    title: "Pricing | Komenin",
     description:
       "Simple 1, 6, and 12 month plans for enterprise social operations. Longer commitments unlock lower monthly rates.",
     path: "/pricing",
   },
   enterprise: {
-    title: "Enterprise | Aether",
+    title: "Enterprise | Komenin",
     description:
       "RBAC, SSO foundations, audit logs, usage controls, and admin tooling for enterprise social ops teams.",
     path: "/enterprise",
   },
   security: {
-    title: "Security | Aether",
+    title: "Security | Komenin",
     description:
       "Encrypted session vaults, approval workflows, rate limits, and immutable audit trails by default.",
     path: "/security",
   },
   about: {
-    title: "About | Aether",
-    description: "Aether is the quiet control plane for enterprise social engagement operations.",
+    title: "About | Komenin",
+    description: "Komenin membantu tim dan agensi mengelola komentar, konten, dan akun sosial dari satu tempat.",
     path: "/about",
   },
   contact: {
-    title: "Contact | Aether",
-    description: "Talk to the Aether team about pilots, enterprise rollout, or product questions.",
+    title: "Contact | Komenin",
+    description: "Talk to the Komenin team about pilots, enterprise rollout, or product questions.",
     path: "/contact",
   },
   status: {
-    title: "System Status | Aether",
-    description: "Live status for the Aether web app, workers, session probes, and delivery services.",
+    title: "System Status | Komenin",
+    description: "Live status for the Komenin web app, workers, session probes, and delivery services.",
     path: "/status",
   },
   docs: {
-    title: "Documentation | Aether",
+    title: "Documentation | Komenin",
     description:
-      "Tutorials and API reference for Aether session routing, campaigns, agents, workers, billing, and security.",
+      "Tutorials and API reference for Komenin session routing, campaigns, agents, workers, billing, and security.",
     path: "/docs",
   },
   docsApi: {
-    title: "API Reference | Aether Docs",
-    description: "Worker, billing, and publish webhook APIs for integrating Aether into your stack.",
+    title: "API Reference | Komenin Docs",
+    description: "Worker, billing, and publish webhook APIs for integrating Komenin into your stack.",
     path: "/docs/api",
   },
   privacy: {
-    title: "Privacy Policy | Aether",
-    description: "How Aether collects, uses, and protects workspace and account data.",
+    title: "Privacy Policy | Komenin",
+    description: "How Komenin collects, uses, and protects workspace and account data.",
     path: "/legal/privacy",
   },
   terms: {
-    title: "Terms of Service | Aether",
-    description: "Terms governing use of the Aether social operations platform.",
+    title: "Terms of Service | Komenin",
+    description: "Terms governing use of the Komenin social operations platform.",
     path: "/legal/terms",
   },
   aup: {
-    title: "Acceptable Use Policy | Aether",
-    description: "Acceptable use rules for automation, publishing, and platform access on Aether.",
+    title: "Acceptable Use Policy | Komenin",
+    description: "Acceptable use rules for automation, publishing, and platform access on Komenin.",
     path: "/legal/aup",
   },
   login: {
-    title: "Log in | Aether",
-    description: "Sign in to your Aether workspace.",
+    title: "Log in | Komenin",
+    description: "Sign in to your Komenin workspace.",
     path: "/login",
   },
   signup: {
-    title: "Start free | Aether",
-    description: "Create an Aether workspace and start approval-first social operations.",
+    title: "Start free | Komenin",
+    description: "Create a Komenin workspace and start approval-first social operations.",
     path: "/signup",
   },
   docsTutorial: {
-    title: "Tutorials | Aether Docs",
+    title: "Tutorials | Komenin Docs",
     description:
-      "Step-by-step Aether tutorials for workspaces, accounts, campaigns, approvals, and workers.",
+      "Step-by-step Komenin tutorials for workspaces, accounts, campaigns, approvals, and workers.",
     path: "/docs/tutorial/introduction",
   },
 } as const;

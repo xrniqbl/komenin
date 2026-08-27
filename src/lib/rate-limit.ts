@@ -112,7 +112,7 @@ async function consumeUpstash(
   input: { key: string; limit: number; windowMs: number },
   config: { url: string; token: string },
 ): Promise<RateLimitResult> {
-  const redisKey = `aether:rl:${input.key}`;
+  const redisKey = `komenin:rl:${input.key}`;
   const count = await upstashCommand(config, ["INCR", redisKey]);
   if (typeof count !== "number") throw new Error("Unexpected Upstash INCR result");
   // Fix the window only on the first hit so the TTL is not reset per request.

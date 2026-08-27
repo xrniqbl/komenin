@@ -53,7 +53,7 @@ export async function exportAuditLogsCsv(limit = 1000) {
   });
 
   return {
-    filename: `aether-audit-${workspace.slug}-${Date.now()}.csv`,
+    filename: `komenin-audit-${workspace.slug}-${Date.now()}.csv`,
     csv: lines.join("\n"),
     count: rows.length,
   };

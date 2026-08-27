@@ -174,7 +174,7 @@ export async function testWebhookEndpoint(id: string) {
 
   const { dispatchExternal } = await import("@/lib/notify/dispatcher");
   const result = await dispatchExternal("account.degraded", workspace.id, {
-    title: `Test notification from Aether`,
+    title: `Test notification from Komenin`,
     body: `This is a test from workspace ${workspace.name} to verify webhook delivery. Endpoint: ${endpoint.name}`,
     href: "/app/settings/webhooks",
   });

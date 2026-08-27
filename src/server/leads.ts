@@ -327,7 +327,7 @@ export async function exportLeadsCsv(input?: {
   ];
 
   return {
-    filename: `aether-leads-${new Date().toISOString().slice(0, 10)}.csv`,
+    filename: `komenin-leads-${new Date().toISOString().slice(0, 10)}.csv`,
     csv: lines.join("\n"),
     count: leads.length,
   };

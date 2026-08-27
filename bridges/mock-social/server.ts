@@ -23,7 +23,7 @@ function send(
   const payload = JSON.stringify(body);
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
-    "x-aether-contract": "v1",
+    "x-komenin-contract": "v1",
     ...(extraHeaders || {}),
   });
   res.end(payload);
@@ -65,7 +65,7 @@ async function main() {
         }
       }
 
-      const actionHeader = req.headers["x-aether-action"];
+      const actionHeader = req.headers["x-komenin-action"];
       if (!json.action && typeof actionHeader === "string") {
         json.action = actionHeader;
       }

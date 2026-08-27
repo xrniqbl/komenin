@@ -18,19 +18,19 @@ export default function manifest(): MetadataRoute.Manifest {
     dir: "ltr",
     icons: [
       {
-        src: "/brand/aether-logo-256.png",
+        src: "/brand/komenin-logo-256.png",
         sizes: "256x256",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/brand/aether-logo-512.png",
+        src: "/brand/komenin-logo-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/brand/aether-logo-512.png",
+        src: "/brand/komenin-logo-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

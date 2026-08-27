@@ -1,8 +1,8 @@
-# Aether / Lokarouter — Documentation
+# Komenin / Lokarouter — Documentation
 
 Social media automation platform (Next.js App Router + Prisma + PostgreSQL).
 Live social actions flow through an external bridge implementing
-[BRIDGE-CONTRACT.md](./BRIDGE-CONTRACT.md).
+[BRIDGE-CONTRACT.md](./BRIDGE-CONTRACT.md). Product domain: **komenin.id**.
 
 ## Start here
 

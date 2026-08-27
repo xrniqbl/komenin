@@ -21,7 +21,7 @@ function extraFieldLines(extra?: Record<string, unknown>): string {
 
 export function formatSlackPayload(event: NotificationEvent, data: NotifyData) {
   return {
-    text: `Aether: ${data.title || event}`,
+    text: `Komenin: ${data.title || event}`,
     blocks: [
       {
         type: "header",
@@ -31,7 +31,7 @@ export function formatSlackPayload(event: NotificationEvent, data: NotifyData) {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `${data.body || ""}${extraFieldLines(data.extra)}\n${data.href ? `<${data.href}|View in Aether>` : ""}`,
+          text: `${data.body || ""}${extraFieldLines(data.extra)}\n${data.href ? `<${data.href}|View in Komenin>` : ""}`,
         },
       },
       {
@@ -88,7 +88,7 @@ export function formatGeneric(event: NotificationEvent, data: NotifyData) {
     workspace: data.workspaceName,
     extra: data.extra,
     timestamp: new Date().toISOString(),
-    source: "aether",
+    source: "komenin",
   };
 }
 

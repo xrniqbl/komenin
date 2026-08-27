@@ -37,7 +37,7 @@ const DEFAULT_SKILLS = [
     triggers: ["harga", "price", "fitur", "feature", "apa itu"],
     configJson: {
       facts: [
-        "Aether is an enterprise social operations control plane.",
+        "Komenin is an enterprise social operations control plane.",
         "Default campaign mode requires human approval.",
         "Hybrid connectors support simulator, webhook, and official APIs.",
       ],
