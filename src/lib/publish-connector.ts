@@ -34,6 +34,34 @@ export type PublishResult = {
   details?: Record<string, unknown>;
 };
 
+/**
+ * Validate a draft mediaUrl: must be an absolute public http(s) URL.
+ * The app never fetches this URL itself (the platform does), so this is a
+ * sanity/format check — it prevents `javascript:`/`data:` garbage and
+ * obviously-local URLs from reaching connector payloads.
+ */
+export function isValidMediaUrl(raw: string | null | undefined): boolean {
+  const value = raw?.trim();
+  if (!value) return true; // optional field
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    const host = url.hostname.toLowerCase();
+    if (
+      host === "localhost" ||
+      host.endsWith(".localhost") ||
+      host === "127.0.0.1" ||
+      host === "::1" ||
+      /^(10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host)
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function getDefaultWebhookConfig(): ConnectorWebhookConfig | null {
   const url = process.env.SOCIAL_PUBLISH_WEBHOOK_URL?.trim();
   if (!url) return null;
@@ -130,6 +158,17 @@ export async function publishSocialPost(input: {
 }): Promise<PublishResult> {
   const mode = input.forceMode || getRuntimeModeLabel();
   const publishedAt = new Date();
+
+  if (!isValidMediaUrl(input.payload.mediaUrl)) {
+    return {
+      ok: false,
+      mode,
+      connector: "none",
+      publishedAt,
+      message: "Invalid media URL: must be a public http(s) URL",
+    };
+  }
+
   const result = await runConnectorAction({
     action: "publishPost",
     runtimeMode: mode,
