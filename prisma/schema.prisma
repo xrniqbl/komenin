@@ -120,6 +120,9 @@ model Workspace {
   jobRuns JobRun[]
   notifications Notification[]
   digestMarkers DigestMarker[]
+  aiSubscription WorkspaceAiSubscription?
+  aiCreditLedger AiCreditLedger[]
+  aiUsageEvents AiUsageEvent[]
   usageCounters UsageCounter[]
   knowledgeDocuments KnowledgeDocument[]
   knowledgeChunks KnowledgeChunk[]
@@ -470,6 +473,75 @@ enum AiProviderKind {
   openai
   anthropic
   openai_compatible
+}
+
+/// Komenin AI subscription tier. `none` = BYOK only / free.
+enum AiTier {
+  none
+  starter
+  pro
+  pro_max
+}
+
+model WorkspaceAiSubscription {
+  id                String   @id @default(cuid())
+  workspaceId       String   @unique
+  tier              AiTier   @default(none)
+  /// Included credits per billing period (1 credit = 1 token).
+  monthlyCredits    BigInt   @default(0)
+  /// active | past_due | canceled
+  status            String   @default("active")
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+}
+
+/// Append-only credit ledger. Positive `credits` = grant, negative = usage.
+/// Balance = SUM(credits) over rows where expiresAt is null or in the future.
+model AiCreditLedger {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  /// grant | subscription_use | payg_use | refund | expire
+  kind         String
+  credits      BigInt
+  balanceAfter BigInt
+  refType      String?
+  refId        String?
+  /// Khusus grant PAYG — null untuk entri langganan/pemakaian.
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, kind, createdAt])
+}
+
+/// Satu baris per AI call (BYOK tercatat dengan creditsUsed=0 untuk analitik).
+model AiUsageEvent {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  /// ID provider workspace (BYOK) atau "komenin:<model>".
+  providerId   String?
+  model        String
+  inputTokens  Int
+  outputTokens Int
+  creditsUsed  BigInt   @default(0)
+  /// own_key | subscription | payg
+  billedTo     String
+  latencyMs    Int?
+  refType      String?
+  refId        String?
+  createdAt    DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
 }
 
 model WorkspaceAiProvider {

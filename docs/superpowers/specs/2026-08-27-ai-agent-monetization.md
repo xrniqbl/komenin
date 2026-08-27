@@ -1,7 +1,7 @@
 # AI Agent Monetization — Design & Implementation Plan
 
 **Date:** 2026-08-27
-**Status:** Draft — awaiting approval
+**Status:** Approved (owner decisions locked 2026-08-27) — implementation in progress
 **Product:** Komenin (komenin.id)
 **Epic:** "Bring your own AI" + "Komenin AI" subscription tiers + Pay-as-you-go credits
 
@@ -21,19 +21,21 @@ Hari ini setiap workspace **harus** membawa API key AI sendiri (BYOK — Bring Y
 
 ## 2. Model Bisnis & Harga (usulan, mudah diubah di catalog.ts)
 
-### 2.1 Tier langganan Komenin AI
+### 2.1 Tier langganan Komenin AI (harga final — owner locked)
 
 | | **AI Starter** | **AI Pro** | **AI Pro Max** |
 |---|---|---|---|
-| Harga/bulan | Rp 99.000 | Rp 299.000 | Rp 899.000 |
+| Harga/bulan | **Rp 50.000** | **Rp 150.000** | **Rp 250.000** |
+| Harga/bulan (langganan 12 bulan, diskon 10%) | Rp 45.000 | Rp 135.000 | Rp 225.000 |
 | **AI credits/bulan** | 1.000.000 | 5.000.000 | 25.000.000 |
 | ≈ komentar AI (±150 tok/komentar) | ±6.600 | ±33.000 | ±166.000 |
-| Model yang diizinkan | Economic (GPT-4o-mini class) | Economic + Standard (GPT-4o class) | Semua termasuk Premium (Claude/GPT-4.5 class) |
-| Fallback saat kuota habis | ❌ stop (atau auto-topup PAYG) | ❌/✅ opsional | ✅ auto lanjut PAYG |
+| Model yang diizinkan | Economic (GPT-4o-mini class) | Economic + Standard (GPT-4o class) | Semua termasuk Premium (daftar model via 9Router disiapkan owner) |
+| Fallback saat kuota habis | ❌ stop | ❌ stop | ✅ auto lanjut PAYG |
 | Priority queue | ❌ | ✅ | ✅ + dedicated rate |
 | Analitik biaya AI | dasar | lengkap | lengkap + export |
 
-> 1 credit = 1 token (input+output, dihitung dari usage API). Harga diset agar margin ~40–60% di atas biaya upstream model.
+> 1 credit = 1 token (input+output, dihitung dari usage API).
+> Struktur SKU: tiap tier punya 2 varian (`_1m` dan `_12m` dengan diskon 10%).
 
 ### 2.2 Pay-as-you-go (kredit prabayar)
 
@@ -223,13 +225,13 @@ Reuse penuh pipeline Midtrans yang ada:
 
 ---
 
-## 7. Pertanyaan untuk owner (sebelum implementasi)
+## 7. Keputusan owner (locked 2026-08-27)
 
-1. **Harga** — angka di §2 masih usulan. OK, atau mau disesuaikan?
-2. **Fallback saat habis** — default: semua tier **stop** (fail-closed), hanya Pro Max auto-lanjut PAYG. Setuju?
-3. **Auto-approve** — v1 tanpa proration, perubahan tier berlaku bulan depan. OK?
-4. **Model premium** — Pro Max pakai model apa saja via gateway 9Router yang sekarang tersedia (grok dsb)? Perlu daftar pasti untuk allowlist.
-5. **Kredit idle hangus 12 bulan** — masuk ToS, OK?
+1. **Harga** — Starter Rp 50.000 / Pro Rp 150.000 / Pro Max Rp 250.000 per bulan; langganan 12 bulan diskon 10%.
+2. **Fallback saat habis** — semua tier berhenti (fail-closed), hanya Pro Max auto-lanjut ke PAYG.
+3. **Tanpa proration v1** — upgrade tier berlaku periode berikutnya.
+4. **Model premium Pro Max** — owner menyiapkan base URL + daftar model 9Router; allowlist dikonfigurasi via env (`KOMENIN_AI_MODELS_PRO_MAX` dst.) sehingga tidak perlu deploy ulang saat daftar berubah.
+5. **Kredit idle hangus 12 bulan** — disetujui, masuk ToS.
 
 ---
 
