@@ -349,9 +349,9 @@ export function pricingProductJsonLd(
       priceCurrency: plan.currency || "IDR",
       url: absoluteUrl("/signup"),
       availability: "https://schema.org/InStock",
-      priceValidUntil: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365)
-        .toISOString()
-        .slice(0, 10),
+      // Fixed far-future date: a build-time Date.now() goes stale and triggers
+      // Search Console warnings once the build ages past it.
+      priceValidUntil: "2099-12-31",
       description: `IDR ${plan.priceMonthly.toLocaleString("id-ID")}/month billed every ${plan.months} month${plan.months > 1 ? "s" : ""}`,
     })),
   };
