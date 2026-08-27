@@ -40,6 +40,7 @@ export type WorkerJobName =
   | "skill.execute"
   | "usage.rollup"
   | "notify.dispatch"
+  | "digest.approvals"
   | "billing.expire"
   | "connector.refresh_tokens"
   | "worker.tick";
@@ -1288,6 +1289,32 @@ async function runUsageRollup(): Promise<WorkerJobResult> {
   };
 }
 
+/**
+ * Daily approval digest emails (Brevo). Once-per-day per workspace via
+ * DigestMarker; no-op when BREVO_API_KEY is unset or before the slot hour.
+ */
+async function runDigestApprovals(): Promise<WorkerJobResult> {
+  try {
+    const { sendDailyApprovalDigest } = await import("@/server/approval-digest");
+    const result = await sendDailyApprovalDigest();
+    return {
+      job: "digest.approvals",
+      ok: true,
+      message: `Digest sent: ${result.sent}, skipped (already sent): ${result.skipped}, errors: ${result.errors}`,
+      count: result.sent,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[digest.approvals] failed", error);
+    return {
+      job: "digest.approvals",
+      ok: false,
+      message: `Digest failed: ${message}`,
+      count: 0,
+    };
+  }
+}
+
 async function runNotifyDispatch(limit = 20): Promise<WorkerJobResult> {
   try {
     const { dispatchForUnreadNotifications } = await import("@/lib/notify/dispatcher");
@@ -1536,6 +1563,9 @@ export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult>
       case "notify.dispatch":
         result = await runNotifyDispatch();
         break;
+      case "digest.approvals":
+        result = await runDigestApprovals();
+        break;
       case "billing.expire":
         result = await runBillingExpire();
         break;
@@ -1620,6 +1650,7 @@ export const WORKER_JOBS: WorkerJobName[] = [
   "skill.execute",
   "usage.rollup",
   "notify.dispatch",
+  "digest.approvals",
   "billing.expire",
   "connector.refresh_tokens",
 ];

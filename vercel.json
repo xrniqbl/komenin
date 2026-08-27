@@ -16,6 +16,10 @@
     {
       "path": "/api/worker/cron?job=connector.refresh_tokens",
       "schedule": "41 * * * *"
+    },
+    {
+      "path": "/api/worker/cron?job=digest.approvals",
+      "schedule": "15 1 * * *"
     }
   ],
   "headers": [

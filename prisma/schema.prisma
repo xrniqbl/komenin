@@ -119,6 +119,7 @@ model Workspace {
   deliveryLogs DeliveryLog[]
   jobRuns JobRun[]
   notifications Notification[]
+  digestMarkers DigestMarker[]
   usageCounters UsageCounter[]
   knowledgeDocuments KnowledgeDocument[]
   knowledgeChunks KnowledgeChunk[]
@@ -885,6 +886,21 @@ model Notification {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, status, createdAt(sort: Desc)])
+}
+
+/// Once-per-day sent marker for digest emails (approval digest etc.).
+model DigestMarker {
+  id          String   @id @default(cuid())
+  workspaceId String
+  /// UTC day key: YYYY-MM-DD
+  dayKey      String
+  kind        String   @default("approval_digest")
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, dayKey])
+  @@index([workspaceId, dayKey])
 }
 
 model UsageCounter {
