@@ -20,9 +20,19 @@ type Plan = {
   monthlyPublishLimit: number;
 };
 
-export function CheckoutClient({ plans }: { plans: Plan[] }) {
+export function CheckoutClient({
+  plans,
+  initialPlanCode,
+}: {
+  plans: Plan[];
+  initialPlanCode?: string | null;
+}) {
   const router = useRouter();
-  const [planCode, setPlanCode] = useState(plans[0]?.code || "");
+  const [planCode, setPlanCode] = useState(
+    initialPlanCode && plans.some((p) => p.code === initialPlanCode)
+      ? initialPlanCode
+      : plans[0]?.code || "",
+  );
   const [voucherCode, setVoucherCode] = useState("");
   const [discountIdr, setDiscountIdr] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
