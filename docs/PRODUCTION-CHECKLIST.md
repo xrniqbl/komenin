@@ -96,6 +96,45 @@ Checklist:
 
 Without `MIDTRANS_SERVER_KEY`, checkout returns `isSimulation: true` (not live money).
 
+## 4b. Komenin AI monetization (BYOK + tiers + PAYG)
+
+New schema from this epic must be deployed before the feature works:
+
+```bash
+npm run db:migrate:deploy
+```
+
+Migrations added by this work (must apply cleanly):
+
+- `20260827120000_ai_monetization_hardening` (PlanKind, WorkspaceAiSubscription term/quota split, AiCreditLedger operationId, AiUsageEvent requestId)
+- `20260902100000_ai_balance_cache` (WorkspaceAiBalance)
+- `20260902110000_ai_payg_fallback_toggle` (Workspace.aiPaygFallbackEnabled)
+
+Required / recommended env (see `.env.example`):
+
+| Var | Purpose | Required? |
+|---|---|---|
+| `AI_RATE_LIMIT_PER_MIN` | Per-workspace AI rate limit (clamped [1,600], default 60) | recommended |
+| `KOMENIN_AI_MODELS_STARTER` / `_PRO` / `_PRO_MAX` | Server-side model allowlist per tier | recommended (defaults exist) |
+| `AI_MODEL_COST_IDR` | Upstream cost per credit per model (JSON) — drives admin margin | **yes for accurate margin** |
+| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | Durable rate limiting | **yes in prod** (else per-instance memory) |
+| `AI_GATEWAY_BASE_URL` / `AI_GATEWAY_API_KEY` | Komenin-funded gateway (key never leaves server) | yes for non-BYOK |
+
+Checklist:
+
+- [ ] All three AI migrations applied; `npm run db:migrate:status` clean
+- [ ] `ensureBillingCatalog()` seeds 9 AI SKUs (6 subscription + 3 PAYG) on first visit
+- [ ] Midtrans paid order on an `ai_subscription` SKU activates a `WorkspaceAiSubscription` with a monthly quota window inside the term
+- [ ] Paid order on an `ai_credits` SKU grants PAYG credits (12-month expiry) idempotently
+- [ ] Refund/chargeback reverses AI entitlement + unspent PAYG portion
+- [ ] Komenin-funded call enforces the tier model allowlist server-side
+- [ ] Quota exhausted → comment/content pipelines fail closed (post `failed` / campaign `paused`) and notify once/day
+- [ ] Pro Max auto-continues to PAYG; toggle in Settings → AI disables it
+- [ ] `ai.quota_notify` (80%/100%) and `ai.expire` (quota roll + PAYG expiry) jobs scheduled (in `vercel.json` / orchestrator)
+- [ ] Settings → AI shows tier, quota meter, PAYG balance, BYOK + fallback toggles, checkout grid
+- [ ] Analytics shows the AI usage card; `/admin/ai` shows revenue/usage/margin with `AI_MODEL_COST_IDR` set
+- [ ] `UPSTASH_REDIS_REST_*` set so the AI rate limit is durable across instances
+
 ## 5. Social connectors (live)
 
 ```env

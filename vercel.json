@@ -20,6 +20,14 @@
     {
       "path": "/api/worker/cron?job=digest.approvals",
       "schedule": "15 1 * * *"
+    },
+    {
+      "path": "/api/worker/cron?job=ai.quota_notify",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/worker/cron?job=ai.expire",
+      "schedule": "23 * * * *"
     }
   ],
   "headers": [
