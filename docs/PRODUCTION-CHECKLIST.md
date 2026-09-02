@@ -2,6 +2,19 @@
 
 Use this before promoting a deploy out of simulator / foundation mode.
 
+## 0. Automated pre-flight
+
+Run the env checker first — it fails (exit 1) on any missing/invalid required
+variable so a dev-config deploy never reaches users. It reads `.env.local`/`.env`
+locally and the platform env in CI (platform env always wins; secrets are never printed).
+
+```bash
+npm run preflight          # required vars
+npm run preflight:strict   # + recommended (Upstash, AI_MODEL_COST_IDR)
+```
+
+A green `PASS` is required before continuing.
+
 ## 1. Runtime hard gates
 
 These fail closed via `evaluateProductionGate()` when `NODE_ENV=production`

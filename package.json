@@ -18,6 +18,8 @@
     "db:migrate:status": "prisma migrate status",
     "db:migrate:baseline": "node scripts/generate-prisma-baseline.mjs",
     "db:studio": "prisma studio",
+    "preflight": "node scripts/preflight-deploy.mjs",
+    "preflight:strict": "node scripts/preflight-deploy.mjs --strict",
     "pack:deploy": "node scripts/pack-deploy.mjs",
     "worker": "tsx src/workers/social-bridge.worker.ts",
     "worker:dev": "tsx watch src/workers/social-bridge.worker.ts",
