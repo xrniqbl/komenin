@@ -11,6 +11,14 @@ export class AiQuotaExceededError extends Error {
   }
 }
 
+/** Error thrown when a requested model is not allowed for the workspace tier. */
+export class AiModelNotAllowedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AiModelNotAllowedError";
+  }
+}
+
 async function completeWithProvider(input: {
   provider: AiProviderConfig;
   model: string;
@@ -33,39 +41,44 @@ function estimateTokens(messages: AiChatRequest["messages"]): number {
   return Math.ceil(chars / 4);
 }
 
+import type { AiTier } from "@prisma/client";
+
+/**
+ * Resolve the funding source for a workspace AI call once, up front, so the
+ * router can both fail-closed on quota and enforce the tier's model allowlist
+ * before any provider attempt. Returns the source and tier.
+ */
+export async function resolveRouteFunding(
+  request: AiChatRequest & { workspaceId?: string | null },
+): Promise<{ source: "own_key" | "subscription" | "payg"; tier: AiTier }> {
+  const workspaceId = request.workspaceId ?? null;
+  if (!workspaceId) {
+    return { source: "own_key", tier: "none" };
+  }
+  const { resolveAiBilling } = await import("@/lib/ai/billing");
+  const billing = await resolveAiBilling({
+    workspaceId,
+    hasOwnProvider: Boolean(
+      request.providers?.length &&
+        request.providers !== undefined &&
+        request.providers.some((p) => p.id && !p.id.startsWith("env-")),
+    ),
+  });
+  if (!billing.ok) {
+    throw new AiQuotaExceededError(billing.message);
+  }
+  return { source: billing.source, tier: billing.tier };
+}
+
 async function meterAndComplete(input: {
   request: AiChatRequest & { workspaceId?: string | null };
   provider: AiProviderConfig;
   model: string;
+  funding: { source: "own_key" | "subscription" | "payg"; tier: AiTier };
 }): Promise<string> {
-  const { request, provider, model } = input;
+  const { request, provider, model, funding } = input;
   const workspaceId = request.workspaceId ?? null;
-
-  // Resolve the funding source up front (fail-closed before the call).
-  // Workspaces without workspaceId (env-bootstraped callers) skip metering.
-  let source: "own_key" | "subscription" | "payg" = "own_key";
-  if (workspaceId) {
-    const { resolveAiBilling } = await import("@/lib/ai/billing");
-    // preferOwnKey is resolved from the persisted Workspace.aiPreferOwnKey
-    // flag inside resolveAiBilling (router no longer hardcodes it).
-    const billing = await resolveAiBilling({
-      workspaceId,
-      hasOwnProvider: Boolean(
-        request.providers?.length && request.providers !== undefined &&
-        request.providers.some((p) => p.id && !p.id.startsWith("env-")),
-      ),
-    });
-    if (!billing.ok) {
-      throw new AiQuotaExceededError(billing.message);
-    }
-    source = billing.source;
-    if (billing.source !== "own_key") {
-      // Komenin-funded calls route through the gateway provider, not the
-      // workspace's own providers — the caller passes them via request.
-      // Nothing to swap here: callers set `providers` to the gateway config
-      // when they intend Komenin AI. We only record the source.
-    }
-  }
+  const source = funding.source;
 
   const startedAt = Date.now();
   const content = await completeWithProvider({
@@ -148,6 +161,14 @@ export async function routeChatCompletion(
 
   const attempts: AiChatResult["attempts"] = [];
 
+  // Resolve funding once (fail-closed on quota) and learn the tier so we can
+  // enforce the server-side model allowlist for Komenin-funded calls.
+  const funding = await resolveRouteFunding(request);
+  const enforceAllowlist = funding.source !== "own_key";
+  const { isModelAllowedForTier, allowedModelsForTier } = await import(
+    "@/lib/ai/models"
+  );
+
   for (const provider of orderedProviders) {
     const models = modelAttemptsForProvider(
       provider,
@@ -155,6 +176,24 @@ export async function routeChatCompletion(
       request.fallbackModels,
     );
     for (const model of models) {
+      // Server-side tier allowlist for Komenin-funded calls. BYOK (own key)
+      // is unrestricted — the workspace pays its own provider bill.
+      if (enforceAllowlist && !isModelAllowedForTier(funding.tier, model)) {
+        attempts.push({
+          providerId: provider.id,
+          model,
+          ok: false,
+          error: `Model "${model}" tidak termasuk tier ${funding.tier}. Diizinkan: ${(allowedModelsForTier(funding.tier) ?? []).join(", ")}`,
+        });
+        // If the caller explicitly pinned this model, fail fast with a clear
+        // error rather than silently falling back to a cheaper one.
+        if (request.preferredModel === model) {
+          throw new AiModelNotAllowedError(
+            `Model "${model}" tidak tersedia untuk tier ${funding.tier}. Upgrade tier atau pilih model yang diizinkan.`,
+          );
+        }
+        continue;
+      }
       // Skip preferred model if this provider does not list it, unless it was explicitly preferred.
       if (
         request.preferredModel &&
@@ -170,6 +209,7 @@ export async function routeChatCompletion(
           request: { ...request, providers },
           provider,
           model,
+          funding,
         });
         attempts.push({ providerId: provider.id, model, ok: true });
         return {
@@ -180,8 +220,11 @@ export async function routeChatCompletion(
           attempts,
         };
       } catch (error) {
-        // Quota failures are terminal — do not burn attempts on other providers.
-        if (error instanceof AiQuotaExceededError) {
+        // Quota / allowlist failures are terminal — do not burn attempts.
+        if (
+          error instanceof AiQuotaExceededError ||
+          error instanceof AiModelNotAllowedError
+        ) {
           throw error;
         }
         attempts.push({
