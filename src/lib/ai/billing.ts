@@ -494,3 +494,151 @@ function isUniqueViolation(error: unknown): boolean {
     (error as { code?: string }).code === "P2002"
   );
 }
+
+// ---------------------------------------------------------------------------
+// Worker helpers (threshold notifications + expiry/renewal job).
+// ---------------------------------------------------------------------------
+
+/** Active AI subscriptions with their current-period usage ratio, for the
+ * 80%/100% threshold notifier. */
+export async function listAiQuotaStatuses(): Promise<
+  Array<{
+    workspaceId: string;
+    tier: AiTier;
+    monthlyCredits: bigint;
+    usedThisPeriod: bigint;
+    quotaPeriodEnd: Date;
+    usagePct: number; // 0..100+
+  }>
+> {
+  const now = new Date();
+  const subs = await db.workspaceAiSubscription.findMany({
+    where: { status: "active", termEnd: { gt: now }, tier: { not: "none" } },
+    select: {
+      workspaceId: true,
+      tier: true,
+      monthlyCredits: true,
+      quotaPeriodStart: true,
+      quotaPeriodEnd: true,
+    },
+  });
+
+  const out = [];
+  for (const sub of subs) {
+    if (sub.monthlyCredits <= 0n) continue;
+    const used = await subscriptionUsed(db, sub.workspaceId, sub.quotaPeriodStart);
+    const usagePct = Number((used * 100n) / sub.monthlyCredits);
+    out.push({
+      workspaceId: sub.workspaceId,
+      tier: sub.tier,
+      monthlyCredits: sub.monthlyCredits,
+      usedThisPeriod: used,
+      quotaPeriodEnd: sub.quotaPeriodEnd,
+      usagePct,
+    });
+  }
+  return out;
+}
+
+/**
+ * Advance the monthly quota window for active subscriptions whose
+ * quotaPeriodEnd passed (renews credits inside the commitment term), expire
+ * subscriptions whose termEnd passed, and materialize PAYG grant expiry as
+ * explicit `expire` ledger rows. All effects are idempotent.
+ */
+export async function runAiExpiryAndRenewal(now = new Date()): Promise<{
+  quotaRenewed: number;
+  subExpired: number;
+  paygExpired: number;
+}> {
+  let quotaRenewed = 0;
+  let subExpired = 0;
+  let paygExpired = 0;
+
+  // 1) Expire subscriptions whose paid term ended.
+  const termDue = await db.workspaceAiSubscription.findMany({
+    where: { status: "active", termEnd: { lte: now } },
+    select: { id: true },
+  });
+  for (const sub of termDue) {
+    const claim = await db.workspaceAiSubscription.updateMany({
+      where: { id: sub.id, status: "active", termEnd: { lte: now } },
+      data: { status: "expired" },
+    });
+    if (claim.count > 0) subExpired += 1;
+  }
+
+  // 2) Roll the monthly quota window for still-active subscriptions.
+  const rollDue = await db.workspaceAiSubscription.findMany({
+    where: { status: "active", termEnd: { gt: now }, quotaPeriodEnd: { lte: now } },
+  });
+  for (const sub of rollDue) {
+    // Advance month-by-month until the window contains `now`, capped at termEnd.
+    let start = sub.quotaPeriodStart;
+    let end = sub.quotaPeriodEnd;
+    let guard = 0;
+    while (end <= now && guard < 24) {
+      start = end;
+      end = addMonths(start, 1);
+      guard += 1;
+    }
+    const update: Record<string, unknown> = {
+      quotaPeriodStart: start,
+      quotaPeriodEnd: end,
+    };
+    // Apply a queued tier change at the boundary (no proration v1).
+    if (sub.pendingTier && sub.pendingMonthlyCredits != null) {
+      update.tier = sub.pendingTier;
+      update.monthlyCredits = sub.pendingMonthlyCredits;
+      update.pendingTier = null;
+      update.pendingMonthlyCredits = null;
+      update.pendingPlanCode = null;
+    }
+    const claim = await db.workspaceAiSubscription.updateMany({
+      where: { id: sub.id, quotaPeriodEnd: { lte: now } },
+      data: update,
+    });
+    if (claim.count > 0) quotaRenewed += 1;
+  }
+
+  // 3) Materialize expired PAYG grants (credits idle past expiresAt).
+  const expiredGrants = await db.aiCreditLedger.findMany({
+    where: { kind: "grant", expiresAt: { lte: now } },
+    select: { id: true, workspaceId: true, credits: true, createdAt: true, expiresAt: true },
+    take: 200,
+  });
+  for (const grant of expiredGrants) {
+    const expireOpId = `expire:${grant.id}`;
+    const existing = await db.aiCreditLedger.findUnique({
+      where: { operationId: expireOpId },
+      select: { id: true },
+    });
+    if (existing) continue;
+
+    // Only claw back the still-unspent portion of this grant.
+    const spentAfter = await db.aiCreditLedger.aggregate({
+      where: {
+        workspaceId: grant.workspaceId,
+        kind: "payg_use",
+        createdAt: { gt: grant.createdAt },
+      },
+      _sum: { credits: true },
+    });
+    const spent = -(spentAfter._sum.credits ?? 0n);
+    const unspent = grant.credits - spent > 0n ? grant.credits - spent : 0n;
+
+    await db.aiCreditLedger.create({
+      data: {
+        workspaceId: grant.workspaceId,
+        operationId: expireOpId,
+        kind: "expire",
+        credits: -unspent,
+        refType: "grant",
+        refId: grant.id,
+      },
+    });
+    paygExpired += 1;
+  }
+
+  return { quotaRenewed, subExpired, paygExpired };
+}

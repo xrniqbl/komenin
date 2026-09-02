@@ -42,6 +42,8 @@ export type WorkerJobName =
   | "notify.dispatch"
   | "digest.approvals"
   | "billing.expire"
+  | "ai.quota_notify"
+  | "ai.expire"
   | "connector.refresh_tokens"
   | "worker.tick";
 
@@ -1494,6 +1496,88 @@ async function runConnectorRefreshTokens(limit = 20): Promise<WorkerJobResult> {
   };
 }
 
+/**
+ * Notify workspaces crossing AI credit thresholds. 80% and 100% each fire at
+ * most once per quota period (deduped via a stable marker in the body).
+ */
+async function runAiQuotaNotify(): Promise<WorkerJobResult> {
+  const { listAiQuotaStatuses } = await import("@/lib/ai/billing");
+  const statuses = await listAiQuotaStatuses();
+
+  let notified = 0;
+  for (const s of statuses) {
+    const thresholds: Array<{ pct: number; hit: boolean }> = [
+      { pct: 100, hit: s.usagePct >= 100 },
+      { pct: 80, hit: s.usagePct >= 80 && s.usagePct < 100 },
+    ];
+    for (const t of thresholds) {
+      if (!t.hit) continue;
+      // Stable dedup marker per quota period + threshold.
+      const marker = `ai-quota-${t.pct}:${s.quotaPeriodEnd.toISOString().slice(0, 10)}`;
+      const exists = await db.notification.findFirst({
+        where: { workspaceId: s.workspaceId, body: { contains: marker } },
+        select: { id: true },
+      });
+      if (exists) break; // already alerted at this (or a higher) threshold
+
+      const usedStr = new Intl.NumberFormat("id-ID").format(Number(s.usedThisPeriod));
+      const quotaStr = new Intl.NumberFormat("id-ID").format(Number(s.monthlyCredits));
+      const exhausted = t.pct >= 100;
+      await db.notification.create({
+        data: {
+          workspaceId: s.workspaceId,
+          title: exhausted
+            ? "Kredit AI bulan ini habis"
+            : `Kredit AI ${s.usagePct}% terpakai`,
+          body: exhausted
+            ? `Kuota Komenin AI (${quotaStr} kredit) sudah habis. ${s.tier === "pro_max" ? "Panggilan berikutnya memakai saldo pay-as-you-go." : "Upgrade tier atau beli kredit pay-as-you-go untuk melanjutkan."} [${marker}]`
+            : `Anda sudah memakai ${usedStr} / ${quotaStr} kredit AI bulan ini (${s.usagePct}%). [${marker}]`,
+          href: "/app/settings/ai",
+        },
+      });
+      try {
+        const { dispatchExternal } = await import("@/lib/notify/dispatcher");
+        await dispatchExternal(
+          exhausted ? "ai.quota_exhausted" : "ai.quota_warning",
+          s.workspaceId,
+          {
+            title: exhausted ? "Kredit AI bulan ini habis" : `Kredit AI ${s.usagePct}% terpakai`,
+            body: `Terpakai ${usedStr} / ${quotaStr} kredit (${s.usagePct}%).`,
+            href: "/app/settings/ai",
+          },
+        );
+      } catch {
+        // non-fatal
+      }
+      notified += 1;
+      break; // one notification per run per workspace
+    }
+  }
+
+  return {
+    job: "ai.quota_notify",
+    ok: true,
+    message: `AI quota notifications sent: ${notified}`,
+    count: notified,
+  };
+}
+
+/**
+ * Roll monthly AI quota windows, expire ended subscription terms, and
+ * materialize PAYG grant expiry. Idempotent via per-row claims + operationId.
+ */
+async function runAiExpire(): Promise<WorkerJobResult> {
+  const { runAiExpiryAndRenewal } = await import("@/lib/ai/billing");
+  const result = await runAiExpiryAndRenewal();
+  return {
+    job: "ai.expire",
+    ok: true,
+    message: `AI expiry: ${result.quotaRenewed} quota rolled, ${result.subExpired} subs expired, ${result.paygExpired} PAYG grants expired`,
+    count: result.quotaRenewed + result.subExpired + result.paygExpired,
+    details: result,
+  };
+}
+
 export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult> {
   // Re-entrancy guard: cron invocations can overlap (5-minute schedule vs
   // 60s function timeout), so skip the job if a run is already in flight.
@@ -1569,6 +1653,12 @@ export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult>
       case "billing.expire":
         result = await runBillingExpire();
         break;
+      case "ai.quota_notify":
+        result = await runAiQuotaNotify();
+        break;
+      case "ai.expire":
+        result = await runAiExpire();
+        break;
       case "connector.refresh_tokens":
         result = await runConnectorRefreshTokens();
         break;
@@ -1589,6 +1679,8 @@ export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult>
           runUsageRollup(),
           runNotifyDispatch(),
           runBillingExpire(),
+          runAiQuotaNotify(),
+          runAiExpire(),
           runConnectorRefreshTokens(),
         ]);
         const results = settled.map((s) =>
@@ -1652,6 +1744,8 @@ export const WORKER_JOBS: WorkerJobName[] = [
   "notify.dispatch",
   "digest.approvals",
   "billing.expire",
+  "ai.quota_notify",
+  "ai.expire",
   "connector.refresh_tokens",
 ];
 
