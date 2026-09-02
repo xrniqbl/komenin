@@ -69,20 +69,32 @@ async function applyPaygBalanceDelta(
   });
 }
 
-/** Sum of PAYG ledger credits still valid (grants not expired), minus open reservations. */
+/**
+ * Sum of PAYG ledger credits still valid (grants not expired), minus open
+ * PAYG reservations. Bucket-scoped: only rows whose `source` is 'payg' (or
+ * NULL for grant/refund/expire, which are PAYG-only kinds) are summed, so a
+ * subscription reservation never reduces the PAYG balance.
+ */
 async function paygBalance(tx: DbLike, workspaceId: string): Promise<bigint> {
   const rows = await tx.aiCreditLedger.aggregate({
     where: {
       workspaceId,
       kind: { in: ["grant", "payg_use", "refund", "expire", "reservation", "reservation_release"] },
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      // grant/refund/expire have source NULL (PAYG-only); reservation/use rows
+      // carry their bucket explicitly.
+      OR: [{ source: null }, { source: "payg" }],
+      AND: { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
     },
     _sum: { credits: true },
   });
   return rows._sum.credits ?? 0n;
 }
 
-/** Credits consumed from the subscription quota this period, plus open reservations. */
+/**
+ * Credits consumed from the subscription quota this period, plus open
+ * SUBSCRIPTION reservations. Bucket-scoped so a PAYG reservation (e.g. after
+ * Pro Max falls back) never inflates subscription usage.
+ */
 async function subscriptionUsed(
   tx: DbLike,
   workspaceId: string,
@@ -92,6 +104,7 @@ async function subscriptionUsed(
     where: {
       workspaceId,
       kind: { in: ["subscription_use", "reservation", "reservation_release"] },
+      source: "subscription",
       createdAt: { gte: quotaPeriodStart },
     },
     _sum: { credits: true },
@@ -230,6 +243,7 @@ export async function reserveAiCredits(input: {
         workspaceId: input.workspaceId,
         operationId,
         kind: "reservation",
+        source: input.source,
         credits: -input.amount,
         refType: input.refType ?? null,
         refId: input.refId ?? null,
@@ -249,7 +263,7 @@ export async function releaseAiReservation(input: {
   await db.$transaction(async (tx) => {
     const reservation = await tx.aiCreditLedger.findUnique({
       where: { operationId: reservationId },
-      select: { credits: true },
+      select: { credits: true, source: true },
     });
     if (!reservation) return; // nothing to release
     const already = await tx.aiCreditLedger.findUnique({
@@ -262,6 +276,7 @@ export async function releaseAiReservation(input: {
         workspaceId: input.workspaceId,
         operationId: releaseId,
         kind: "reservation_release",
+        source: reservation.source,
         credits: -reservation.credits, // add back the reserved (negative) amount
       },
     });
@@ -344,7 +359,7 @@ export async function recordAiUsage(input: {
     // actual charge; any over-reserved amount returns to the balance.
     const reservation = await tx.aiCreditLedger.findUnique({
       where: { operationId: `rsv:${requestId}` },
-      select: { credits: true },
+      select: { credits: true, source: true },
     });
     if (reservation) {
       const released = await tx.aiCreditLedger.findUnique({
@@ -357,6 +372,7 @@ export async function recordAiUsage(input: {
             workspaceId: input.workspaceId,
             operationId: `rls:${requestId}`,
             kind: "reservation_release",
+            source: reservation.source,
             credits: -reservation.credits,
           },
         });
@@ -369,6 +385,7 @@ export async function recordAiUsage(input: {
         workspaceId: input.workspaceId,
         operationId: `use:${requestId}`,
         kind,
+        source: input.source,
         credits: -credits,
         refType: input.refType ?? null,
         refId: input.refId ?? null,

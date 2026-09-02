@@ -550,6 +550,11 @@ model AiCreditLedger {
   kind         AiLedgerKind
   credits      BigInt
   balanceAfter BigInt?
+  /// Funding bucket for reservation/usage rows (subscription quota vs PAYG
+  /// balance). NULL on grant/refund/expire rows (PAYG-only) and legacy rows.
+  /// Without this, a reservation against one bucket would incorrectly reduce
+  /// the OTHER bucket's computed balance (double-count on Pro Max fallback).
+  source       AiBillingSource?
   refType      String?
   refId        String?
   sourceOrderId String?

@@ -244,6 +244,22 @@ export async function routeChatCompletion(
     "@/lib/ai/models"
   );
 
+  // Release a still-open reservation exactly once when the call ends without a
+  // recorded completion (model pinned-but-disallowed, or every attempt failed)
+  // so the workspace isn't charged for a completion it never received.
+  const releaseIfUndebited = async () => {
+    if (settlement.debited || !request.workspaceId || funding.source === "own_key") return;
+    try {
+      const { releaseAiReservation } = await import("@/lib/ai/billing");
+      await releaseAiReservation({
+        workspaceId: request.workspaceId,
+        requestId: funding.requestId,
+      });
+    } catch {
+      // best-effort
+    }
+  };
+
   for (const provider of orderedProviders) {
     const models = modelAttemptsForProvider(
       provider,
@@ -263,6 +279,7 @@ export async function routeChatCompletion(
         // If the caller explicitly pinned this model, fail fast with a clear
         // error rather than silently falling back to a cheaper one.
         if (request.preferredModel === model) {
+          await releaseIfUndebited();
           throw new AiModelNotAllowedError(
             `Model "${model}" tidak tersedia untuk tier ${funding.tier}. Upgrade tier atau pilih model yang diizinkan.`,
           );
@@ -315,17 +332,7 @@ export async function routeChatCompletion(
 
   // Every attempt failed and nothing was recorded — release the reservation so
   // the estimate returns to the workspace balance (no charge for no completion).
-  if (!settlement.debited && request.workspaceId && funding.source !== "own_key") {
-    try {
-      const { releaseAiReservation } = await import("@/lib/ai/billing");
-      await releaseAiReservation({
-        workspaceId: request.workspaceId,
-        requestId: funding.requestId,
-      });
-    } catch {
-      // best-effort
-    }
-  }
+  await releaseIfUndebited();
 
   return {
     content: "",

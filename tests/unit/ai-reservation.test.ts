@@ -71,6 +71,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mock.__ledgerFindUnique.mockResolvedValue(null);
   mock.__usageFindUnique.mockResolvedValue(null);
+  mock.__subFindUnique.mockResolvedValue(null);
   mock.__ledgerAggregate.mockResolvedValue({ _sum: { credits: null } });
 });
 
@@ -121,6 +122,64 @@ describe("reserveAiCredits", () => {
     expect(opId).toBe("rsv:req_3");
     expect(mock.__ledgerCreate).not.toHaveBeenCalled();
     expect(mock.__ledgerAggregate).not.toHaveBeenCalled(); // never re-checked balance
+  });
+
+  it("writes the funding bucket (source) on the reservation row", async () => {
+    // subscription path: currentSourceBalance reads sub + subscriptionUsed aggregate
+    mock.__subFindUnique.mockResolvedValueOnce({
+      monthlyCredits: 1_000_000n,
+      quotaPeriodStart: new Date("2026-09-01T00:00:00Z"),
+    });
+    mock.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: -100n } }); // used=100
+    await reserveAiCredits({
+      workspaceId: "ws_1",
+      source: "subscription",
+      amount: 1000n,
+      requestId: "req_sub",
+    });
+    const row = mock.__ledgerCreate.mock.calls[0][0];
+    expect(row.data.source).toBe("subscription");
+  });
+});
+
+describe("bucket scoping (double-count regression)", () => {
+  it("payg balance sum excludes subscription-bucket reservations", async () => {
+    // The aggregate for a PAYG reservation must filter to source payg-or-null
+    // so a subscription reservation can't reduce the PAYG balance. We assert
+    // the query shape that currentSourceBalance → paygBalance issues.
+    // (PAYG path never reads the subscription row — no need to mock it, and
+    // mocking it would leak a stale Once into the next test.)
+    mock.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: 1_000n } });
+
+    await reserveAiCredits({
+      workspaceId: "ws_1",
+      source: "payg",
+      amount: 100n,
+      requestId: "req_scope",
+    });
+
+    const arg = mock.__ledgerAggregate.mock.calls[0][0];
+    // bucket filter present: source is null (grants) OR payg
+    expect(JSON.stringify(arg.where)).toContain('"payg"');
+    expect(arg.where.OR).toEqual([{ source: null }, { source: "payg" }]);
+  });
+
+  it("subscription usage sum is scoped to source=subscription", async () => {
+    mock.__subFindUnique.mockResolvedValueOnce({
+      monthlyCredits: 1_000_000n,
+      quotaPeriodStart: new Date("2026-09-01T00:00:00Z"),
+    });
+    mock.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: -100n } });
+
+    await reserveAiCredits({
+      workspaceId: "ws_1",
+      source: "subscription",
+      amount: 100n,
+      requestId: "req_scope2",
+    });
+
+    const arg = mock.__ledgerAggregate.mock.calls[0][0];
+    expect(arg.where.source).toBe("subscription");
   });
 });
 
