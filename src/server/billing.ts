@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import { randomBytes } from "node:crypto";
 import { assertWorkspacePermission } from "@/lib/rbac";
 import {
-  DEFAULT_PLANS,
+  ALL_PLANS,
   addMonths,
   computeVoucherDiscount,
   formatIdr,
@@ -29,16 +29,20 @@ function appUrl() {
 }
 
 export async function ensureBillingCatalog() {
-  for (const plan of DEFAULT_PLANS) {
+  // Seed social + Komenin AI SKUs (subscriptions and PAYG credit packs) so
+  // checkout can fulfill each by its persisted `kind`.
+  for (const plan of ALL_PLANS) {
     await db.plan.upsert({
       where: { code: plan.code },
       create: {
         code: plan.code,
         name: plan.name,
         description: plan.description,
+        kind: plan.kind,
         interval: plan.interval,
         durationMonths: plan.durationMonths,
         priceIdr: plan.priceIdr,
+        aiCredits: plan.aiCredits ?? null,
         monthlySendLimit: plan.monthlySendLimit,
         monthlyPublishLimit: plan.monthlyPublishLimit,
         sortOrder: plan.sortOrder,
@@ -47,9 +51,11 @@ export async function ensureBillingCatalog() {
       update: {
         name: plan.name,
         description: plan.description,
+        kind: plan.kind,
         interval: plan.interval,
         durationMonths: plan.durationMonths,
         priceIdr: plan.priceIdr,
+        aiCredits: plan.aiCredits ?? null,
         monthlySendLimit: plan.monthlySendLimit,
         monthlyPublishLimit: plan.monthlyPublishLimit,
         sortOrder: plan.sortOrder,
