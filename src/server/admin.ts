@@ -330,8 +330,10 @@ export async function listAdminDeliveries() {
  */
 export async function getAdminAiMonetization(rangeDays = 30) {
   await requireSuperAdmin();
+  // Clamp the window to bound the orders/usage scans.
+  const days = Math.min(Math.max(Math.floor(rangeDays) || 30, 1), 365);
   const since = new Date();
-  since.setDate(since.getDate() - rangeDays);
+  since.setDate(since.getDate() - days);
 
   const [paidAiOrders, usageEvents, tierCounts] = await Promise.all([
     db.subscriptionOrder.findMany({
@@ -397,7 +399,7 @@ export async function getAdminAiMonetization(rangeDays = 30) {
   const marginAtRisk = revenuePerCredit > 0 && marginRatio > 0.6;
 
   return {
-    rangeDays,
+    rangeDays: days,
     revenue: {
       totalIdr: revenueTotalIdr,
       subscriptionIdr: revenueSubscriptionIdr,

@@ -64,11 +64,13 @@ export async function resolveRouteFunding(
 
   // Per-workspace rate limit on Komenin-funded AI (spec §3.6). BYOK calls
   // still pass through so an abusive workspace can't hammer our gateway, but
-  // the cap is what bounds our upstream spend.
+  // the cap is what bounds our upstream spend. The limit is clamped to a sane
+  // floor/ceiling so a misconfigured env (0 / negative / absurd) can neither
+  // fully disable nor silently open the gateway.
   const { consumeRateLimit } = await import("@/lib/rate-limit");
   const rate = await consumeRateLimit({
     key: `ai:${workspaceId}`,
-    limit: Number(process.env.AI_RATE_LIMIT_PER_MIN || 60),
+    limit: resolveAiRateLimitPerMinute(process.env.AI_RATE_LIMIT_PER_MIN),
     windowMs: 60_000,
   });
   if (!rate.ok) {
@@ -113,6 +115,17 @@ export async function resolveRouteFunding(
   }
 
   return { source: billing.source, tier: billing.tier, requestId };
+}
+
+/**
+ * Resolve the per-workspace AI rate limit (requests/minute), clamped to a
+ * sane [1, 600] band so a misconfigured AI_RATE_LIMIT_PER_MIN (0, negative,
+ * non-numeric, absurd) can neither fully disable nor silently open the gateway.
+ */
+export function resolveAiRateLimitPerMinute(raw?: string): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return 60;
+  return Math.min(Math.max(Math.floor(n), 1), 600);
 }
 
 async function meterAndComplete(input: {

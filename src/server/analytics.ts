@@ -239,7 +239,9 @@ export async function getClientAgencyReport(rangeDays = 30) {
  */
 export async function getAiUsageAnalytics(rangeDays = 30) {
   const { workspace } = await requireActiveWorkspace();
-  const since = daysAgo(rangeDays);
+  // Clamp the window so a crafted range can't trigger an unbounded table scan.
+  const days = Math.min(Math.max(Math.floor(rangeDays) || 30, 1), 365);
+  const since = daysAgo(days);
 
   const events = await db.aiUsageEvent.findMany({
     where: { workspaceId: workspace.id, createdAt: { gte: since } },
@@ -280,7 +282,7 @@ export async function getAiUsageAnalytics(rangeDays = 30) {
   const estimatedCostIdr = Number(komeninCredits) * 0.05;
 
   return {
-    rangeDays,
+    rangeDays: days,
     totalCalls,
     creditsBySource: {
       own_key: bySource.own_key.toString(),
