@@ -86,6 +86,24 @@ export async function listCheckoutPlans() {
   });
 }
 
+/** AI add-on SKUs (subscriptions + PAYG credit packs) for Settings → AI / checkout. */
+export async function listAiCheckoutPlans() {
+  await ensureBillingCatalog();
+  const plans = await db.plan.findMany({
+    where: { isActive: true, kind: { in: ["ai_subscription", "ai_credits"] } },
+    orderBy: { sortOrder: "asc" },
+  });
+  return plans.map((p) => ({
+    code: p.code,
+    name: p.name,
+    description: p.description,
+    kind: p.kind,
+    priceIdr: p.priceIdr,
+    durationMonths: p.durationMonths,
+    aiCredits: (p.aiCredits ?? 0n).toString(),
+  }));
+}
+
 export async function getBillingOverview() {
   const { workspace } = await requireActiveWorkspace();
   await ensureBillingCatalog();

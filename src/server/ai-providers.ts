@@ -393,6 +393,58 @@ export async function loadRuntimeAiProviders(workspaceId: string): Promise<{
   };
 }
 
+/** Read-only snapshot for the Settings → AI "Komenin AI" card. */
+export async function getWorkspaceAiBillingStatus() {
+  const { workspace } = await requireActiveWorkspace();
+  const { getAiBalance } = await import("@/lib/ai/billing");
+  const [balance, full] = await Promise.all([
+    getAiBalance(workspace.id),
+    db.workspace.findUnique({
+      where: { id: workspace.id },
+      select: { aiPreferOwnKey: true },
+    }),
+  ]);
+  const sub = await db.workspaceAiSubscription.findUnique({
+    where: { workspaceId: workspace.id },
+    select: { status: true, quotaPeriodEnd: true, termEnd: true },
+  });
+  return {
+    tier: balance.tier,
+    monthlyCredits: balance.monthlyCredits.toString(),
+    usedThisPeriod: balance.usedThisPeriod.toString(),
+    remainingThisPeriod: (
+      balance.monthlyCredits > balance.usedThisPeriod
+        ? balance.monthlyCredits - balance.usedThisPeriod
+        : 0n
+    ).toString(),
+    paygBalance: balance.paygBalance.toString(),
+    quotaPeriodEnd: sub?.quotaPeriodEnd ?? null,
+    termEnd: sub?.termEnd ?? null,
+    subscriptionStatus: sub?.status ?? null,
+    preferOwnKey: full?.aiPreferOwnKey ?? true,
+  };
+}
+
+/** Toggle the persisted BYOK preference ("prefer my own key"). */
+export async function updateAiPreferOwnKey(preferOwnKey: boolean) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertWorkspacePermission(workspace, "settings.manage");
+  await db.workspace.update({
+    where: { id: workspace.id },
+    data: { aiPreferOwnKey: Boolean(preferOwnKey) },
+  });
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "ai_settings.prefer_own_key",
+    resourceType: "workspace",
+    resourceId: workspace.id,
+    metadata: { preferOwnKey: Boolean(preferOwnKey) },
+  });
+  revalidatePath("/app/settings/ai");
+  return { ok: true as const, preferOwnKey: Boolean(preferOwnKey) };
+}
+
 export async function testWorkspaceAiProvider(input: {
   providerId?: string | null;
   model?: string | null;
