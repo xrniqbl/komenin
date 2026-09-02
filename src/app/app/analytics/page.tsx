@@ -5,16 +5,18 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAnalyticsSummary, getClientAgencyReport } from "@/server/analytics";
+import { getAnalyticsSummary, getClientAgencyReport, getAiUsageAnalytics } from "@/server/analytics";
 import { listRateLimitStatus } from "@/server/rate-limits";
 import { checkUsageAlerts } from "@/server/usage-alerts";
+import { AiUsageCard } from "@/components/analytics/ai-usage-card";
 
 export default async function AnalyticsPage() {
-  const [summary, quota, alerts, agency] = await Promise.all([
+  const [summary, quota, alerts, agency, aiUsage] = await Promise.all([
     getAnalyticsSummary(30),
     listRateLimitStatus(),
     checkUsageAlerts(),
     getClientAgencyReport(30),
+    getAiUsageAnalytics(30),
   ]);
 
   const metrics = [
@@ -74,6 +76,8 @@ export default async function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AiUsageCard data={aiUsage} />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (

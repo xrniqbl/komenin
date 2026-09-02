@@ -155,6 +155,9 @@ model Workspace {
   aiMaxTokens         Int      @default(280)
   /// Prefer encrypted workspace providers (BYOK) before Komenin-funded AI.
   aiPreferOwnKey      Boolean  @default(true)
+  /// Pro Max only: when the subscription quota is spent, continue on the PAYG
+  /// balance instead of failing closed. Ignored for other tiers.
+  aiPaygFallbackEnabled Boolean @default(true)
   /** Quiet hours (workspace local time, [start, end)). start == end disables. */
   quietHoursStart     Int      @default(0)
   quietHoursEnd       Int      @default(0)

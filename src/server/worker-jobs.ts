@@ -600,6 +600,7 @@ async function runCommentGenerate(limit = 20): Promise<WorkerJobResult> {
   });
 
   let generated = 0;
+  let quotaFailed = 0;
   for (const post of posts) {
     // Atomic claim: overlapping cron ticks must not generate two drafts for
     // the same post. The claim is released only if generation throws.
@@ -643,29 +644,81 @@ async function runCommentGenerate(limit = 20): Promise<WorkerJobResult> {
       await bumpUsage(post.workspaceId, "skillRuns", 1);
     }
 
-    const draft = await generateContextualCommentHybrid({
-      postContent: post.content,
-      authorHandle: post.authorHandle,
-      platform: post.platform,
-      language: agent?.language,
-      tone: agent?.tone,
-      systemPrompt: agent?.systemPrompt,
-      agentName: agent?.name,
-      knowledgeContext,
-      skillContext,
-      workspaceId: post.workspaceId,
-      preferredProviderId: agent?.aiProviderId,
-      preferredModel: agent?.model,
-      temperature: agent?.temperature,
-      maxTokens: agent?.maxTokens,
-      style: agent?.style,
-      formality: agent?.formality,
-      emojiPolicy: agent?.emojiPolicy,
-      ctaStyle: agent?.ctaStyle,
-      maxSentences: agent?.maxSentences,
-      bannedTopics: agent?.bannedTopics,
-      mustInclude: agent?.mustInclude,
-    });
+    // Fail-closed on AI quota: when the workspace has no funding source, mark
+    // the post failed:quota and notify the operator ONCE per day — do NOT
+    // auto-retry (the claim above is consumed, so a retry would need a fresh
+    // post anyway). This prevents a stuck/retry loop when credits run out.
+    let draft: Awaited<ReturnType<typeof generateContextualCommentHybrid>>;
+    try {
+      draft = await generateContextualCommentHybrid({
+        postContent: post.content,
+        authorHandle: post.authorHandle,
+        platform: post.platform,
+        language: agent?.language,
+        tone: agent?.tone,
+        systemPrompt: agent?.systemPrompt,
+        agentName: agent?.name,
+        knowledgeContext,
+        skillContext,
+        workspaceId: post.workspaceId,
+        preferredProviderId: agent?.aiProviderId,
+        preferredModel: agent?.model,
+        temperature: agent?.temperature,
+        maxTokens: agent?.maxTokens,
+        style: agent?.style,
+        formality: agent?.formality,
+        emojiPolicy: agent?.emojiPolicy,
+        ctaStyle: agent?.ctaStyle,
+        maxSentences: agent?.maxSentences,
+        bannedTopics: agent?.bannedTopics,
+        mustInclude: agent?.mustInclude,
+      });
+    } catch (error) {
+      const { AiQuotaExceededError, AiModelNotAllowedError } = await import(
+        "@/lib/ai/router"
+      );
+      if (
+        error instanceof AiQuotaExceededError ||
+        error instanceof AiModelNotAllowedError
+      ) {
+        await db.targetPost.update({
+          where: { id: post.id },
+          data: { status: "failed" },
+        });
+        // Dedup the operator notification to once per workspace per day.
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const already = await db.notification.findFirst({
+          where: {
+            workspaceId: post.workspaceId,
+            title: { contains: "AI quota" },
+            createdAt: { gte: todayStart },
+          },
+          select: { id: true },
+        });
+        if (!already) {
+          await createNotification({
+            workspaceId: post.workspaceId,
+            title: "AI quota habis — pembuatan komentar dijeda",
+            body: `${error.message} Tambahkan API key sendiri, upgrade tier, atau beli kredit pay-as-you-go di Settings → AI.`,
+            href: "/app/settings/ai",
+          });
+          try {
+            const { dispatchExternal } = await import("@/lib/notify/dispatcher");
+            await dispatchExternal("ai.quota_exhausted", post.workspaceId, {
+              title: "AI quota habis — pembuatan komentar dijeda",
+              body: error.message,
+              href: "/app/settings/ai",
+            });
+          } catch {
+            // non-fatal
+          }
+        }
+        quotaFailed += 1;
+        continue; // next post — do not throw, do not retry this one
+      }
+      throw error; // unrelated failure: preserve existing throw-and-release behavior
+    }
 
     await db.$transaction(async (tx) => {
       const created = await tx.commentDraft.create({
@@ -713,8 +766,9 @@ async function runCommentGenerate(limit = 20): Promise<WorkerJobResult> {
   return {
     job: "comment.generate",
     ok: true,
-    message: `Generated ${generated} drafts`,
+    message: `Generated ${generated} drafts${quotaFailed ? `, ${quotaFailed} failed:quota` : ""}`,
     count: generated,
+    details: quotaFailed ? { quotaFailed } : undefined,
   };
 }
 
@@ -982,26 +1036,65 @@ async function runContentGenerate(limit = 10): Promise<WorkerJobResult> {
   });
 
   let generated = 0;
+  let quotaFailed = 0;
   for (const campaign of campaigns) {
     if (campaign.drafts.length > 0) continue;
     // Atomic claim: overlapping ticks must not generate a full draft set
     // twice for the same campaign.
     const claimed = await claimContentCampaign(campaign.id);
     if (!claimed) continue;
-    const posts = await generateContentPosts({
-      topic: campaign.topic,
-      postCount: campaign.postCount,
-      platform: campaign.platform,
-      language: campaign.agent?.language,
-      tone: campaign.agent?.tone,
-      systemPrompt: campaign.agent?.systemPrompt,
-      agentName: campaign.agent?.name,
-      workspaceId: campaign.workspaceId,
-      preferredProviderId: campaign.agent?.aiProviderId,
-      preferredModel: campaign.agent?.model,
-      temperature: campaign.agent?.temperature,
-      maxTokens: campaign.agent?.maxTokens,
-    });
+    let posts: Awaited<ReturnType<typeof generateContentPosts>>;
+    try {
+      posts = await generateContentPosts({
+        topic: campaign.topic,
+        postCount: campaign.postCount,
+        platform: campaign.platform,
+        language: campaign.agent?.language,
+        tone: campaign.agent?.tone,
+        systemPrompt: campaign.agent?.systemPrompt,
+        agentName: campaign.agent?.name,
+        workspaceId: campaign.workspaceId,
+        preferredProviderId: campaign.agent?.aiProviderId,
+        preferredModel: campaign.agent?.model,
+        temperature: campaign.agent?.temperature,
+        maxTokens: campaign.agent?.maxTokens,
+      });
+    } catch (error) {
+      const { AiQuotaExceededError, AiModelNotAllowedError } = await import(
+        "@/lib/ai/router"
+      );
+      if (
+        error instanceof AiQuotaExceededError ||
+        error instanceof AiModelNotAllowedError
+      ) {
+        // Fail-closed: pause the campaign + notify once per day, no auto-retry.
+        await db.contentCampaign.update({
+          where: { id: campaign.id },
+          data: { status: "paused" },
+        });
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const already = await db.notification.findFirst({
+          where: {
+            workspaceId: campaign.workspaceId,
+            title: { contains: "AI quota" },
+            createdAt: { gte: todayStart },
+          },
+          select: { id: true },
+        });
+        if (!already) {
+          await createNotification({
+            workspaceId: campaign.workspaceId,
+            title: "AI quota habis — campaign konten dijeda",
+            body: `${error.message} Campaign "${campaign.topic}" dijeda. Isi ulang kredit di Settings → AI lalu aktifkan kembali.`,
+            href: "/app/settings/ai",
+          });
+        }
+        quotaFailed += 1;
+        continue;
+      }
+      throw error;
+    }
     const schedule = buildContentSchedule({
       startAt: campaign.startAt,
       postCount: posts.length,
@@ -1044,8 +1137,9 @@ async function runContentGenerate(limit = 10): Promise<WorkerJobResult> {
   return {
     job: "content.generate",
     ok: true,
-    message: `Generated ${generated} content drafts`,
+    message: `Generated ${generated} content drafts${quotaFailed ? `, ${quotaFailed} campaigns paused:quota` : ""}`,
     count: generated,
+    details: quotaFailed ? { quotaFailed } : undefined,
   };
 }
 

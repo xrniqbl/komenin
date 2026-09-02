@@ -401,7 +401,7 @@ export async function getWorkspaceAiBillingStatus() {
     getAiBalance(workspace.id),
     db.workspace.findUnique({
       where: { id: workspace.id },
-      select: { aiPreferOwnKey: true },
+      select: { aiPreferOwnKey: true, aiPaygFallbackEnabled: true },
     }),
   ]);
   const sub = await db.workspaceAiSubscription.findUnique({
@@ -422,7 +422,28 @@ export async function getWorkspaceAiBillingStatus() {
     termEnd: sub?.termEnd ?? null,
     subscriptionStatus: sub?.status ?? null,
     preferOwnKey: full?.aiPreferOwnKey ?? true,
+    paygFallbackEnabled: full?.aiPaygFallbackEnabled ?? true,
   };
+}
+
+/** Toggle the Pro Max auto-fallback to PAYG (no-op effect on other tiers). */
+export async function updateAiPaygFallback(enabled: boolean) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertWorkspacePermission(workspace, "settings.manage");
+  await db.workspace.update({
+    where: { id: workspace.id },
+    data: { aiPaygFallbackEnabled: Boolean(enabled) },
+  });
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "ai_settings.payg_fallback",
+    resourceType: "workspace",
+    resourceId: workspace.id,
+    metadata: { aiPaygFallbackEnabled: Boolean(enabled) },
+  });
+  revalidatePath("/app/settings/ai");
+  return { ok: true as const, enabled: Boolean(enabled) };
 }
 
 /** Toggle the persisted BYOK preference ("prefer my own key"). */

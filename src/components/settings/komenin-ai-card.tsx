@@ -13,7 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { formatIdr } from "@/lib/billing/catalog";
-import { updateAiPreferOwnKey } from "@/server/ai-providers";
+import { updateAiPreferOwnKey, updateAiPaygFallback } from "@/server/ai-providers";
 
 export type AiPlanOption = {
   code: string;
@@ -31,6 +31,7 @@ export type AiBillingStatus = {
   remainingThisPeriod: string;
   paygBalance: string;
   preferOwnKey: boolean;
+  paygFallbackEnabled: boolean;
   subscriptionStatus: string | null;
   quotaPeriodEnd: Date | null;
 };
@@ -54,6 +55,7 @@ export function KomeninAiCard({
   aiPlans: AiPlanOption[];
 }) {
   const [preferOwnKey, setPreferOwnKey] = useState(status.preferOwnKey);
+  const [paygFallback, setPaygFallback] = useState(status.paygFallbackEnabled);
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
@@ -78,6 +80,24 @@ export function KomeninAiCard({
         );
       } catch (error) {
         setPreferOwnKey(!next); // revert
+        setMessage(error instanceof Error ? error.message : "Gagal menyimpan preferensi");
+      }
+    });
+  }
+
+  function togglePaygFallback(next: boolean) {
+    setPaygFallback(next);
+    setMessage(null);
+    startTransition(async () => {
+      try {
+        await updateAiPaygFallback(next);
+        setMessage(
+          next
+            ? "Saat kuota Pro Max habis, panggilan otomatis lanjut ke saldo pay-as-you-go."
+            : "Saat kuota habis, pemanggilan AI berhenti (fail-closed).",
+        );
+      } catch (error) {
+        setPaygFallback(!next);
         setMessage(error instanceof Error ? error.message : "Gagal menyimpan preferensi");
       }
     });
@@ -164,6 +184,27 @@ export function KomeninAiCard({
             disabled={pending}
           />
         </div>
+
+        {/* Pro Max auto-fallback toggle */}
+        {status.tier === "pro_max" ? (
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div className="space-y-0.5">
+              <Label htmlFor="payg-fallback" className="text-sm font-medium">
+                Lanjut otomatis ke pay-as-you-go
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Khusus Pro Max: saat kuota bulanan habis, panggilan AI memakai
+                saldo kredit prabayar alih-alih berhenti.
+              </p>
+            </div>
+            <Switch
+              id="payg-fallback"
+              checked={paygFallback}
+              onCheckedChange={togglePaygFallback}
+              disabled={pending}
+            />
+          </div>
+        ) : null}
 
         {/* Subscription options */}
         <div className="space-y-2">

@@ -231,3 +231,64 @@ export async function getClientAgencyReport(rangeDays = 30) {
     rows,
   };
 }
+
+/**
+ * AI usage analytics for the workspace (spec §3.5): credits consumed per
+ * funding source (own key vs subscription vs payg), top models, and an
+ * estimated cost figure. Sourced from AiUsageEvent (one row per AI call).
+ */
+export async function getAiUsageAnalytics(rangeDays = 30) {
+  const { workspace } = await requireActiveWorkspace();
+  const since = daysAgo(rangeDays);
+
+  const events = await db.aiUsageEvent.findMany({
+    where: { workspaceId: workspace.id, createdAt: { gte: since } },
+    select: {
+      billedTo: true,
+      model: true,
+      creditsUsed: true,
+      inputTokens: true,
+      outputTokens: true,
+    },
+  });
+
+  const bySource = { own_key: 0n, subscription: 0n, payg: 0n };
+  const tokensBySource = { own_key: 0, subscription: 0, payg: 0 };
+  const byModel = new Map<string, { calls: number; credits: bigint }>();
+  let totalCalls = 0;
+
+  for (const e of events) {
+    totalCalls += 1;
+    const src = (e.billedTo as keyof typeof bySource) in bySource ? e.billedTo : "own_key";
+    bySource[src as keyof typeof bySource] += e.creditsUsed;
+    tokensBySource[src as keyof typeof tokensBySource] += e.inputTokens + e.outputTokens;
+    const m = byModel.get(e.model) ?? { calls: 0, credits: 0n };
+    m.calls += 1;
+    m.credits += e.creditsUsed;
+    byModel.set(e.model, m);
+  }
+
+  const topModels = Array.from(byModel.entries())
+    .map(([model, v]) => ({ model, calls: v.calls, credits: v.credits.toString() }))
+    .sort((a, b) => Number(BigInt(b.credits) - BigInt(a.credits)))
+    .slice(0, 5);
+
+  // Rough cost estimate in IDR for Komenin-funded usage. Blended at the
+  // Starter rate (Rp50.000 / 1.000.000 credits = Rp0,05/credit) — analytics
+  // only, not used for billing.
+  const komeninCredits = bySource.subscription + bySource.payg;
+  const estimatedCostIdr = Number(komeninCredits) * 0.05;
+
+  return {
+    rangeDays,
+    totalCalls,
+    creditsBySource: {
+      own_key: bySource.own_key.toString(),
+      subscription: bySource.subscription.toString(),
+      payg: bySource.payg.toString(),
+    },
+    tokensBySource,
+    topModels,
+    estimatedCostIdr: Math.round(estimatedCostIdr),
+  };
+}

@@ -24,7 +24,10 @@ vi.mock("@/lib/db", () => {
       },
       workspace: {
         findUnique: vi.fn(async ({ where }: { where: { id: string } }) =>
-          workspaceRows.get(where.id) ?? { aiPreferOwnKey: true },
+          workspaceRows.get(where.id) ?? {
+            aiPreferOwnKey: true,
+            aiPaygFallbackEnabled: true,
+          },
         ),
       },
       aiCreditLedger: {
@@ -183,6 +186,29 @@ describe("resolveAiBilling", () => {
       expect(result.source).toBe("payg");
       expect(result.remaining).toBe(500_000n);
     }
+  });
+
+  it("pro_max fails closed when the PAYG fallback toggle is OFF", async () => {
+    mocked.__setSubscription("ws_fb_off", activeSub({ tier: "pro_max", monthlyCredits: 25_000_000n }));
+    mocked.__setWorkspace("ws_fb_off", { aiPreferOwnKey: false, aiPaygFallbackEnabled: false });
+    mocked.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: -25_000_000n } }); // quota spent
+
+    const result = await resolveAiBilling({ workspaceId: "ws_fb_off" });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.message).toMatch(/fallback pay-as-you-go dimatikan/i);
+  });
+
+  it("pro_max uses PAYG when the fallback toggle is ON", async () => {
+    mocked.__setSubscription("ws_fb_on", activeSub({ tier: "pro_max", monthlyCredits: 25_000_000n }));
+    mocked.__setWorkspace("ws_fb_on", { aiPreferOwnKey: false, aiPaygFallbackEnabled: true });
+    mocked.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: -25_000_000n } }); // quota spent
+    mocked.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: 400_000n } }); // payg balance
+
+    const result = await resolveAiBilling({ workspaceId: "ws_fb_on" });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.source).toBe("payg");
   });
 
   it("uses PAYG when there is no subscription but balance exists", async () => {

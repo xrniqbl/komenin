@@ -127,11 +127,12 @@ export async function resolveAiBilling(input: {
     }),
     db.workspace.findUnique({
       where: { id: input.workspaceId },
-      select: { aiPreferOwnKey: true },
+      select: { aiPreferOwnKey: true, aiPaygFallbackEnabled: true },
     }),
   ]);
 
   const preferOwnKey = input.preferOwnKey ?? workspace?.aiPreferOwnKey ?? true;
+  const paygFallbackEnabled = workspace?.aiPaygFallbackEnabled ?? true;
 
   const now = new Date();
   const activeSub = isSubActive(subscription, now) ? subscription : null;
@@ -152,13 +153,14 @@ export async function resolveAiBilling(input: {
         tier,
       };
     }
-    // Quota spent — Pro Max falls through to PAYG, others stop.
-    if (!tierAllowsPaygFallback(tier)) {
+    // Quota spent — Pro Max falls through to PAYG (when enabled), others stop.
+    if (!tierAllowsPaygFallback(tier) || !paygFallbackEnabled) {
       return {
         ok: false,
         reason: "no_source",
-        message:
-          "AI credit langganan bulan ini sudah habis. Upgrade tier atau beli kredit pay-as-you-go untuk melanjutkan.",
+        message: paygFallbackEnabled
+          ? "AI credit langganan bulan ini sudah habis. Upgrade tier atau beli kredit pay-as-you-go untuk melanjutkan."
+          : "AI credit langganan bulan ini sudah habis dan fallback pay-as-you-go dimatikan. Upgrade tier, beli kredit, atau aktifkan fallback di Settings → AI.",
         tier,
       };
     }
