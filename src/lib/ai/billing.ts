@@ -45,14 +45,36 @@ export type ResolveAiBillingResult =
       tier: AiTier;
     };
 
-type DbLike = Pick<typeof db, "aiCreditLedger" | "workspaceAiSubscription">;
+type DbLike = Pick<
+  typeof db,
+  "aiCreditLedger" | "workspaceAiSubscription" | "workspaceAiBalance"
+>;
 
-/** Sum of PAYG ledger credits that are still valid (grants not expired). */
+/**
+ * Apply a PAYG ledger effect to the cached WorkspaceAiBalance.paygCredits
+ * counter inside the same transaction. The counter is a rebuildable
+ * projection for READ paths (UI/analytics); the authoritative money decisions
+ * (reservation guard, resolve) always read the ledger. `paygCredits` here
+ * tracks net grant−use−refund−expire (reservations excluded so the UI shows
+ * the settled balance).
+ */
+async function applyPaygBalanceDelta(
+  tx: DbLike,
+  input: { workspaceId: string; credits: bigint },
+): Promise<void> {
+  await tx.workspaceAiBalance.upsert({
+    where: { workspaceId: input.workspaceId },
+    create: { workspaceId: input.workspaceId, paygCredits: input.credits },
+    update: { paygCredits: { increment: input.credits } },
+  });
+}
+
+/** Sum of PAYG ledger credits still valid (grants not expired), minus open reservations. */
 async function paygBalance(tx: DbLike, workspaceId: string): Promise<bigint> {
   const rows = await tx.aiCreditLedger.aggregate({
     where: {
       workspaceId,
-      kind: { in: ["grant", "payg_use", "refund", "expire"] },
+      kind: { in: ["grant", "payg_use", "refund", "expire", "reservation", "reservation_release"] },
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     },
     _sum: { credits: true },
@@ -60,7 +82,7 @@ async function paygBalance(tx: DbLike, workspaceId: string): Promise<bigint> {
   return rows._sum.credits ?? 0n;
 }
 
-/** Credits consumed from the subscription quota within the current quota period. */
+/** Credits consumed from the subscription quota this period, plus open reservations. */
 async function subscriptionUsed(
   tx: DbLike,
   workspaceId: string,
@@ -69,12 +91,12 @@ async function subscriptionUsed(
   const rows = await tx.aiCreditLedger.aggregate({
     where: {
       workspaceId,
-      kind: "subscription_use",
+      kind: { in: ["subscription_use", "reservation", "reservation_release"] },
       createdAt: { gte: quotaPeriodStart },
     },
     _sum: { credits: true },
   });
-  // ledger stores negative values for usage
+  // ledger stores negative values for usage/reservation, positive for release
   return -(rows._sum.credits ?? 0n);
 }
 
@@ -167,6 +189,102 @@ export async function resolveAiBilling(input: {
 }
 
 /**
+ * Atomically reserve `amount` credits for a Komenin-funded call. This closes
+ * the check-then-debit race: the remaining-balance guard and the reservation
+ * row are written in ONE transaction that re-reads the balance with a lock,
+ * so concurrent calls can never both pass the check and overdraw.
+ *
+ * Returns the reservation operationId on success, or null when the source has
+ * insufficient balance (caller must fail-closed / pick another source).
+ */
+export async function reserveAiCredits(input: {
+  workspaceId: string;
+  source: Exclude<AiBillingSource, "own_key">;
+  amount: bigint;
+  requestId: string;
+  refType?: string | null;
+  refId?: string | null;
+}): Promise<string | null> {
+  if (input.amount <= 0n) return `rsv:${input.requestId}`;
+  const operationId = `rsv:${input.requestId}`;
+
+  return db.$transaction(async (tx) => {
+    // Serialize concurrent reservations for this workspace on a stable lock.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.workspaceId}))`;
+
+    // Idempotency: a retried reservation for the same request returns the
+    // existing operationId instead of double-reserving.
+    const existing = await tx.aiCreditLedger.findUnique({
+      where: { operationId },
+      select: { operationId: true },
+    });
+    if (existing) return existing.operationId;
+
+    const available = await currentSourceBalance(tx, input.workspaceId, input.source);
+    if (available < input.amount) return null;
+
+    await tx.aiCreditLedger.create({
+      data: {
+        workspaceId: input.workspaceId,
+        operationId,
+        kind: "reservation",
+        credits: -input.amount,
+        refType: input.refType ?? null,
+        refId: input.refId ?? null,
+      },
+    });
+    return operationId;
+  });
+}
+
+/** Release an unused reservation (e.g. the upstream call failed). */
+export async function releaseAiReservation(input: {
+  workspaceId: string;
+  requestId: string;
+}): Promise<void> {
+  const reservationId = `rsv:${input.requestId}`;
+  const releaseId = `rls:${input.requestId}`;
+  await db.$transaction(async (tx) => {
+    const reservation = await tx.aiCreditLedger.findUnique({
+      where: { operationId: reservationId },
+      select: { credits: true },
+    });
+    if (!reservation) return; // nothing to release
+    const already = await tx.aiCreditLedger.findUnique({
+      where: { operationId: releaseId },
+      select: { operationId: true },
+    });
+    if (already) return; // already released/settled
+    await tx.aiCreditLedger.create({
+      data: {
+        workspaceId: input.workspaceId,
+        operationId: releaseId,
+        kind: "reservation_release",
+        credits: -reservation.credits, // add back the reserved (negative) amount
+      },
+    });
+  });
+}
+
+/** Current balance for a funding source, reading reservations into account. */
+async function currentSourceBalance(
+  tx: DbLike,
+  workspaceId: string,
+  source: Exclude<AiBillingSource, "own_key">,
+): Promise<bigint> {
+  if (source === "payg") {
+    return paygBalance(tx, workspaceId);
+  }
+  const sub = await tx.workspaceAiSubscription.findUnique({
+    where: { workspaceId },
+    select: { monthlyCredits: true, quotaPeriodStart: true },
+  });
+  if (!sub) return 0n;
+  const used = await subscriptionUsed(tx, workspaceId, sub.quotaPeriodStart);
+  return sub.monthlyCredits - used;
+}
+
+/**
  * Record one AI call. For `own_key` calls only a usage event is written
  * (creditsUsed=0) — analytics without charge. For subscription/payg the
  * ledger is debited atomically and linked to the usage event. Both writes
@@ -191,7 +309,12 @@ export async function recordAiUsage(input: {
   const requestId = input.requestId ?? `req_${randomUUID()}`;
   const usageSource = input.reported === false ? "estimated" : "reported";
 
+  // Idempotency: a retried call with the same requestId is a no-op (the usage
+  // event's requestId is unique), so a retried metering write never double-charges.
   await db.$transaction(async (tx) => {
+    const existing = await tx.aiUsageEvent.findUnique({ where: { requestId } });
+    if (existing) return;
+
     const event = await tx.aiUsageEvent.create({
       data: {
         workspaceId: input.workspaceId,
@@ -214,6 +337,30 @@ export async function recordAiUsage(input: {
 
     if (input.source === "own_key") return;
 
+    // Settle the reservation (if one was made) before recording actual usage:
+    // release the reserved amount, then debit the real cost. Net effect is the
+    // actual charge; any over-reserved amount returns to the balance.
+    const reservation = await tx.aiCreditLedger.findUnique({
+      where: { operationId: `rsv:${requestId}` },
+      select: { credits: true },
+    });
+    if (reservation) {
+      const released = await tx.aiCreditLedger.findUnique({
+        where: { operationId: `rls:${requestId}` },
+        select: { operationId: true },
+      });
+      if (!released) {
+        await tx.aiCreditLedger.create({
+          data: {
+            workspaceId: input.workspaceId,
+            operationId: `rls:${requestId}`,
+            kind: "reservation_release",
+            credits: -reservation.credits,
+          },
+        });
+      }
+    }
+
     const kind = input.source === "subscription" ? "subscription_use" : "payg_use";
     await tx.aiCreditLedger.create({
       data: {
@@ -226,6 +373,10 @@ export async function recordAiUsage(input: {
         usageEventId: event.id,
       },
     });
+    // Maintain the cached PAYG balance for UI reads (settled usage only).
+    if (input.source === "payg") {
+      await applyPaygBalanceDelta(tx, { workspaceId: input.workspaceId, credits: -credits });
+    }
   });
 
   return { creditsUsed: input.source === "own_key" ? 0n : credits };
@@ -291,7 +442,7 @@ export async function getAiBalance(workspaceId: string): Promise<{
     activeSub
       ? subscriptionUsed(db, workspaceId, activeSub.quotaPeriodStart)
       : Promise.resolve(0n),
-    paygBalance(db, workspaceId),
+    cachedPaygBalance(workspaceId),
   ]);
 
   return {
@@ -301,6 +452,29 @@ export async function getAiBalance(workspaceId: string): Promise<{
     paygBalance: payg,
     periodEnd: activeSub?.quotaPeriodEnd ?? null,
   };
+}
+
+/**
+ * Read the cached PAYG balance for UI. On a cold cache (no counter row yet,
+ * e.g. workspaces that existed before the cache) it falls back to the ledger
+ * aggregate and back-fills the counter so subsequent reads are O(1).
+ */
+async function cachedPaygBalance(workspaceId: string): Promise<bigint> {
+  const cached = await db.workspaceAiBalance.findUnique({
+    where: { workspaceId },
+    select: { paygCredits: true },
+  });
+  if (cached) return cached.paygCredits;
+
+  const authoritative = await paygBalance(db, workspaceId);
+  await db.workspaceAiBalance
+    .upsert({
+      where: { workspaceId },
+      create: { workspaceId, paygCredits: authoritative },
+      update: { paygCredits: authoritative },
+    })
+    .catch(() => undefined); // best-effort back-fill
+  return authoritative;
 }
 
 // ---------------------------------------------------------------------------
@@ -337,9 +511,12 @@ export async function fulfillAiCreditsOrder(
     select: { balanceAfter: true },
   });
 
-  await tx.aiCreditLedger.upsert({
-    where: { operationId },
-    create: {
+  // Insert-if-absent so the cache increment runs exactly once per real grant.
+  const existing = await tx.aiCreditLedger.findUnique({ where: { operationId } });
+  if (existing) return; // idempotent retry — no new grant, no cache change
+
+  await tx.aiCreditLedger.create({
+    data: {
       workspaceId: input.workspaceId,
       operationId,
       kind: "grant",
@@ -350,7 +527,10 @@ export async function fulfillAiCreditsOrder(
       sourceOrderId: input.orderId,
       expiresAt,
     },
-    update: {},
+  });
+  await applyPaygBalanceDelta(tx, {
+    workspaceId: input.workspaceId,
+    credits: input.credits,
   });
 }
 
@@ -465,6 +645,10 @@ export async function refundAiOrder(
             refId: input.orderId,
             sourceOrderId: input.orderId,
           },
+        });
+        await applyPaygBalanceDelta(tx, {
+          workspaceId: input.workspaceId,
+          credits: -unspent,
         });
       } else {
         // Mark the refund as processed even when nothing is recoverable.
@@ -637,6 +821,12 @@ export async function runAiExpiryAndRenewal(now = new Date()): Promise<{
         refId: grant.id,
       },
     });
+    if (unspent > 0n) {
+      await applyPaygBalanceDelta(db, {
+        workspaceId: grant.workspaceId,
+        credits: -unspent,
+      });
+    }
     paygExpired += 1;
   }
 

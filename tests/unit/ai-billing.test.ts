@@ -34,11 +34,21 @@ vi.mock("@/lib/db", () => {
       },
       aiUsageEvent: {
         create: usageCreate,
+        findUnique: vi.fn(async () => null),
+      },
+      workspaceAiBalance: {
+        upsert: vi.fn(async () => ({})),
+        findUnique: vi.fn(async () => null),
       },
       $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
         fn({
-          aiCreditLedger: { findFirst: ledgerFindFirst, create: ledgerCreate },
-          aiUsageEvent: { create: usageCreate },
+          aiCreditLedger: {
+            findFirst: ledgerFindFirst,
+            create: ledgerCreate,
+            findUnique: vi.fn(async () => null),
+          },
+          aiUsageEvent: { create: usageCreate, findUnique: vi.fn(async () => null) },
+          workspaceAiBalance: { upsert: vi.fn(async () => ({})) },
         }),
       ),
       __setSubscription: (id: string, row: unknown) => subscriptionRows.set(id, row),

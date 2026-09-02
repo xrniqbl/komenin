@@ -19,6 +19,10 @@ vi.mock("@/lib/db", () => {
         aggregate: ledgerAggregate,
         create: ledgerCreate,
       },
+      workspaceAiBalance: {
+        upsert: vi.fn(async () => ({})),
+        findUnique: vi.fn(async () => null),
+      },
       __subFindMany: subFindMany,
       __subUpdateMany: subUpdateMany,
       __ledgerFindMany: ledgerFindMany,

@@ -123,6 +123,7 @@ model Workspace {
   aiSubscription WorkspaceAiSubscription?
   aiCreditLedger AiCreditLedger[]
   aiUsageEvents AiUsageEvent[]
+  aiBalance     WorkspaceAiBalance?
   usageCounters UsageCounter[]
   knowledgeDocuments KnowledgeDocument[]
   knowledgeChunks KnowledgeChunk[]
@@ -560,6 +561,23 @@ model AiCreditLedger {
   @@index([workspaceId, createdAt])
   @@index([workspaceId, kind, createdAt])
   @@index([sourceOrderId])
+}
+
+/// Cached running AI credit balance per workspace — a projection of the
+/// append-only ledger, maintained in the same transaction as each ledger
+/// write. Reads hit this row instead of SUM()-scanning the whole ledger.
+/// The ledger remains the source of truth; this is a rebuildable cache.
+model WorkspaceAiBalance {
+  workspaceId     String   @id
+  /// PAYG prepaid balance (grants - payg_use - refund - expire ± reservations).
+  paygCredits     BigInt   @default(0)
+  /// Credits consumed from the subscription quota in the current quota period.
+  subscriptionUsed BigInt  @default(0)
+  /// Quota period this subscriptionUsed counter belongs to.
+  quotaPeriodStart DateTime?
+  updatedAt       DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 /// Satu baris per AI call (BYOK tercatat dengan creditsUsed=0 untuk analitik).

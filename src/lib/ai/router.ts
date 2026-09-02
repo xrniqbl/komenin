@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { chatCompletionsAnthropic } from "@/lib/ai/anthropic";
 import { getAiProviders, isAiGatewayEnabled, sortProviders } from "@/lib/ai/config";
 import { chatCompletionsOpenAiCompatible } from "@/lib/ai/openai-compatible";
@@ -50,11 +51,32 @@ import type { AiTier } from "@prisma/client";
  */
 export async function resolveRouteFunding(
   request: AiChatRequest & { workspaceId?: string | null },
-): Promise<{ source: "own_key" | "subscription" | "payg"; tier: AiTier }> {
+): Promise<{
+  source: "own_key" | "subscription" | "payg";
+  tier: AiTier;
+  requestId: string;
+}> {
   const workspaceId = request.workspaceId ?? null;
+  const requestId = `req_${randomUUID()}`;
   if (!workspaceId) {
-    return { source: "own_key", tier: "none" };
+    return { source: "own_key", tier: "none", requestId };
   }
+
+  // Per-workspace rate limit on Komenin-funded AI (spec §3.6). BYOK calls
+  // still pass through so an abusive workspace can't hammer our gateway, but
+  // the cap is what bounds our upstream spend.
+  const { consumeRateLimit } = await import("@/lib/rate-limit");
+  const rate = await consumeRateLimit({
+    key: `ai:${workspaceId}`,
+    limit: Number(process.env.AI_RATE_LIMIT_PER_MIN || 60),
+    windowMs: 60_000,
+  });
+  if (!rate.ok) {
+    throw new AiQuotaExceededError(
+      "Terlalu banyak permintaan AI. Coba lagi sebentar lagi.",
+    );
+  }
+
   const { resolveAiBilling } = await import("@/lib/ai/billing");
   const billing = await resolveAiBilling({
     workspaceId,
@@ -67,20 +89,56 @@ export async function resolveRouteFunding(
   if (!billing.ok) {
     throw new AiQuotaExceededError(billing.message);
   }
-  return { source: billing.source, tier: billing.tier };
+
+  // Atomically reserve an estimated budget for Komenin-funded calls so two
+  // concurrent requests can never both pass the balance check and overdraw.
+  if (billing.source !== "own_key") {
+    const { reserveAiCredits } = await import("@/lib/ai/billing");
+    const estimate = BigInt(
+      estimateTokens(request.messages) + (request.maxTokens ?? 400),
+    );
+    const reserved = await reserveAiCredits({
+      workspaceId,
+      source: billing.source,
+      amount: estimate > 0n ? estimate : 1n,
+      requestId,
+      refType: request.refType ?? null,
+      refId: request.refId ?? null,
+    });
+    if (!reserved) {
+      throw new AiQuotaExceededError(
+        "Saldo kredit AI tidak mencukupi untuk permintaan ini.",
+      );
+    }
+  }
+
+  return { source: billing.source, tier: billing.tier, requestId };
 }
 
 async function meterAndComplete(input: {
   request: AiChatRequest & { workspaceId?: string | null };
   provider: AiProviderConfig;
   model: string;
-  funding: { source: "own_key" | "subscription" | "payg"; tier: AiTier };
+  funding: {
+    source: "own_key" | "subscription" | "payg";
+    tier: AiTier;
+    requestId: string;
+  };
+  /**
+   * Settlement state shared across retry attempts so the reservation is
+   * debited exactly once (on the first successful completion) even though the
+   * same requestId funds every attempt.
+   */
+  settlement: { debited: boolean };
 }): Promise<string> {
-  const { request, provider, model, funding } = input;
+  const { request, provider, model, funding, settlement } = input;
   const workspaceId = request.workspaceId ?? null;
   const source = funding.source;
 
   const startedAt = Date.now();
+  // A failed attempt throws out of completeWithProvider WITHOUT recording
+  // usage — the reservation stays open and is settled (or released) by the
+  // caller after the loop, so no attempt double-charges.
   const content = await completeWithProvider({
     provider,
     model,
@@ -92,7 +150,8 @@ async function meterAndComplete(input: {
 
   if (workspaceId) {
     // Record usage (BYOK = zero-credit analytics row). Never let metering
-    // failures break a successful completion.
+    // failures break a successful completion. recordAiUsage settles the
+    // reservation against the real cost using the shared requestId.
     try {
       const { recordAiUsage } = await import("@/lib/ai/billing");
       const estimate = estimateTokens(request.messages) + content.length / 4;
@@ -106,9 +165,11 @@ async function meterAndComplete(input: {
         latencyMs,
         refType: request.refType ?? null,
         refId: request.refId ?? null,
+        requestId: funding.requestId,
         // Providers here don't return a usage object yet, so tokens are estimated.
         reported: false,
       });
+      settlement.debited = true;
     } catch (error) {
       console.warn("[ai-router] metering failed (call succeeded):", error);
     }
@@ -165,6 +226,7 @@ export async function routeChatCompletion(
   // enforce the server-side model allowlist for Komenin-funded calls.
   const funding = await resolveRouteFunding(request);
   const enforceAllowlist = funding.source !== "own_key";
+  const settlement = { debited: false };
   const { isModelAllowedForTier, allowedModelsForTier } = await import(
     "@/lib/ai/models"
   );
@@ -210,6 +272,7 @@ export async function routeChatCompletion(
           provider,
           model,
           funding,
+          settlement,
         });
         attempts.push({ providerId: provider.id, model, ok: true });
         return {
@@ -234,6 +297,20 @@ export async function routeChatCompletion(
           error: error instanceof Error ? error.message : "Unknown AI error",
         });
       }
+    }
+  }
+
+  // Every attempt failed and nothing was recorded — release the reservation so
+  // the estimate returns to the workspace balance (no charge for no completion).
+  if (!settlement.debited && request.workspaceId && funding.source !== "own_key") {
+    try {
+      const { releaseAiReservation } = await import("@/lib/ai/billing");
+      await releaseAiReservation({
+        workspaceId: request.workspaceId,
+        requestId: funding.requestId,
+      });
+    } catch {
+      // best-effort
     }
   }
 

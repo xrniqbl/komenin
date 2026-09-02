@@ -90,6 +90,10 @@ vi.mock("@/lib/db", () => {
         findUnique: subFindUnique,
         update: subUpdate,
       },
+      workspaceAiBalance: {
+        upsert: vi.fn(async () => ({})),
+        findUnique: vi.fn(async () => null),
+      },
       __ledgerUpsert: ledgerUpsert,
       __ledgerFindFirst: ledgerFindFirst,
       __ledgerFindUnique: ledgerFindUnique,
@@ -140,14 +144,24 @@ describe("fulfillAiCreditsOrder", () => {
       now,
     });
 
-    expect(mock.__ledgerUpsert).toHaveBeenCalledTimes(1);
-    const arg = mock.__ledgerUpsert.mock.calls[0][0];
-    expect(arg.where.operationId).toBe("order:ord_1:grant");
-    expect(arg.create.kind).toBe("grant");
-    expect(arg.create.credits).toBe(750_000n);
-    expect(arg.create.sourceOrderId).toBe("ord_1");
-    expect(arg.create.expiresAt.getTime()).toBe(now.getTime() + 365 * 24 * 3600 * 1000);
-    expect(arg.update).toEqual({}); // retry = no-op
+    expect(mock.__ledgerCreate).toHaveBeenCalledTimes(1);
+    const arg = mock.__ledgerCreate.mock.calls[0][0];
+    expect(arg.data.operationId).toBe("order:ord_1:grant");
+    expect(arg.data.kind).toBe("grant");
+    expect(arg.data.credits).toBe(750_000n);
+    expect(arg.data.sourceOrderId).toBe("ord_1");
+    expect(arg.data.expiresAt.getTime()).toBe(now.getTime() + 365 * 24 * 3600 * 1000);
+  });
+
+  it("is idempotent: skips when the grant operationId already exists", async () => {
+    mock.__ledgerFindUnique.mockResolvedValueOnce({ id: "led_existing" });
+    await fulfillAiCreditsOrder(tx, {
+      workspaceId: "ws_1",
+      orderId: "ord_1",
+      credits: 750_000n,
+      now: new Date(),
+    });
+    expect(mock.__ledgerCreate).not.toHaveBeenCalled();
   });
 
   it("skips zero-credit orders", async () => {
@@ -157,7 +171,7 @@ describe("fulfillAiCreditsOrder", () => {
       credits: 0n,
       now: new Date(),
     });
-    expect(mock.__ledgerUpsert).not.toHaveBeenCalled();
+    expect(mock.__ledgerCreate).not.toHaveBeenCalled();
   });
 });
 
