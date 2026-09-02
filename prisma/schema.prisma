@@ -152,6 +152,8 @@ model Workspace {
   aiFallbackModels    String[] @default([])
   aiTemperature       Float    @default(0.5)
   aiMaxTokens         Int      @default(280)
+  /// Prefer encrypted workspace providers (BYOK) before Komenin-funded AI.
+  aiPreferOwnKey      Boolean  @default(true)
   /** Quiet hours (workspace local time, [start, end)). start == end disables. */
   quietHoursStart     Int      @default(0)
   quietHoursEnd       Int      @default(0)
@@ -483,63 +485,103 @@ enum AiTier {
   pro_max
 }
 
+enum AiSubscriptionStatus {
+  active
+  past_due
+  canceled
+  expired
+}
+
+enum AiLedgerKind {
+  grant
+  reservation
+  reservation_release
+  subscription_use
+  payg_use
+  refund
+  expire
+}
+
+enum AiBillingSource {
+  own_key
+  subscription
+  payg
+}
+
 model WorkspaceAiSubscription {
-  id                String   @id @default(cuid())
-  workspaceId       String   @unique
-  tier              AiTier   @default(none)
-  /// Included credits per billing period (1 credit = 1 token).
-  monthlyCredits    BigInt   @default(0)
-  /// active | past_due | canceled
-  status            String   @default("active")
-  currentPeriodStart DateTime
-  currentPeriodEnd   DateTime
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                     String               @id @default(cuid())
+  workspaceId            String               @unique
+  tier                   AiTier               @default(none)
+  /// Included credits per quota month (1 credit = 1 token).
+  monthlyCredits         BigInt               @default(0)
+  status                 AiSubscriptionStatus @default(active)
+  /// Commitment / paid entitlement window (1 or 12 months).
+  termStart              DateTime
+  termEnd                DateTime
+  /// Independently advancing monthly quota window, even for annual plans.
+  quotaPeriodStart       DateTime
+  quotaPeriodEnd         DateTime
+  /// Tier changes apply only when quotaPeriodEnd is reached (no proration v1).
+  pendingTier            AiTier?
+  pendingMonthlyCredits  BigInt?
+  pendingPlanCode        String?
+  sourceOrderId          String?              @unique
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, status])
+  @@index([quotaPeriodEnd])
+  @@index([termEnd])
 }
 
-/// Append-only credit ledger. Positive `credits` = grant, negative = usage.
-/// Balance = SUM(credits) over rows where expiresAt is null or in the future.
+/// Append-only credit ledger. Positive `credits` = grant/release, negative =
+/// usage/reservation/refund/expiry. `operationId` makes each financial effect
+/// idempotent and links reservation → settlement → usage.
 model AiCreditLedger {
-  id           String    @id @default(cuid())
+  id           String       @id @default(cuid())
   workspaceId  String
-  /// grant | subscription_use | payg_use | refund | expire
-  kind         String
+  operationId  String       @unique
+  kind         AiLedgerKind
   credits      BigInt
-  balanceAfter BigInt
+  balanceAfter BigInt?
   refType      String?
   refId        String?
-  /// Khusus grant PAYG — null untuk entri langganan/pemakaian.
+  sourceOrderId String?
+  usageEventId String?      @unique
+  /// Set only on grants; expiry is materialized as an explicit `expire` row.
   expiresAt    DateTime?
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime     @default(now())
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  usageEvent AiUsageEvent? @relation(fields: [usageEventId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, createdAt])
   @@index([workspaceId, kind, createdAt])
+  @@index([sourceOrderId])
 }
 
 /// Satu baris per AI call (BYOK tercatat dengan creditsUsed=0 untuk analitik).
 model AiUsageEvent {
-  id           String   @id @default(cuid())
+  id           String          @id @default(cuid())
   workspaceId  String
+  requestId    String          @unique
   /// ID provider workspace (BYOK) atau "komenin:<model>".
   providerId   String?
   model        String
   inputTokens  Int
   outputTokens Int
-  creditsUsed  BigInt   @default(0)
-  /// own_key | subscription | payg
-  billedTo     String
+  creditsUsed  BigInt          @default(0)
+  billedTo     AiBillingSource
+  usageSource  String          @default("reported")
   latencyMs    Int?
   refType      String?
   refId        String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime        @default(now())
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  ledgerEntry AiCreditLedger?
 
   @@index([workspaceId, createdAt])
 }
@@ -1181,14 +1223,23 @@ model Region {
   updatedAt   DateTime @updatedAt
 }
 
+enum PlanKind {
+  social
+  ai_subscription
+  ai_credits
+}
+
 model Plan {
   id                  String       @id @default(cuid())
   code                String       @unique
   name                String
   description         String?
+  kind                PlanKind     @default(social)
   interval            PlanInterval
   durationMonths      Int
   priceIdr            Int
+  /// Per-month allowance for AI subscriptions, or one-time grant for PAYG.
+  aiCredits           BigInt?
   monthlySendLimit    Int          @default(5000)
   monthlyPublishLimit Int          @default(1000)
   isActive            Boolean      @default(true)

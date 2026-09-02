@@ -46,13 +46,14 @@ async function meterAndComplete(input: {
   let source: "own_key" | "subscription" | "payg" = "own_key";
   if (workspaceId) {
     const { resolveAiBilling } = await import("@/lib/ai/billing");
+    // preferOwnKey is resolved from the persisted Workspace.aiPreferOwnKey
+    // flag inside resolveAiBilling (router no longer hardcodes it).
     const billing = await resolveAiBilling({
       workspaceId,
       hasOwnProvider: Boolean(
         request.providers?.length && request.providers !== undefined &&
         request.providers.some((p) => p.id && !p.id.startsWith("env-")),
       ),
-      preferOwnKey: true,
     });
     if (!billing.ok) {
       throw new AiQuotaExceededError(billing.message);
@@ -92,6 +93,8 @@ async function meterAndComplete(input: {
         latencyMs,
         refType: request.refType ?? null,
         refId: request.refId ?? null,
+        // Providers here don't return a usage object yet, so tokens are estimated.
+        reported: false,
       });
     } catch (error) {
       console.warn("[ai-router] metering failed (call succeeded):", error);

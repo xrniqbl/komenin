@@ -14,6 +14,11 @@ import {
 } from "@/lib/billing/amount";
 import { createMidtransSnapTransaction } from "@/lib/billing/midtrans";
 import { FREE_ENTITLEMENTS } from "@/lib/billing/entitlements";
+import {
+  fulfillAiCreditsOrder,
+  fulfillAiSubscriptionOrder,
+  refundAiOrder,
+} from "@/lib/ai/billing";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
@@ -375,6 +380,14 @@ export async function applyPaidOrder(orderCode: string, payment?: {
           midtransTxnId: payment?.transactionId,
         },
       });
+
+      // Reverse AI entitlement/credits this order granted (idempotent).
+      await refundAiOrder(tx, {
+        workspaceId: order.workspaceId,
+        orderId: order.id,
+        now,
+      });
+
       if (refunded.subscriptionId) {
         await tx.subscription.updateMany({
           where: {
@@ -554,6 +567,43 @@ export async function applyPaidOrder(orderCode: string, payment?: {
       where: { id: order.id },
     });
 
+    // ---- AI add-on fulfillment (kind: ai_subscription | ai_credits) ----
+    const planKind = order.plan.kind;
+    if (planKind === "ai_credits") {
+      const credits = order.plan.aiCredits ?? 0n;
+      await fulfillAiCreditsOrder(tx, {
+        workspaceId: order.workspaceId,
+        orderId: order.id,
+        credits,
+        now,
+      });
+      return {
+        paid,
+        subscription: null as null,
+        alreadyPaid: false as const,
+        aiFulfilled: "credits" as const,
+      };
+    }
+
+    if (planKind === "ai_subscription") {
+      await fulfillAiSubscriptionOrder(tx, {
+        workspaceId: order.workspaceId,
+        orderId: order.id,
+        planCode: order.plan.code,
+        durationMonths: order.plan.durationMonths,
+        monthlyCredits: order.plan.aiCredits ?? 0n,
+        now,
+      });
+      return {
+        paid,
+        subscription: null as null,
+        alreadyPaid: false as const,
+        aiFulfilled: "subscription" as const,
+      };
+    }
+
+    // ---- Social plan fulfillment (kind: social / default) ----
+
     // One active entitlement per workspace: cancel any previous active/trialing
     // rows before inserting the new paid period so stacked subs can't inflate
     // plan benefits after upgrades/renewals/replays.
@@ -592,7 +642,7 @@ export async function applyPaidOrder(orderCode: string, payment?: {
     return { paid, subscription, alreadyPaid: false as const };
   });
 
-  if (result.alreadyPaid || !result.subscription) {
+  if (result.alreadyPaid || (!result.subscription && !("aiFulfilled" in result))) {
     return { ok: true, alreadyPaid: true, orderId: order.id };
   }
 
@@ -603,9 +653,10 @@ export async function applyPaidOrder(orderCode: string, payment?: {
     resourceType: "subscription_order",
     resourceId: order.id,
     metadata: {
-      subscriptionId: result.subscription.id,
+      subscriptionId: result.subscription?.id ?? null,
       planCode: order.plan.code,
       totalIdr: order.totalIdr,
+      aiFulfilled: "aiFulfilled" in result ? result.aiFulfilled : null,
     },
   });
 
@@ -613,7 +664,7 @@ export async function applyPaidOrder(orderCode: string, payment?: {
   revalidatePath("/app/checkout");
   revalidatePath("/admin/billing");
 
-  return { ok: true, orderId: order.id, subscriptionId: result.subscription.id };
+  return { ok: true, orderId: order.id, subscriptionId: result.subscription?.id ?? null };
 }
 
 export async function markSimulatedPaid(orderCode: string) {

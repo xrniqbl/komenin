@@ -3,16 +3,28 @@ import type { AiTier } from "@prisma/client";
 
 vi.mock("@/lib/db", () => {
   const subscriptionRows = new Map<string, unknown>();
+  const workspaceRows = new Map<string, unknown>();
   const ledgerAggregate = vi.fn();
   const ledgerFindFirst = vi.fn();
-  const usageCreate = vi.fn();
-  const ledgerCreate = vi.fn();
+  const usageCreate = vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+    id: "evt_1",
+    ...data,
+  }));
+  const ledgerCreate = vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+    id: "led_1",
+    ...data,
+  }));
 
   return {
     db: {
       workspaceAiSubscription: {
         findUnique: vi.fn(async ({ where }: { where: { workspaceId: string } }) =>
           subscriptionRows.get(where.workspaceId) ?? null,
+        ),
+      },
+      workspace: {
+        findUnique: vi.fn(async ({ where }: { where: { id: string } }) =>
+          workspaceRows.get(where.id) ?? { aiPreferOwnKey: true },
         ),
       },
       aiCreditLedger: {
@@ -30,6 +42,7 @@ vi.mock("@/lib/db", () => {
         }),
       ),
       __setSubscription: (id: string, row: unknown) => subscriptionRows.set(id, row),
+      __setWorkspace: (id: string, row: unknown) => workspaceRows.set(id, row),
       __ledgerAggregate: ledgerAggregate,
       __ledgerFindFirst: ledgerFindFirst,
       __ledgerCreate: ledgerCreate,
@@ -42,11 +55,13 @@ import {
   resolveAiBilling,
   recordAiUsage,
   tierAllowsPaygFallback,
+  tierFromPlanCode,
 } from "@/lib/ai/billing";
 import { db } from "@/lib/db";
 
 const mocked = db as unknown as {
   __setSubscription: (id: string, row: unknown) => void;
+  __setWorkspace: (id: string, row: unknown) => void;
   __ledgerAggregate: ReturnType<typeof vi.fn>;
   __ledgerFindFirst: ReturnType<typeof vi.fn>;
   __ledgerCreate: ReturnType<typeof vi.fn>;
@@ -59,8 +74,10 @@ function activeSub(over: Record<string, unknown> = {}) {
     tier: "starter",
     monthlyCredits: 1_000_000n,
     status: "active",
-    currentPeriodStart: new Date(now.getTime() - 5 * 24 * 3600 * 1000),
-    currentPeriodEnd: new Date(now.getTime() + 25 * 24 * 3600 * 1000),
+    termStart: new Date(now.getTime() - 5 * 24 * 3600 * 1000),
+    termEnd: new Date(now.getTime() + 25 * 24 * 3600 * 1000),
+    quotaPeriodStart: new Date(now.getTime() - 5 * 24 * 3600 * 1000),
+    quotaPeriodEnd: new Date(now.getTime() + 25 * 24 * 3600 * 1000),
     ...over,
   };
 }
@@ -79,6 +96,15 @@ describe("tierAllowsPaygFallback", () => {
   });
 });
 
+describe("tierFromPlanCode", () => {
+  it("maps AI plan codes to tiers", () => {
+    expect(tierFromPlanCode("ai_starter_1m")).toBe("starter");
+    expect(tierFromPlanCode("ai_pro_12m")).toBe("pro");
+    expect(tierFromPlanCode("ai_pro_max_1m")).toBe("pro_max");
+    expect(tierFromPlanCode("starter_1m")).toBeNull();
+  });
+});
+
 describe("resolveAiBilling", () => {
   it("prefers own key when workspace has providers and prefers it", async () => {
     const result = await resolveAiBilling({
@@ -92,6 +118,20 @@ describe("resolveAiBilling", () => {
       remaining: null,
       tier: "none",
     });
+  });
+
+  it("honours the persisted aiPreferOwnKey=false workspace preference", async () => {
+    mocked.__setWorkspace("ws_byok_off", { aiPreferOwnKey: false });
+    mocked.__setSubscription("ws_byok_off", activeSub());
+    mocked.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: -100_000n } });
+
+    const result = await resolveAiBilling({
+      workspaceId: "ws_byok_off",
+      hasOwnProvider: true, // own provider exists but is NOT preferred
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.source).toBe("subscription");
   });
 
   it("uses subscription quota when active and not spent", async () => {
@@ -162,7 +202,7 @@ describe("resolveAiBilling", () => {
     mocked.__setSubscription(
       "ws_4",
       activeSub({
-        currentPeriodEnd: new Date(Date.now() - 24 * 3600 * 1000), // expired
+        termEnd: new Date(Date.now() - 24 * 3600 * 1000), // expired
       }),
     );
     mocked.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: null } }); // payg = 0
@@ -171,7 +211,8 @@ describe("resolveAiBilling", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.tier).toBe("none");
-  });});
+  });
+});
 
 describe("recordAiUsage", () => {
   it("own_key calls write a zero-credit usage event only", async () => {
@@ -192,11 +233,10 @@ describe("recordAiUsage", () => {
     expect(event.data.creditsUsed).toBe(0n);
     expect(event.data.inputTokens).toBe(100);
     expect(event.data.outputTokens).toBe(50);
+    expect(event.data.requestId).toBeTruthy();
   });
 
   it("subscription calls debit the ledger and write a usage event", async () => {
-    mocked.__ledgerFindFirst.mockResolvedValueOnce({ balanceAfter: 700_000n });
-
     const result = await recordAiUsage({
       workspaceId: "ws_1",
       source: "subscription",
@@ -205,6 +245,7 @@ describe("recordAiUsage", () => {
       outputTokens: 100,
       refType: "comment_action",
       refId: "ca_1",
+      requestId: "req_abc",
     });
 
     expect(result.creditsUsed).toBe(300n);
@@ -212,7 +253,8 @@ describe("recordAiUsage", () => {
     const ledgerRow = mocked.__ledgerCreate.mock.calls[0][0];
     expect(ledgerRow.data.kind).toBe("subscription_use");
     expect(ledgerRow.data.credits).toBe(-300n);
-    expect(ledgerRow.data.balanceAfter).toBe(700_000n - 300n);
+    expect(ledgerRow.data.operationId).toBe("use:req_abc");
+    expect(ledgerRow.data.usageEventId).toBe("evt_1");
     expect(mocked.__usageCreate).toHaveBeenCalledTimes(1);
     const event = mocked.__usageCreate.mock.calls[0][0];
     expect(event.data.billedTo).toBe("subscription");
@@ -221,8 +263,6 @@ describe("recordAiUsage", () => {
   });
 
   it("payg calls debit with payg_use kind", async () => {
-    mocked.__ledgerFindFirst.mockResolvedValueOnce({ balanceAfter: 500_000n });
-
     await recordAiUsage({
       workspaceId: "ws_1",
       source: "payg",
@@ -245,5 +285,18 @@ describe("recordAiUsage", () => {
       outputTokens: 100,
     });
     expect(result.creditsUsed).toBe(100n);
+  });
+
+  it("marks estimated usage when the provider does not report tokens", async () => {
+    await recordAiUsage({
+      workspaceId: "ws_1",
+      source: "subscription",
+      model: "m",
+      inputTokens: 10,
+      outputTokens: 10,
+      reported: false,
+    });
+    const event = mocked.__usageCreate.mock.calls[0][0];
+    expect(event.data.usageSource).toBe("estimated");
   });
 });
