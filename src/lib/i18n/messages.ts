@@ -217,6 +217,39 @@ export const messages = {
           cta: "Choose 12 months",
         },
       },
+      ai: {
+        badge: "AI add-on",
+        title: "Komenin AI — use AI without your own API key",
+        subtitle:
+          "The plans above cover sending & publishing. Komenin AI is a separate add-on that supplies the model — you pay for credits, we handle the keys. 1 credit = 1 token.",
+        byokNote: "Prefer to bring your own API key? It stays free forever — AI credits are optional.",
+        tiersHeading: "Monthly AI subscription",
+        paygHeading: "Pay-as-you-go credit packs",
+        creditsPerMonth: "credits/month",
+        credits: "credits",
+        perMonth: "/month",
+        buyCta: "Choose plan",
+        buyPackCta: "Buy credits",
+        faqHeading: "AI metering FAQ",
+        faq: [
+          {
+            q: "What is an AI credit?",
+            a: "1 credit = 1 token (input + output), counted from the model's usage report. A typical AI comment uses about 150 credits.",
+          },
+          {
+            q: "What happens when my monthly quota runs out?",
+            a: "Starter and Pro stop (fail-closed) until the next month or you buy PAYG credits. Pro Max automatically continues on your pay-as-you-go balance so production never halts.",
+          },
+          {
+            q: "Do PAYG credits expire?",
+            a: "Credits stay valid for 12 months from purchase while your account is active, then expire (see the Acceptable Use Policy).",
+          },
+          {
+            q: "Can I keep using my own API key?",
+            a: "Yes — BYOK is always free. Toggle 'prefer my own key' in Settings → AI and AI calls use your provider without touching Komenin credits.",
+          },
+        ],
+      },
     },
     featuresPage: {
       title: "Features",
@@ -804,6 +837,39 @@ export const messages = {
           ],
           cta: "Pilih 12 bulan",
         },
+      },
+      ai: {
+        badge: "Add-on AI",
+        title: "Komenin AI — pakai AI tanpa API key sendiri",
+        subtitle:
+          "Plan di atas mencakup pengiriman & publikasi. Komenin AI adalah add-on terpisah yang menyediakan modelnya — Anda membayar kredit, kami yang mengurus key. 1 kredit = 1 token.",
+        byokNote: "Lebih suka bawa API key sendiri? Tetap gratis selamanya — kredit AI bersifat opsional.",
+        tiersHeading: "Langganan AI bulanan",
+        paygHeading: "Paket kredit pay-as-you-go",
+        creditsPerMonth: "kredit/bulan",
+        credits: "kredit",
+        perMonth: "/bulan",
+        buyCta: "Pilih plan",
+        buyPackCta: "Beli kredit",
+        faqHeading: "FAQ metering AI",
+        faq: [
+          {
+            q: "Apa itu kredit AI?",
+            a: "1 kredit = 1 token (input + output), dihitung dari laporan usage model. Satu komentar AI umumnya memakai sekitar 150 kredit.",
+          },
+          {
+            q: "Apa yang terjadi saat kuota bulanan habis?",
+            a: "Starter dan Pro berhenti (fail-closed) sampai bulan berikutnya atau Anda membeli kredit PAYG. Pro Max otomatis lanjut ke saldo pay-as-you-go agar produksi tidak berhenti.",
+          },
+          {
+            q: "Apakah kredit PAYG kedaluwarsa?",
+            a: "Kredit berlaku 12 bulan sejak pembelian selama akun aktif, lalu hangus (lihat Kebijakan Penggunaan yang Diterima).",
+          },
+          {
+            q: "Bisakah saya tetap memakai API key sendiri?",
+            a: "Bisa — BYOK selalu gratis. Aktifkan 'utamakan API key sendiri' di Settings → AI dan panggilan AI memakai provider Anda tanpa memotong kredit Komenin.",
+          },
+        ],
       },
     },
     featuresPage: {

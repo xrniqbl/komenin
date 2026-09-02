@@ -322,3 +322,102 @@ export async function listAdminDeliveries() {
   await requireSuperAdmin();
   return db.deliveryLog.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
 }
+
+/**
+ * Admin AI revenue / usage / margin summary (spec Fase 4 #16 + risk #1).
+ * Revenue comes from paid AI orders; cost is estimated per model from the
+ * upstream cost table. Margin = revenue allocated vs upstream cost.
+ */
+export async function getAdminAiMonetization(rangeDays = 30) {
+  await requireSuperAdmin();
+  const since = new Date();
+  since.setDate(since.getDate() - rangeDays);
+
+  const [paidAiOrders, usageEvents, tierCounts] = await Promise.all([
+    db.subscriptionOrder.findMany({
+      where: {
+        status: "paid",
+        paidAt: { gte: since },
+        plan: { kind: { in: ["ai_subscription", "ai_credits"] } },
+      },
+      select: { totalIdr: true, plan: { select: { code: true, kind: true, aiCredits: true } } },
+    }),
+    db.aiUsageEvent.findMany({
+      where: { createdAt: { gte: since }, billedTo: { in: ["subscription", "payg"] } },
+      select: { model: true, creditsUsed: true, billedTo: true },
+    }),
+    db.workspaceAiSubscription.groupBy({
+      by: ["tier", "status"],
+      _count: { _all: true },
+    }),
+  ]);
+
+  // Revenue split by SKU kind.
+  let revenueSubscriptionIdr = 0;
+  let revenuePaygIdr = 0;
+  let creditsSold = 0n;
+  for (const order of paidAiOrders) {
+    if (order.plan.kind === "ai_subscription") revenueSubscriptionIdr += order.totalIdr;
+    else revenuePaygIdr += order.totalIdr;
+    creditsSold += order.plan.aiCredits ?? 0n;
+  }
+  const revenueTotalIdr = revenueSubscriptionIdr + revenuePaygIdr;
+
+  // Upstream cost per model.
+  const { estimateCostIdr } = await import("@/lib/ai/cost");
+  const byModel = new Map<string, { credits: bigint; costIdr: number }>();
+  let totalCreditsUsed = 0n;
+  let totalCostIdr = 0;
+  for (const e of usageEvents) {
+    totalCreditsUsed += e.creditsUsed;
+    const cost = estimateCostIdr(e.model, e.creditsUsed);
+    totalCostIdr += cost;
+    const m = byModel.get(e.model) ?? { credits: 0n, costIdr: 0 };
+    m.credits += e.creditsUsed;
+    m.costIdr += cost;
+    byModel.set(e.model, m);
+  }
+
+  const modelMargins = Array.from(byModel.entries())
+    .map(([model, v]) => ({
+      model,
+      credits: v.credits.toString(),
+      costIdr: Math.round(v.costIdr),
+    }))
+    .sort((a, b) => b.costIdr - a.costIdr)
+    .slice(0, 10);
+
+  // Blended revenue per credit sold vs blended cost per credit used.
+  const creditsSoldNum = Number(creditsSold);
+  const revenuePerCredit = creditsSoldNum > 0 ? revenueTotalIdr / creditsSoldNum : 0;
+  const creditsUsedNum = Number(totalCreditsUsed);
+  const costPerCredit = creditsUsedNum > 0 ? totalCostIdr / creditsUsedNum : 0;
+  // Margin risk flag (spec §6): alert when blended cost > 60% of blended price.
+  const marginRatio = revenuePerCredit > 0 ? costPerCredit / revenuePerCredit : 0;
+  const marginAtRisk = revenuePerCredit > 0 && marginRatio > 0.6;
+
+  return {
+    rangeDays,
+    revenue: {
+      totalIdr: revenueTotalIdr,
+      subscriptionIdr: revenueSubscriptionIdr,
+      paygIdr: revenuePaygIdr,
+      orderCount: paidAiOrders.length,
+      creditsSold: creditsSold.toString(),
+    },
+    usage: {
+      creditsUsed: totalCreditsUsed.toString(),
+      costIdr: Math.round(totalCostIdr),
+      costPerCreditIdr: Number(costPerCredit.toFixed(4)),
+      revenuePerCreditIdr: Number(revenuePerCredit.toFixed(4)),
+      marginRatio: Number(marginRatio.toFixed(3)),
+      marginAtRisk,
+    },
+    tiers: tierCounts.map((t) => ({
+      tier: t.tier,
+      status: t.status,
+      count: t._count._all,
+    })),
+    modelMargins,
+  };
+}

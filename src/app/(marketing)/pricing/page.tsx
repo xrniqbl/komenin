@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { billingPlans, formatPrice, type BillingPlanId } from "@/data/pricing";
+import { AI_PLANS } from "@/lib/billing/catalog";
 import { cn } from "@/lib/utils";
 
 export default function PricingPage() {
@@ -155,6 +156,110 @@ export default function PricingPage() {
             </table>
           </div>
         </Card>
+
+        {/* Komenin AI add-on */}
+        <section className="flex flex-col gap-6">
+          <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center">
+            <Badge variant="secondary" className="w-fit">
+              {copy.ai.badge}
+            </Badge>
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              {copy.ai.title}
+            </h2>
+            <p className="max-w-2xl text-sm text-muted-foreground sm:text-base">
+              {copy.ai.subtitle}
+            </p>
+            <p className="text-xs text-muted-foreground">{copy.ai.byokNote}</p>
+          </div>
+
+          <div>
+            <h3 className="mb-3 text-sm font-semibold">{copy.ai.tiersHeading}</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {AI_PLANS.filter((p) => p.kind === "ai_subscription" && p.durationMonths === 1).map(
+                (plan) => (
+                  <Card key={plan.code} className="flex h-full flex-col border bg-background/95">
+                    <CardHeader className="gap-2">
+                      <CardDescription className="text-sm font-medium text-foreground">
+                        {plan.name}
+                      </CardDescription>
+                      <div className="flex items-end gap-2">
+                        <CardTitle className="text-2xl font-semibold">
+                          {formatPrice(plan.priceMonthlyIdr)}
+                        </CardTitle>
+                        <span className="pb-0.5 text-xs text-muted-foreground">
+                          {copy.ai.perMonth}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {new Intl.NumberFormat("id-ID").format(Number(plan.aiCredits ?? 0n))}{" "}
+                        {copy.ai.creditsPerMonth}
+                      </p>
+                    </CardHeader>
+                    <CardFooter className="mt-auto pt-2">
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        render={<Link href={`/app/checkout?plan=${plan.code}`} />}
+                        nativeButton={false}
+                      >
+                        {copy.ai.buyCta}
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ),
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="mb-3 text-sm font-semibold">{copy.ai.paygHeading}</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {AI_PLANS.filter((p) => p.kind === "ai_credits").map((plan) => (
+                <Card key={plan.code} className="flex h-full flex-col border bg-background/95">
+                  <CardHeader className="gap-2">
+                    <CardDescription className="text-sm font-medium text-foreground">
+                      {plan.name}
+                    </CardDescription>
+                    <div className="flex items-end gap-2">
+                      <CardTitle className="text-2xl font-semibold">
+                        {formatPrice(plan.priceIdr)}
+                      </CardTitle>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {new Intl.NumberFormat("id-ID").format(Number(plan.aiCredits ?? 0n))}{" "}
+                      {copy.ai.credits}
+                    </p>
+                  </CardHeader>
+                  <CardFooter className="mt-auto pt-2">
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      render={<Link href={`/app/checkout?plan=${plan.code}`} />}
+                      nativeButton={false}
+                    >
+                      {copy.ai.buyPackCta}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* FAQ */}
+          <div>
+            <h3 className="mb-3 text-sm font-semibold">{copy.ai.faqHeading}</h3>
+            <div className="grid gap-3 md:grid-cols-2">
+              {copy.ai.faq.map((item) => (
+                <Card key={item.q} className="border bg-background/95">
+                  <CardHeader className="gap-1 p-4">
+                    <CardTitle className="text-sm">{item.q}</CardTitle>
+                    <CardDescription className="text-sm">{item.a}</CardDescription>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
 
         <section className="grid gap-4 md:grid-cols-2">
           <Card>
