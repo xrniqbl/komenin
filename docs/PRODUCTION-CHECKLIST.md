@@ -50,6 +50,16 @@ npm run db:migrate:deploy
 npm run db:migrate:status
 ```
 
+**Large-table caution (AI ledger / usage):** `20260827120000_ai_monetization_hardening`
+rewrites and indexes `AiUsageEvent` and `AiCreditLedger` (UPDATE + several indexes).
+On a small/medium ledger this is fine inside the normal deploy. If those tables are
+already large in production, run it during a low-traffic window — or apply the heavy
+index creation manually with `CREATE INDEX CONCURRENTLY` (outside a transaction) and
+then mark the migration applied with `npx prisma migrate resolve --applied <name>`,
+to avoid a long table lock. The newer `20260902120000_ai_ledger_source_bucket`
+migration is written idempotently (`ADD COLUMN IF NOT EXISTS`, bounded no-op
+backfills) so it can be re-run safely after a partial apply.
+
 Confirm:
 
 - [ ] Prisma migrations applied
