@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -56,7 +56,7 @@ export function KomeninAiCard({
 }) {
   const [preferOwnKey, setPreferOwnKey] = useState(status.preferOwnKey);
   const [paygFallback, setPaygFallback] = useState(status.paygFallbackEnabled);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
@@ -67,40 +67,42 @@ export function KomeninAiCard({
   const subscriptions = aiPlans.filter((p) => p.kind === "ai_subscription");
   const paygPacks = aiPlans.filter((p) => p.kind === "ai_credits");
 
-  function togglePreferOwnKey(next: boolean) {
+  async function togglePreferOwnKey(next: boolean) {
     setPreferOwnKey(next);
     setMessage(null);
-    startTransition(async () => {
-      try {
-        await updateAiPreferOwnKey(next);
-        setMessage(
-          next
-            ? "Workspace akan memakai API key sendiri dulu (BYOK)."
-            : "Workspace akan memakai kredit Komenin AI dulu.",
-        );
-      } catch (error) {
-        setPreferOwnKey(!next); // revert
-        setMessage(error instanceof Error ? error.message : "Gagal menyimpan preferensi");
-      }
-    });
+    setPending(true);
+    try {
+      await updateAiPreferOwnKey(next);
+      setMessage(
+        next
+          ? "Workspace akan memakai API key sendiri dulu (BYOK)."
+          : "Workspace akan memakai kredit Komenin AI dulu.",
+      );
+    } catch (error) {
+      setPreferOwnKey(!next); // revert
+      setMessage(error instanceof Error ? error.message : "Gagal menyimpan preferensi");
+    } finally {
+      setPending(false);
+    }
   }
 
-  function togglePaygFallback(next: boolean) {
+  async function togglePaygFallback(next: boolean) {
     setPaygFallback(next);
     setMessage(null);
-    startTransition(async () => {
-      try {
-        await updateAiPaygFallback(next);
-        setMessage(
-          next
-            ? "Saat kuota Pro Max habis, panggilan otomatis lanjut ke saldo pay-as-you-go."
-            : "Saat kuota habis, pemanggilan AI berhenti (fail-closed).",
-        );
-      } catch (error) {
-        setPaygFallback(!next);
-        setMessage(error instanceof Error ? error.message : "Gagal menyimpan preferensi");
-      }
-    });
+    setPending(true);
+    try {
+      await updateAiPaygFallback(next);
+      setMessage(
+        next
+          ? "Saat kuota Pro Max habis, panggilan otomatis lanjut ke saldo pay-as-you-go."
+          : "Saat kuota habis, pemanggilan AI berhenti (fail-closed).",
+      );
+    } catch (error) {
+      setPaygFallback(!next);
+      setMessage(error instanceof Error ? error.message : "Gagal menyimpan preferensi");
+    } finally {
+      setPending(false);
+    }
   }
 
   async function checkout(planCode: string) {
@@ -113,7 +115,13 @@ export function KomeninAiCard({
         body: JSON.stringify({ planCode }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Checkout gagal");
+      if (!response.ok) {
+        const msg =
+          typeof payload?.error === "string" && payload.error
+            ? payload.error
+            : "Checkout gagal";
+        throw new Error(msg);
+      }
       if (payload.redirectUrl) {
         window.location.href = payload.redirectUrl;
         return;

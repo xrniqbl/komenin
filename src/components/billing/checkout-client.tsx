@@ -56,11 +56,12 @@ export function CheckoutClient({
     const payload = await response.json();
     if (!response.ok) {
       setDiscountIdr(0);
-      setMessage(payload.error || "Voucher invalid");
+      setMessage(typeof payload?.error === "string" && payload.error ? payload.error : "Voucher invalid");
       return;
     }
-    setDiscountIdr(payload.discountIdr || 0);
-    setMessage(`Voucher applied: -${formatIdr(payload.discountIdr || 0)}`);
+    const discount = Number(payload?.discountIdr);
+    setDiscountIdr(Number.isFinite(discount) ? discount : 0);
+    setMessage(`Voucher applied: -${formatIdr(Number.isFinite(discount) ? discount : 0)}`);
   }
 
   async function pay() {
@@ -77,7 +78,11 @@ export function CheckoutClient({
         }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Checkout failed");
+      if (!response.ok) {
+        throw new Error(
+          typeof payload?.error === "string" && payload.error ? payload.error : "Checkout failed",
+        );
+      }
 
       if (payload.isSimulation || !payload.clientKey) {
         router.push(`/app/checkout/result?order_id=${encodeURIComponent(payload.orderCode)}&sim=1`);

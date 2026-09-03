@@ -8,7 +8,15 @@ type SourceBreakdown = {
 };
 
 function fmtCredits(value: string): string {
-  return new Intl.NumberFormat("id-ID").format(Number(value));
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "0";
+  return new Intl.NumberFormat("id-ID").format(n);
+}
+
+/** Safe numeric view of a credits string; returns 0 for non-finite input. */
+function toNum(value: string): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 }
 
 const SOURCE_LABEL: Record<keyof SourceBreakdown, string> = {
@@ -31,7 +39,7 @@ export function AiUsageCard({
   const sources = (Object.keys(SOURCE_LABEL) as Array<keyof SourceBreakdown>).map(
     (key) => ({ key, label: SOURCE_LABEL[key], credits: data.creditsBySource[key] }),
   );
-  const totalCredits = sources.reduce((sum, s) => sum + Number(s.credits), 0);
+  const totalCredits = sources.reduce((sum, s) => sum + toNum(s.credits), 0);
 
   return (
     <Card>
@@ -45,7 +53,8 @@ export function AiUsageCard({
       <CardContent className="space-y-4">
         <div className="space-y-2">
           {sources.map((s) => {
-            const pct = totalCredits > 0 ? Math.round((Number(s.credits) / totalCredits) * 100) : 0;
+            const credits = toNum(s.credits);
+            const pct = totalCredits > 0 ? Math.round((credits / totalCredits) * 100) : 0;
             return (
               <div key={s.key} className="space-y-1">
                 <div className="flex justify-between text-xs">
@@ -57,7 +66,7 @@ export function AiUsageCard({
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full bg-primary"
-                    style={{ width: `${Math.max(pct, Number(s.credits) > 0 ? 2 : 0)}%` }}
+                    style={{ width: `${Math.max(pct, credits > 0 ? 2 : 0)}%` }}
                   />
                 </div>
               </div>

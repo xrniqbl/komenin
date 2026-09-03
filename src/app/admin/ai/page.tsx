@@ -13,7 +13,8 @@ import { formatIdr } from "@/lib/billing/catalog";
 import { getAdminAiMonetization } from "@/server/admin";
 
 function fmtCredits(value: string): string {
-  return new Intl.NumberFormat("id-ID").format(Number(value));
+  const n = Number(value);
+  return new Intl.NumberFormat("id-ID").format(Number.isFinite(n) ? n : 0);
 }
 
 export default async function AdminAiMonetizationPage() {
