@@ -13,9 +13,28 @@
 
 import type { AiTier } from "@prisma/client";
 
-const ECONOMIC_DEFAULT = ["gpt-4o-mini", "gpt-4o-mini-2024-07-18"];
-const STANDARD_DEFAULT = ["gpt-4o", "gpt-4o-2024-08-06"];
-const PREMIUM_DEFAULT = ["gpt-4o-2024-11-20", "o1", "claude-3-5-sonnet"];
+// Built-in defaults track the CURRENT generation of gateway models (updated
+// 2026-09). Override per tier via env to rotate the catalogue without a deploy.
+// Each tier inherits the tiers below it.
+const ECONOMIC_DEFAULT = [
+  "gpt-4o-mini",
+  "deepseek-v3.2",
+  "glm-4.6-flash",
+  "gemini-2.0-flash",
+];
+const STANDARD_DEFAULT = [
+  "gpt-4o",
+  "deepseek-v3.2-exp",
+  "kimi-k2",
+  "glm-4.6",
+  "gemini-2.5-flash",
+];
+const PREMIUM_DEFAULT = [
+  "o1",
+  "claude-sonnet-4.5",
+  "gemini-2.5-pro",
+  "deepseek-r1",
+];
 
 function parseList(raw: string | undefined, fallback: string[]): string[] {
   if (!raw?.trim()) return fallback;

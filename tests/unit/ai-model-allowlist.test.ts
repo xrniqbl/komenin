@@ -21,15 +21,20 @@ describe("model allowlist per tier", () => {
     expect(isModelAllowedForTier("none", "anything-goes")).toBe(true);
   });
 
-  it("starter gets economic models only", () => {
+  it("starter gets economic models only (incl. latest Chinese models)", () => {
     expect(isModelAllowedForTier("starter", "gpt-4o-mini")).toBe(true);
+    expect(isModelAllowedForTier("starter", "deepseek-v3.2")).toBe(true);
+    expect(isModelAllowedForTier("starter", "glm-4.6-flash")).toBe(true);
     expect(isModelAllowedForTier("starter", "gpt-4o")).toBe(false);
-    expect(isModelAllowedForTier("starter", "claude-3-5-sonnet")).toBe(false);
+    expect(isModelAllowedForTier("starter", "claude-sonnet-4.5")).toBe(false);
   });
 
   it("pro adds standard models", () => {
     expect(isModelAllowedForTier("pro", "gpt-4o-mini")).toBe(true);
+    expect(isModelAllowedForTier("pro", "deepseek-v3.2")).toBe(true);
     expect(isModelAllowedForTier("pro", "gpt-4o")).toBe(true);
+    expect(isModelAllowedForTier("pro", "kimi-k2")).toBe(true);
+    expect(isModelAllowedForTier("pro", "glm-4.6")).toBe(true);
     expect(isModelAllowedForTier("pro", "o1")).toBe(false);
   });
 
@@ -37,7 +42,9 @@ describe("model allowlist per tier", () => {
     expect(isModelAllowedForTier("pro_max", "gpt-4o-mini")).toBe(true);
     expect(isModelAllowedForTier("pro_max", "gpt-4o")).toBe(true);
     expect(isModelAllowedForTier("pro_max", "o1")).toBe(true);
-    expect(isModelAllowedForTier("pro_max", "claude-3-5-sonnet")).toBe(true);
+    expect(isModelAllowedForTier("pro_max", "claude-sonnet-4.5")).toBe(true);
+    expect(isModelAllowedForTier("pro_max", "deepseek-r1")).toBe(true);
+    expect(isModelAllowedForTier("pro_max", "gemini-2.5-pro")).toBe(true);
   });
 
   it("respects env overrides without a redeploy", () => {

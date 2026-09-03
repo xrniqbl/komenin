@@ -14,14 +14,26 @@
 /** Default fallback cost per credit when a model isn't in the table. */
 export const DEFAULT_COST_PER_CREDIT_IDR = 0.05;
 
+// Default cost table (IDR per credit) — ESTIMATES from public list prices,
+// updated 2026-09 to the current model generation. Override via AI_MODEL_COST_IDR
+// with your REAL gateway rates before trusting the admin margin numbers.
 const DEFAULT_TABLE: Record<string, number> = {
-  "gpt-4o-mini": 0.03,
-  "gpt-4o-mini-2024-07-18": 0.03,
-  "gpt-4o": 0.18,
-  "gpt-4o-2024-08-06": 0.18,
-  "gpt-4o-2024-11-20": 0.22,
-  o1: 0.75,
-  "claude-3-5-sonnet": 0.30,
+  // economic
+  "gpt-4o-mini": 0.003,
+  "deepseek-v3.2": 0.004,
+  "glm-4.6-flash": 0.003,
+  "gemini-2.0-flash": 0.002,
+  // standard
+  "gpt-4o": 0.04,
+  "deepseek-v3.2-exp": 0.006,
+  "kimi-k2": 0.015,
+  "glm-4.6": 0.02,
+  "gemini-2.5-flash": 0.005,
+  // premium / reasoning
+  o1: 0.24,
+  "claude-sonnet-4.5": 0.05,
+  "gemini-2.5-pro": 0.02,
+  "deepseek-r1": 0.009,
 };
 
 function loadTable(): Record<string, number> {
