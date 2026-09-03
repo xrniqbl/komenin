@@ -49,9 +49,16 @@ vi.mock("@/lib/db", () => {
             findFirst: ledgerFindFirst,
             create: ledgerCreate,
             findUnique: vi.fn(async () => null),
+            aggregate: ledgerAggregate,
           },
           aiUsageEvent: { create: usageCreate, findUnique: vi.fn(async () => null) },
           workspaceAiBalance: { upsert: vi.fn(async () => ({})) },
+          workspaceAiSubscription: {
+            findUnique: vi.fn(async ({ where }: { where: { workspaceId: string } }) =>
+              subscriptionRows.get(where.workspaceId) ?? null,
+            ),
+          },
+          $executeRaw: vi.fn(async () => 1),
         }),
       ),
       __setSubscription: (id: string, row: unknown) => subscriptionRows.set(id, row),
@@ -97,6 +104,8 @@ function activeSub(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: no usage recorded (resolveAiBilling paths). recordAiUsage tests
+  // override the aggregate so the settlement clamp sees an ample balance.
   mocked.__ledgerAggregate.mockResolvedValue({ _sum: { credits: null } });
 });
 
@@ -273,6 +282,9 @@ describe("recordAiUsage", () => {
   });
 
   it("subscription calls debit the ledger and write a usage event", async () => {
+    // Settlement clamp reads subscriptionUsed → needs a sub row + used sum.
+    mocked.__setSubscription("ws_1", activeSub());
+    mocked.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: -1_000n } }); // used=1k
     const result = await recordAiUsage({
       workspaceId: "ws_1",
       source: "subscription",
@@ -299,6 +311,8 @@ describe("recordAiUsage", () => {
   });
 
   it("payg calls debit with payg_use kind", async () => {
+    // Settlement clamp reads paygBalance → give an ample balance.
+    mocked.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: 5_000n } });
     await recordAiUsage({
       workspaceId: "ws_1",
       source: "payg",
@@ -313,6 +327,8 @@ describe("recordAiUsage", () => {
   });
 
   it("never charges negative tokens", async () => {
+    mocked.__setSubscription("ws_1", activeSub());
+    mocked.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: 0n } });
     const result = await recordAiUsage({
       workspaceId: "ws_1",
       source: "subscription",
@@ -324,6 +340,8 @@ describe("recordAiUsage", () => {
   });
 
   it("marks estimated usage when the provider does not report tokens", async () => {
+    mocked.__setSubscription("ws_1", activeSub());
+    mocked.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: 0n } });
     await recordAiUsage({
       workspaceId: "ws_1",
       source: "subscription",

@@ -206,9 +206,11 @@ describe("releaseAiReservation", () => {
 
 describe("recordAiUsage settles the reservation", () => {
   it("releases the reservation then debits actual usage", async () => {
+    // Settlement clamp reads paygBalance → ample balance (covers the 150 charge).
+    mock.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: 1_000n } });
     // reservation exists
     mock.__ledgerFindUnique
-      .mockResolvedValueOnce({ credits: -800n }) // rsv lookup
+      .mockResolvedValueOnce({ credits: -800n, source: "payg" }) // rsv lookup
       .mockResolvedValueOnce(null); // rls lookup
 
     await recordAiUsage({
@@ -245,5 +247,28 @@ describe("recordAiUsage settles the reservation", () => {
 
     expect(mock.__usageCreate).not.toHaveBeenCalled();
     expect(mock.__ledgerCreate).not.toHaveBeenCalled();
+  });
+
+  it("CLAMPS the debit to the available balance when actual tokens exceed it (never goes negative)", async () => {
+    // Balance only 80 but actual usage is 150 — charge must clamp to 80.
+    mock.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: 80n } });
+    mock.__ledgerFindUnique.mockResolvedValue(null); // no reservation rows
+
+    const result = await recordAiUsage({
+      workspaceId: "ws_1",
+      source: "payg",
+      model: "gpt-4o",
+      inputTokens: 100,
+      outputTokens: 50,
+      requestId: "req_clamp",
+    });
+
+    const use = mock.__ledgerCreate.mock.calls.find((c) => c[0].data.kind === "payg_use")![0];
+    expect(use.data.credits).toBe(-80n); // clamped, not -150
+    expect(result.creditsUsed).toBe(80n);
+    // The usage event still records true tokens (analytics), but charged credits clamp.
+    const evt = mock.__usageCreate.mock.calls[0][0];
+    expect(evt.data.inputTokens).toBe(100);
+    expect(evt.data.creditsUsed).toBe(80n);
   });
 });

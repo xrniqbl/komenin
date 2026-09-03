@@ -328,9 +328,26 @@ export async function recordAiUsage(input: {
 
   // Idempotency: a retried call with the same requestId is a no-op (the usage
   // event's requestId is unique), so a retried metering write never double-charges.
+  let settledCredits = input.source === "own_key" ? 0n : credits;
   await db.$transaction(async (tx) => {
     const existing = await tx.aiUsageEvent.findUnique({ where: { requestId } });
     if (existing) return;
+
+    // Serialize settlement per workspace so concurrent completions can't both
+    // overdraw when the ACTUAL token count exceeds the reserved estimate.
+    if (input.source !== "own_key") {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.workspaceId}))`;
+    }
+
+    // For Komenin-funded calls, clamp the debit to the available balance so the
+    // ledger never goes negative (a runaway estimate can't make us pay upstream
+    // for usage the workspace's balance can't cover). The usage event records
+    // the TRUE tokens (analytics), but creditsUsed reflects what was charged.
+    let chargeable = credits;
+    if (input.source !== "own_key") {
+      const available = await currentSourceBalance(tx, input.workspaceId, input.source);
+      chargeable = available > 0n ? (credits < available ? credits : available) : 0n;
+    }
 
     const event = await tx.aiUsageEvent.create({
       data: {
@@ -343,7 +360,7 @@ export async function recordAiUsage(input: {
         model: input.model,
         inputTokens: Math.max(0, input.inputTokens),
         outputTokens: Math.max(0, input.outputTokens),
-        creditsUsed: input.source === "own_key" ? 0n : credits,
+        creditsUsed: input.source === "own_key" ? 0n : chargeable,
         billedTo: input.source,
         usageSource,
         latencyMs: input.latencyMs ?? null,
@@ -386,19 +403,20 @@ export async function recordAiUsage(input: {
         operationId: `use:${requestId}`,
         kind,
         source: input.source,
-        credits: -credits,
+        credits: -chargeable,
         refType: input.refType ?? null,
         refId: input.refId ?? null,
         usageEventId: event.id,
       },
     });
     // Maintain the cached PAYG balance for UI reads (settled usage only).
-    if (input.source === "payg") {
-      await applyPaygBalanceDelta(tx, { workspaceId: input.workspaceId, credits: -credits });
+    if (input.source === "payg" && chargeable > 0n) {
+      await applyPaygBalanceDelta(tx, { workspaceId: input.workspaceId, credits: -chargeable });
     }
+    settledCredits = chargeable;
   });
 
-  return { creditsUsed: input.source === "own_key" ? 0n : credits };
+  return { creditsUsed: settledCredits };
 }
 
 /** Grant PAYG credits (purchase) — appended as an idempotent grant ledger row. */
