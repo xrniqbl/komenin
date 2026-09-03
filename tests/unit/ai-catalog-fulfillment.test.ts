@@ -77,6 +77,8 @@ vi.mock("@/lib/db", () => {
   const subUpsert = vi.fn();
   const subFindUnique = vi.fn();
   const subUpdate = vi.fn();
+  const orderUpdate = vi.fn(async () => ({}));
+  const orderFindFirst = vi.fn(async () => null);
   return {
     db: {
       aiCreditLedger: {
@@ -92,6 +94,10 @@ vi.mock("@/lib/db", () => {
         findUnique: subFindUnique,
         update: subUpdate,
       },
+      subscriptionOrder: {
+        update: orderUpdate,
+        findFirst: orderFindFirst,
+      },
       workspaceAiBalance: {
         upsert: vi.fn(async () => ({})),
         findUnique: vi.fn(async () => null),
@@ -105,6 +111,8 @@ vi.mock("@/lib/db", () => {
       __subUpsert: subUpsert,
       __subFindUnique: subFindUnique,
       __subUpdate: subUpdate,
+      __orderUpdate: orderUpdate,
+      __orderFindFirst: orderFindFirst,
     },
   };
 });
@@ -126,6 +134,8 @@ const mock = db as unknown as {
   __subUpsert: ReturnType<typeof vi.fn>;
   __subFindUnique: ReturnType<typeof vi.fn>;
   __subUpdate: ReturnType<typeof vi.fn>;
+  __orderUpdate: ReturnType<typeof vi.fn>;
+  __orderFindFirst: ReturnType<typeof vi.fn>;
 };
 
 // The fulfillment helpers take a `tx`; we pass the mocked db directly.
@@ -291,6 +301,40 @@ describe("refundAiOrder", () => {
     expect(result.reversed).toBe(true);
     expect(mock.__subUpdate).toHaveBeenCalledTimes(1);
     expect(mock.__subUpdate.mock.calls[0][0].data.status).toBe("canceled");
+  });
+
+  it("finds the subscription for an OLD order after a renewal moved sourceOrderId (metadata tag)", async () => {
+    // sourceOrderId lookup misses (renewal moved it to a newer order)...
+    mock.__subFindUnique
+      .mockResolvedValueOnce(null) // where: { sourceOrderId }
+      .mockResolvedValueOnce({ id: "sub_current", status: "active" }); // fallback by workspaceId
+    // ...but the order is tagged as having activated the sub.
+    mock.__orderFindFirst.mockResolvedValueOnce({ id: "ord_old" });
+
+    const result = await refundAiOrder(tx, {
+      workspaceId: "ws_1",
+      orderId: "ord_old",
+      now: new Date(),
+    });
+
+    expect(result.reversed).toBe(true);
+    expect(mock.__subUpdate).toHaveBeenCalledTimes(1);
+    expect(mock.__subUpdate.mock.calls[0][0].where.id).toBe("sub_current");
+  });
+
+  it("tags the order at fulfillment so a later refund can find the sub", async () => {
+    await fulfillAiSubscriptionOrder(tx, {
+      workspaceId: "ws_1",
+      orderId: "ord_tag",
+      planCode: "ai_pro_1m",
+      durationMonths: 1,
+      monthlyCredits: 5_000_000n,
+      now: new Date(),
+    });
+    expect(mock.__orderUpdate).toHaveBeenCalledTimes(1);
+    const arg = mock.__orderUpdate.mock.calls[0][0];
+    expect(arg.where.id).toBe("ord_tag");
+    expect(arg.data.metadata.aiSubscriptionActivated).toBe(true);
   });
 
   it("reverses only the unspent part of a PAYG grant (single grant)", async () => {

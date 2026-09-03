@@ -638,6 +638,19 @@ export async function fulfillAiSubscriptionOrder(
     if (isUniqueViolation(error)) return;
     throw error;
   }
+
+  // Tag the order so a LATER refund can still find and deactivate the AI
+  // subscription even after a renewal moved `sourceOrderId` to a newer order.
+  // (sourceOrderId only ever points at the most recent activating order.)
+  await tx.subscriptionOrder.update({
+    where: { id: input.orderId },
+    data: {
+      metadata: {
+        aiSubscriptionActivated: true,
+        aiTier: tier,
+      },
+    },
+  });
 }
 
 /**
@@ -688,10 +701,30 @@ export async function refundAiOrder(
 ): Promise<{ reversed: boolean }> {
   let reversed = false;
 
-  // 1) Deactivate any AI subscription this order activated.
-  const sub = await tx.workspaceAiSubscription.findUnique({
+  // 1) Deactivate the AI subscription this order activated. Lookup covers two
+  // cases: (a) the order is the CURRENT sourceOrderId (no renewal since), and
+  // (b) an older order that activated the sub before a renewal moved
+  // sourceOrderId to a newer order — those are tagged in metadata at fulfill
+  // time so their refund can still find and cancel the subscription.
+  let sub = await tx.workspaceAiSubscription.findUnique({
     where: { sourceOrderId: input.orderId },
   });
+  if (!sub) {
+    const activatedOrder = await tx.subscriptionOrder.findFirst({
+      where: {
+        id: input.orderId,
+        workspaceId: input.workspaceId,
+        // metadata.aiSubscriptionActivated === true (set at fulfillment)
+        metadata: { path: ["aiSubscriptionActivated"], equals: true },
+      },
+      select: { id: true },
+    });
+    if (activatedOrder) {
+      sub = await tx.workspaceAiSubscription.findUnique({
+        where: { workspaceId: input.workspaceId },
+      });
+    }
+  }
   if (sub && sub.status === "active") {
     await tx.workspaceAiSubscription.update({
       where: { id: sub.id },
