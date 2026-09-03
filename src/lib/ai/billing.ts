@@ -572,6 +572,17 @@ export async function fulfillAiSubscriptionOrder(
   const tier = tierFromPlanCode(input.planCode);
   if (!tier) return;
 
+  // Read the existing subscription to decide renewal vs tier change.
+  // - No sub / same tier  → (re)activate or renew/extend the term immediately.
+  // - Different tier      → per spec §3.4 + owner decision #3 (no proration):
+  //   extend the paid TERM now but queue the tier change as pending*, applied
+  //   by the quota-roll job at the next quota boundary. The user keeps their
+  //   current tier's credits until then.
+  const existing = await tx.workspaceAiSubscription.findUnique({
+    where: { workspaceId: input.workspaceId },
+  });
+  const isTierChange = Boolean(existing && existing.tier !== tier);
+
   const termStart = input.now;
   const termEnd = addMonths(input.now, input.durationMonths);
   const quotaPeriodStart = input.now;
@@ -589,20 +600,37 @@ export async function fulfillAiSubscriptionOrder(
     sourceOrderId: input.orderId,
   };
 
-  try {
-    await tx.workspaceAiSubscription.upsert({
-      where: { workspaceId: input.workspaceId },
-      create,
-      update: {
+  const update = isTierChange
+    ? {
+        // Extend the paid term; queue the tier change for the next quota boundary.
+        status: "active" as const,
+        termStart,
+        termEnd,
+        pendingTier: tier,
+        pendingMonthlyCredits: input.monthlyCredits,
+        pendingPlanCode: input.planCode,
+        sourceOrderId: input.orderId,
+      }
+    : {
+        // Renewal / fresh activation: apply immediately.
         tier,
         monthlyCredits: input.monthlyCredits,
-        status: "active",
+        status: "active" as const,
         termStart,
         termEnd,
         quotaPeriodStart,
         quotaPeriodEnd,
+        pendingTier: null,
+        pendingMonthlyCredits: null,
+        pendingPlanCode: null,
         sourceOrderId: input.orderId,
-      },
+      };
+
+  try {
+    await tx.workspaceAiSubscription.upsert({
+      where: { workspaceId: input.workspaceId },
+      create,
+      update,
     });
   } catch (error) {
     // Unique sourceOrderId → this order already activated the subscription.
@@ -610,6 +638,47 @@ export async function fulfillAiSubscriptionOrder(
     if (isUniqueViolation(error)) return;
     throw error;
   }
+}
+
+/**
+ * Compute how much of a specific PAYG grant is still unspent, allocating usage
+ * FIFO across all of the workspace's grants (oldest first). Correct even when
+ * the workspace holds multiple grants — a naive "sum(payg_use) after
+ * grant.createdAt" over-counts spend against newer grants and under-claws
+ * older ones.
+ */
+async function computeUnspentGrantPortion(
+  tx: DbLike,
+  workspaceId: string,
+  grant: { id: string; credits: bigint; createdAt: Date },
+): Promise<bigint> {
+  const [grants, uses] = await Promise.all([
+    tx.aiCreditLedger.findMany({
+      where: { workspaceId, kind: "grant" },
+      select: { id: true, credits: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    tx.aiCreditLedger.findMany({
+      where: { workspaceId, kind: "payg_use" },
+      select: { credits: true, createdAt: true },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+
+  // Remaining per grant, walking usage oldest-first across grants oldest-first.
+  const remaining = new Map<string, bigint>(grants.map((g) => [g.id, g.credits]));
+  for (const use of uses) {
+    let toAllocate = -use.credits; // usage rows are negative
+    for (const g of grants) {
+      if (toAllocate <= 0n) break;
+      const avail = remaining.get(g.id) ?? 0n;
+      if (avail <= 0n) continue;
+      const take = avail < toAllocate ? avail : toAllocate;
+      remaining.set(g.id, avail - take);
+      toAllocate -= take;
+    }
+  }
+  return remaining.get(grant.id) ?? 0n;
 }
 
 /** Reverse a fulfilled order on refund/chargeback (idempotent). */
@@ -641,17 +710,8 @@ export async function refundAiOrder(
       where: { operationId: refundOpId },
     });
     if (!existing) {
-      // How much of this grant is still unspent (grants expire FIFO by date).
-      const spentAfter = await tx.aiCreditLedger.aggregate({
-        where: {
-          workspaceId: input.workspaceId,
-          kind: "payg_use",
-          createdAt: { gt: grant.createdAt },
-        },
-        _sum: { credits: true },
-      });
-      const spent = -(spentAfter._sum.credits ?? 0n);
-      const unspent = grant.credits - spent > 0n ? grant.credits - spent : 0n;
+      // How much of this grant is still unspent (FIFO allocation across all grants).
+      const unspent = await computeUnspentGrantPortion(tx, input.workspaceId, grant);
 
       if (unspent > 0n) {
         await tx.aiCreditLedger.create({
@@ -818,17 +878,8 @@ export async function runAiExpiryAndRenewal(now = new Date()): Promise<{
     });
     if (existing) continue;
 
-    // Only claw back the still-unspent portion of this grant.
-    const spentAfter = await db.aiCreditLedger.aggregate({
-      where: {
-        workspaceId: grant.workspaceId,
-        kind: "payg_use",
-        createdAt: { gt: grant.createdAt },
-      },
-      _sum: { credits: true },
-    });
-    const spent = -(spentAfter._sum.credits ?? 0n);
-    const unspent = grant.credits - spent > 0n ? grant.credits - spent : 0n;
+    // Only claw back the still-unspent portion of this grant (FIFO allocation).
+    const unspent = await computeUnspentGrantPortion(db, grant.workspaceId, grant);
 
     await db.aiCreditLedger.create({
       data: {

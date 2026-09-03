@@ -73,6 +73,7 @@ vi.mock("@/lib/db", () => {
   const ledgerFindUnique = vi.fn();
   const ledgerCreate = vi.fn();
   const ledgerAggregate = vi.fn();
+  const ledgerFindMany = vi.fn();
   const subUpsert = vi.fn();
   const subFindUnique = vi.fn();
   const subUpdate = vi.fn();
@@ -84,6 +85,7 @@ vi.mock("@/lib/db", () => {
         findUnique: ledgerFindUnique,
         create: ledgerCreate,
         aggregate: ledgerAggregate,
+        findMany: ledgerFindMany,
       },
       workspaceAiSubscription: {
         upsert: subUpsert,
@@ -99,6 +101,7 @@ vi.mock("@/lib/db", () => {
       __ledgerFindUnique: ledgerFindUnique,
       __ledgerCreate: ledgerCreate,
       __ledgerAggregate: ledgerAggregate,
+      __ledgerFindMany: ledgerFindMany,
       __subUpsert: subUpsert,
       __subFindUnique: subFindUnique,
       __subUpdate: subUpdate,
@@ -119,6 +122,7 @@ const mock = db as unknown as {
   __ledgerFindUnique: ReturnType<typeof vi.fn>;
   __ledgerCreate: ReturnType<typeof vi.fn>;
   __ledgerAggregate: ReturnType<typeof vi.fn>;
+  __ledgerFindMany: ReturnType<typeof vi.fn>;
   __subUpsert: ReturnType<typeof vi.fn>;
   __subFindUnique: ReturnType<typeof vi.fn>;
   __subUpdate: ReturnType<typeof vi.fn>;
@@ -132,6 +136,7 @@ beforeEach(() => {
   mock.__ledgerFindFirst.mockResolvedValue(null);
   mock.__ledgerFindUnique.mockResolvedValue(null);
   mock.__ledgerAggregate.mockResolvedValue({ _sum: { credits: null } });
+  mock.__subFindUnique.mockResolvedValue(null);
 });
 
 describe("fulfillAiCreditsOrder", () => {
@@ -201,6 +206,48 @@ describe("fulfillAiSubscriptionOrder", () => {
     ).toBeLessThan(32 * 24 * 3600 * 1000);
   });
 
+  it("tier change (upgrade/downgrade) queues pendingTier and does NOT overwrite the active tier (no proration)", async () => {
+    // Existing starter sub; user buys Pro. Per spec §3.4 + owner #3, the tier
+    // change applies next quota boundary — the active tier stays 'starter'.
+    mock.__subFindUnique.mockResolvedValueOnce({ id: "sub_x", tier: "starter" });
+
+    await fulfillAiSubscriptionOrder(tx, {
+      workspaceId: "ws_1",
+      orderId: "ord_upgrade",
+      planCode: "ai_pro_1m",
+      durationMonths: 1,
+      monthlyCredits: 5_000_000n,
+      now: new Date(),
+    });
+
+    const arg = mock.__subUpsert.mock.calls[0][0];
+    expect(arg.update.pendingTier).toBe("pro");
+    expect(arg.update.pendingMonthlyCredits).toBe(5_000_000n);
+    expect(arg.update.pendingPlanCode).toBe("ai_pro_1m");
+    // active tier is NOT overwritten in the update
+    expect(arg.update.tier).toBeUndefined();
+    expect(arg.update.monthlyCredits).toBeUndefined();
+  });
+
+  it("same-tier renewal applies immediately and clears any pending change", async () => {
+    mock.__subFindUnique.mockResolvedValueOnce({ id: "sub_y", tier: "pro" });
+
+    await fulfillAiSubscriptionOrder(tx, {
+      workspaceId: "ws_1",
+      orderId: "ord_renew",
+      planCode: "ai_pro_1m",
+      durationMonths: 1,
+      monthlyCredits: 5_000_000n,
+      now: new Date(),
+    });
+
+    const arg = mock.__subUpsert.mock.calls[0][0];
+    expect(arg.update.tier).toBe("pro");
+    expect(arg.update.monthlyCredits).toBe(5_000_000n);
+    expect(arg.update.pendingTier).toBeNull();
+    expect(arg.update.pendingPlanCode).toBeNull();
+  });
+
   it("ignores duplicate-order replays (unique sourceOrderId)", async () => {
     mock.__subUpsert.mockRejectedValueOnce(
       Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
@@ -246,7 +293,7 @@ describe("refundAiOrder", () => {
     expect(mock.__subUpdate.mock.calls[0][0].data.status).toBe("canceled");
   });
 
-  it("reverses only the unspent part of a PAYG grant", async () => {
+  it("reverses only the unspent part of a PAYG grant (single grant)", async () => {
     mock.__subFindUnique.mockResolvedValueOnce(null);
     // grant row exists
     mock.__ledgerFindUnique
@@ -256,7 +303,12 @@ describe("refundAiOrder", () => {
         createdAt: new Date("2026-08-01T00:00:00Z"),
       }) // grant lookup
       .mockResolvedValueOnce(null); // existing refund lookup
-    mock.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: -200_000n } }); // spent
+    // FIFO helper reads grants + payg_use via findMany (two calls).
+    mock.__ledgerFindMany
+      .mockResolvedValueOnce([
+        { id: "led_g", credits: 750_000n, createdAt: new Date("2026-08-01T00:00:00Z") },
+      ]) // grants
+      .mockResolvedValueOnce([{ credits: -200_000n, createdAt: new Date("2026-08-05T00:00:00Z") }]); // uses
 
     const result = await refundAiOrder(tx, {
       workspaceId: "ws_1",
@@ -270,6 +322,32 @@ describe("refundAiOrder", () => {
     expect(row.data.kind).toBe("refund");
     expect(row.data.credits).toBe(-(750_000n - 200_000n));
     expect(row.data.operationId).toBe("order:ord_payg:refund");
+  });
+
+  it("FIFO: usage consumes the OLDEST grant first, so refunding the NEWEST claws back correctly", async () => {
+    mock.__subFindUnique.mockResolvedValueOnce(null);
+    // Refunding the SECOND (newer) grant. 200k was spent — it must come out of
+    // the FIRST grant, leaving the second fully intact (naive sum would wrongly
+    // claw 200k from the new grant too).
+    mock.__ledgerFindUnique
+      .mockResolvedValueOnce({
+        id: "led_g2",
+        credits: 500_000n,
+        createdAt: new Date("2026-08-10T00:00:00Z"),
+      }) // grant being refunded (newest)
+      .mockResolvedValueOnce(null); // no existing refund
+    mock.__ledgerFindMany
+      .mockResolvedValueOnce([
+        { id: "led_g1", credits: 750_000n, createdAt: new Date("2026-08-01T00:00:00Z") },
+        { id: "led_g2", credits: 500_000n, createdAt: new Date("2026-08-10T00:00:00Z") },
+      ]) // all grants oldest-first
+      .mockResolvedValueOnce([{ credits: -200_000n, createdAt: new Date("2026-08-05T00:00:00Z") }]); // uses
+
+    await refundAiOrder(tx, { workspaceId: "ws_1", orderId: "ord_payg2", now: new Date() });
+
+    const row = mock.__ledgerCreate.mock.calls[0][0];
+    // 200k spend is allocated to g1 (oldest), so g2 is fully unspent → refund all 500k.
+    expect(row.data.credits).toBe(-500_000n);
   });
 
   it("is a no-op when already refunded", async () => {

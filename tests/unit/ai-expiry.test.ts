@@ -119,16 +119,21 @@ describe("runAiExpiryAndRenewal", () => {
 
   it("materializes PAYG grant expiry for the unspent portion only", async () => {
     mock.__subFindMany.mockResolvedValue([]);
-    mock.__ledgerFindMany.mockResolvedValueOnce([
-      {
-        id: "grant_1",
-        workspaceId: "ws_1",
-        credits: 750_000n,
-        createdAt: new Date("2025-08-01T00:00:00Z"),
-        expiresAt: new Date("2026-08-01T00:00:00Z"),
-      },
-    ]);
-    mock.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: -300_000n } }); // spent
+    // 1st findMany: expired grants. 2nd/3rd: FIFO helper reads grants + uses.
+    mock.__ledgerFindMany
+      .mockResolvedValueOnce([
+        {
+          id: "grant_1",
+          workspaceId: "ws_1",
+          credits: 750_000n,
+          createdAt: new Date("2025-08-01T00:00:00Z"),
+          expiresAt: new Date("2026-08-01T00:00:00Z"),
+        },
+      ])
+      .mockResolvedValueOnce([
+        { id: "grant_1", credits: 750_000n, createdAt: new Date("2025-08-01T00:00:00Z") },
+      ]) // FIFO: all grants
+      .mockResolvedValueOnce([{ credits: -300_000n, createdAt: new Date("2025-08-05T00:00:00Z") }]); // FIFO: uses
 
     const result = await runAiExpiryAndRenewal(new Date("2026-09-02T00:00:00Z"));
     expect(result.paygExpired).toBe(1);
