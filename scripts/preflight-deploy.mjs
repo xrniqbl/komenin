@@ -166,8 +166,20 @@ const CHECKS = [
   { name: "TIKTOK_CLIENT_KEY", required: false },
   { name: "TIKTOK_CLIENT_SECRET", required: false },
 
-  // --- Email (optional) ---
-  { name: "BREVO_API_KEY", required: false, note: "digest/threshold emails" },
+  // --- Email (REQUIRED for OTP login + digest/threshold emails) ---
+  {
+    name: "BREVO_API_KEY",
+    required: true,
+    note: "email OTP login + digest/threshold emails silently fail without it",
+    validate: (v) =>
+      v.startsWith("xkeysib-") ? true : "expected a Brevo key (\"xkeysib-...\")",
+  },
+  {
+    name: "EMAIL_FROM",
+    required: true,
+    note: "sender address for OTP/digest emails, e.g. \"Komenin <noreply@komenin.id>\"",
+    validate: (v) => /@/.test(v) ? true : "must contain a sender email address",
+  },
 ];
 
 let failures = 0;

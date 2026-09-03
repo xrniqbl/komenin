@@ -263,6 +263,26 @@ Checklist:
 - [ ] SSO only enabled after SAML signature validation is production-ready  
   (`SAML_ALLOW_UNSIGNED` / security stubs must stay off in prod)
 
+### 8b. Email OTP sign-in (Brevo)
+
+Email OTP login (6-digit code via Brevo) is enabled alongside Google. It is
+**required** in production — preflight fails without these.
+
+Required env:
+
+- `BREVO_API_KEY` (`xkeysib-...`)
+- `EMAIL_FROM` (sender validated in Brevo, e.g. `Komenin <noreply@komenin.id>`)
+
+Migration: `20260903100000_email_otp_token` (hashed, single-use, attempt-capped codes).
+
+Checklist:
+
+- [ ] `npm run preflight` passes `BREVO_API_KEY` + `EMAIL_FROM`
+- [ ] `POST /api/auth/email/request` sends a code to a real inbox (rate-limited: 3/10min per email)
+- [ ] Verifying the code at `/login` signs in (auto-creates the account on first verify)
+- [ ] Wrong code 5× locks the code; a new request invalidates the old one
+- [ ] In dev (no `BREVO_API_KEY`), the code surfaces in the response (`devCode`) — never in production
+
 ## 9. Security + product smoke
 
 ```bash
