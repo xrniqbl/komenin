@@ -157,6 +157,7 @@ Checklist:
 - [ ] Settings → AI shows tier, quota meter, PAYG balance, BYOK + fallback toggles, checkout grid
 - [ ] Analytics shows the AI usage card; `/admin/ai` shows revenue/usage/margin with `AI_MODEL_COST_IDR` set
 - [ ] `UPSTASH_REDIS_REST_*` set so the AI rate limit is durable across instances
+- [ ] `npm run check:models` — every model in `KOMENIN_AI_MODELS_*` is accepted by the gateway (naming differs per provider; fix names or drop models that fail)
 
 ## 5. Social connectors (live)
 

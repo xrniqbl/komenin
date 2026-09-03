@@ -20,6 +20,7 @@
     "db:studio": "prisma studio",
     "preflight": "node scripts/preflight-deploy.mjs",
     "preflight:strict": "node scripts/preflight-deploy.mjs --strict",
+    "check:models": "node scripts/check-ai-models.mjs",
     "pack:deploy": "node scripts/pack-deploy.mjs",
     "worker": "tsx src/workers/social-bridge.worker.ts",
     "worker:dev": "tsx watch src/workers/social-bridge.worker.ts",
