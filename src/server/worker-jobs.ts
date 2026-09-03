@@ -717,7 +717,26 @@ async function runCommentGenerate(limit = 20): Promise<WorkerJobResult> {
         quotaFailed += 1;
         continue; // next post — do not throw, do not retry this one
       }
-      throw error; // unrelated failure: preserve existing throw-and-release behavior
+      // Unrelated generation failure: isolate it so one bad post can't stall the
+      // whole batch. Mark the post failed and continue; the claim is consumed.
+      const message = error instanceof Error ? error.message : "Comment generation error";
+      await db.targetPost.update({
+        where: { id: post.id },
+        data: { status: "failed" },
+      });
+      await db.deliveryLog.create({
+        data: {
+          workspaceId: post.workspaceId,
+          kind: "send_comment",
+          connector: "comment_engine",
+          mode: getRuntimeModeLabel(),
+          ok: false,
+          message,
+          payload: { stage: "generate_throw" } as Prisma.InputJsonValue,
+        },
+      });
+      quotaFailed += 1; // reuse the counter so the job summary reports skipped posts
+      continue;
     }
 
     await db.$transaction(async (tx) => {
@@ -939,22 +958,48 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
       continue;
     }
 
-    const result = await executeSocialAction({
-      action: "sendComment",
-      workspaceId: action.workspaceId,
-      target: {
-        platform: action.targetPost.platform,
-        username: action.socialAccount?.username,
-        accountId: action.socialAccountId,
+    // Isolate per-action failures: a throw from the connector must not abort
+    // the whole batch (which would strand every remaining due action this tick
+    // AND leave this action claimed until the 10-min stale sweep).
+    let result: Awaited<ReturnType<typeof executeSocialAction>>;
+    try {
+      result = await executeSocialAction({
+        action: "sendComment",
         workspaceId: action.workspaceId,
-      },
-      payload: {
-        body,
-        targetPostExternalId: action.targetPost.externalId,
-        targetPostUrl: action.targetPost.url,
-        authorHandle: action.targetPost.authorHandle,
-      },
-    });
+        target: {
+          platform: action.targetPost.platform,
+          username: action.socialAccount?.username,
+          accountId: action.socialAccountId,
+          workspaceId: action.workspaceId,
+        },
+        payload: {
+          body,
+          targetPostExternalId: action.targetPost.externalId,
+          targetPostUrl: action.targetPost.url,
+          authorHandle: action.targetPost.authorHandle,
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Comment send error";
+      await db.commentAction.update({
+        where: { id: action.id },
+        data: { status: "failed", executedAt: new Date(), resultMessage: message },
+      });
+      await db.deliveryLog.create({
+        data: {
+          workspaceId: action.workspaceId,
+          socialAccountId: action.socialAccountId,
+          kind: "send_comment",
+          connector: "unknown",
+          mode: getRuntimeModeLabel(),
+          ok: false,
+          message,
+          payload: { stage: "execute_throw" } as Prisma.InputJsonValue,
+        },
+      });
+      failed += 1;
+      continue;
+    }
 
     await db.$transaction(async (tx) => {
       await tx.commentAction.update({
@@ -1193,22 +1238,48 @@ async function runContentPublish(limit = 30): Promise<WorkerJobResult> {
       continue;
     }
 
-    const result = await publishSocialPost({
-      target: {
-        platform: draft.contentCampaign.platform,
-        username: draft.socialAccount?.username,
-        accountId: draft.socialAccountId,
-        workspaceId: draft.workspaceId,
-      },
-      payload: {
-        title: draft.title,
-        body: draft.body,
-        hashtags: draft.hashtags,
-        scheduledFor: draft.scheduledFor,
-        mediaUrl: draft.mediaUrl,
-      },
-      policy: workspace?.connectorPolicy,
-    });
+    // Isolate per-draft failures: a throw from the publisher must not abort the
+    // whole batch (stranding remaining due drafts and leaving this one claimed
+    // until the 10-min stale sweep).
+    let result: Awaited<ReturnType<typeof publishSocialPost>>;
+    try {
+      result = await publishSocialPost({
+        target: {
+          platform: draft.contentCampaign.platform,
+          username: draft.socialAccount?.username,
+          accountId: draft.socialAccountId,
+          workspaceId: draft.workspaceId,
+        },
+        payload: {
+          title: draft.title,
+          body: draft.body,
+          hashtags: draft.hashtags,
+          scheduledFor: draft.scheduledFor,
+          mediaUrl: draft.mediaUrl,
+        },
+        policy: workspace?.connectorPolicy,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Content publish error";
+      await db.contentDraft.update({
+        where: { id: draft.id },
+        data: { status: "failed", resultMessage: message },
+      });
+      await db.deliveryLog.create({
+        data: {
+          workspaceId: draft.workspaceId,
+          socialAccountId: draft.socialAccountId,
+          kind: "publish_post",
+          connector: "unknown",
+          mode: getRuntimeModeLabel(),
+          ok: false,
+          message,
+          payload: { stage: "execute_throw" } as Prisma.InputJsonValue,
+        },
+      });
+      failed += 1;
+      continue;
+    }
 
     await db.$transaction(async (tx) => {
       await tx.contentDraft.update({
