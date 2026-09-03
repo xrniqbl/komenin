@@ -84,6 +84,10 @@
           "title": "Billing & Midtrans"
         },
         {
+          "href": "/docs/tutorial/komenin-ai",
+          "title": "Komenin AI (Kredit & Tier)"
+        },
+        {
           "href": "/docs/tutorial/sso",
           "title": "SSO / SAML"
         },
@@ -236,7 +240,7 @@
           "id": "first-path",
           "title": "First operator path",
           "bullets": [
-            "buka /signup and authenticate with Google.",
+            "buka /signup and autentikasi dengan Google — atau pakai Email OTP: masukkan email, lalu kode 6 digit yang dikirim via Brevo.",
             "buat a workspace in /onboarding.",
             "Add a proxy and social akun under sesi Routing.",
             "buat a comment kampanye + listener.",
@@ -572,6 +576,11 @@
             "buat Midtrans Snap transaction",
             "Notification webhook verifies signature and activates plan limits"
           ]
+        },
+        {
+          "id": "ai-addons",
+          "title": "Add-on Komenin AI",
+          "body": "Selain plan sosial, checkout juga menjual SKU Komenin AI: 6 tier langganan (Starter/Pro/Pro Max, bulanan atau 12 bulan) dan 3 paket kredit PAYG. Order AI yang lunas mengaktifkan kuota langganan atau memberikan kredit secara otomatis lewat webhook Midtrans yang sama. Lihat halaman Komenin AI untuk detailnya."
         },
         {
           "id": "simulation",
@@ -1084,6 +1093,58 @@
             "Use the symptom-specific troubleshooting pages",
             "Reproduce with the smallest worker job and capture the JSON response",
             "Check /app/activity, /app/pengaturan/publisher, and audit log"
+          ]
+        }
+      ]
+    },
+    "komenin-ai": {
+      "slug": "komenin-ai",
+      "title": "Komenin AI (Kredit & Tier)",
+      "description": "Pakai AI tanpa API key sendiri — langganan, kredit PAYG, dan BYOK.",
+      "sections": [
+        {
+          "id": "overview",
+          "title": "Cara kerja",
+          "body": "Setiap workspace bisa memakai AI dengan tiga cara, sesuai prioritas: (1) bawa API key sendiri (BYOK, selalu gratis), (2) langganan Komenin AI bulanan dengan kuota kredit, atau (3) kredit prabayar pay-as-you-go (PAYG). 1 kredit = 1 token (input + output), dihitung dari laporan usage model."
+        },
+        {
+          "id": "tiers",
+          "title": "Tier langganan",
+          "bullets": [
+            "AI Starter — Rp50.000/bln · 1.000.000 kredit/bln · model ekonomis",
+            "AI Pro — Rp150.000/bln · 5.000.000 kredit/bln · model standar + antrian prioritas",
+            "AI Pro Max — Rp250.000/bln · 25.000.000 kredit/bln · semua model premium + auto-lanjut PAYG",
+            "Komitmen 12 bulan: diskon 10% per bulan pada semua tier"
+          ]
+        },
+        {
+          "id": "payg",
+          "title": "Kredit pay-as-you-go",
+          "bullets": [
+            "PAYG-S — Rp50.000 · 750.000 kredit",
+            "PAYG-M — Rp150.000 · 2.500.000 kredit (bonus 5%)",
+            "PAYG-L — Rp500.000 · 9.000.000 kredit (bonus 15%)",
+            "Kredit berlaku 12 bulan selama akun aktif, dipakai setelah kuota langganan habis"
+          ]
+        },
+        {
+          "id": "quota",
+          "title": "Saat kuota habis",
+          "body": "Starter dan Pro berhenti (fail-closed) sampai bulan berikutnya atau Anda membeli kredit PAYG — pekerjaan komentar/konten yang sedang berjalan dijeda dan Anda mendapat notifikasi. Pro Max otomatis lanjut ke saldo PAYG (bisa dimatikan di Settings → AI). Workspace juga diberi tahu saat 80% dan 100% kuota bulanan."
+        },
+        {
+          "id": "byok",
+          "title": "Bawa key sendiri (BYOK)",
+          "body": "BYOK tetap gratis selamanya. Tambahkan key OpenAI/Anthropic/9Router Anda di Settings → AI dan aktifkan 'utamakan API key sendiri' — panggilan AI lalu memakai provider Anda dan tidak pernah memotong kredit Komenin. Key Anda terenkripsi saat disimpan."
+        },
+        {
+          "id": "manage",
+          "title": "Kelola & pantau",
+          "steps": [
+            "Buka Settings → AI untuk melihat tier, meter kuota bulanan, dan saldo PAYG.",
+            "Aktifkan 'utamakan API key sendiri' (BYOK) atau 'lanjut otomatis ke PAYG' (Pro Max).",
+            "Beli langganan atau paket PAYG dari grid checkout (Midtrans).",
+            "Pantau pemakaian per sumber dan model teratas di halaman Analytics."
           ]
         }
       ]

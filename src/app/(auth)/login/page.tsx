@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { EmailOtpForm } from "@/components/auth/email-otp-form";
 import { auth } from "@/lib/auth";
 import { isSsoLoginEnforced } from "@/lib/sso-policy";
 import { signInWithGoogle } from "@/server/auth-actions";
@@ -40,6 +42,14 @@ export default async function LoginPage({
               Continue with Google
             </Button>
           </form>
+
+          <div className="my-1 flex items-center gap-3">
+            <Separator className="flex-1" />
+            <span className="text-xs text-muted-foreground">atau</span>
+            <Separator className="flex-1" />
+          </div>
+
+          <EmailOtpForm callbackUrl="/onboarding" />
           <p className="text-xs text-muted-foreground">
             Enterprise SAML SSO is stored as workspace config only
             {ssoEnforcedFlag ? " (SSO_ENFORCE_LOGIN is set, but ACS session bridge is not shipped)" : ""}

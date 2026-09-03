@@ -66,6 +66,7 @@ export const docsNav: DocsNavGroup[] = [
     title: "Enterprise",
     items: [
       { href: "/docs/tutorial/billing", title: "Billing & Midtrans" },
+      { href: "/docs/tutorial/komenin-ai", title: "Komenin AI (Credits & Tiers)" },
       { href: "/docs/tutorial/sso", title: "SSO / SAML" },
       { href: "/docs/tutorial/admin", title: "Admin Panel" },
       { href: "/docs/tutorial/security", title: "Security & Audit" },
@@ -173,7 +174,7 @@ npm run dev`,
         id: "first-path",
         title: "First operator path",
         bullets: [
-          "Open /signup and authenticate with Google.",
+          "Open /signup (or /login) and authenticate with Google — or use Email OTP: enter your email, then the 6-digit code sent via Brevo.",
           "Create a workspace in /onboarding.",
           "Add a proxy and social account under Session Routing.",
           "Create a comment campaign + listener.",
@@ -541,6 +542,12 @@ curl -X POST http://localhost:3000/api/worker/run ^
         ],
       },
       {
+        id: "ai-addons",
+        title: "Komenin AI add-ons",
+        body:
+          "Besides social plans, checkout also sells Komenin AI SKUs: 6 subscription tiers (Starter/Pro/Pro Max, monthly or 12-month) and 3 PAYG credit packs. Paid AI orders activate a subscription quota or grant credits automatically via the same Midtrans webhook. See the Komenin AI page for details.",
+      },
+      {
         id: "simulation",
         title: "Local simulation",
         body:
@@ -555,6 +562,61 @@ curl -X POST http://localhost:3000/api/worker/run ^
           "Complete Midtrans Snap (or local simulation without keys).",
           "Confirm subscription status in /app/settings/billing.",
           "Verify monthly send/publish limits updated for the workspace.",
+        ],
+      },
+    ],
+  },
+  "komenin-ai": {
+    slug: "komenin-ai",
+    title: "Komenin AI (Credits & Tiers)",
+    description: "Use AI without your own API key — subscriptions, PAYG credits, and BYOK.",
+    sections: [
+      {
+        id: "overview",
+        title: "How it works",
+        body:
+          "Every workspace can use AI three ways, in priority order: (1) bring your own API key (BYOK, always free), (2) a Komenin AI monthly subscription with a credit quota, or (3) pay-as-you-go (PAYG) prepaid credits. 1 credit = 1 token (input + output), counted from the model's usage report.",
+      },
+      {
+        id: "tiers",
+        title: "Subscription tiers",
+        bullets: [
+          "AI Starter — Rp50.000/bln · 1.000.000 kredit/bln · model ekonomis",
+          "AI Pro — Rp150.000/bln · 5.000.000 kredit/bln · model standar + priority queue",
+          "AI Pro Max — Rp250.000/bln · 25.000.000 kredit/bln · semua model premium + auto-lanjut PAYG",
+          "Komitmen 12 bulan: diskon 10% per bulan pada semua tier",
+        ],
+      },
+      {
+        id: "payg",
+        title: "Pay-as-you-go credits",
+        bullets: [
+          "PAYG-S — Rp50.000 · 750.000 kredit",
+          "PAYG-M — Rp150.000 · 2.500.000 kredit (bonus 5%)",
+          "PAYG-L — Rp500.000 · 9.000.000 kredit (bonus 15%)",
+          "Kredit berlaku 12 bulan selama akun aktif, dipakai setelah kuota langganan habis",
+        ],
+      },
+      {
+        id: "quota",
+        title: "When the quota runs out",
+        body:
+          "Starter and Pro stop (fail-closed) until the next month or you buy PAYG credits — in-progress comment/content work is paused and you get a notification. Pro Max automatically continues on your PAYG balance (you can disable this in Settings → AI). Workspaces are also notified at 80% and 100% of the monthly quota.",
+      },
+      {
+        id: "byok",
+        title: "Bring your own key (BYOK)",
+        body:
+          "BYOK stays free forever. Add your OpenAI/Anthropic/9Router key in Settings → AI and enable 'prefer my own key' — AI calls then use your provider and never touch Komenin credits. Your keys are encrypted at rest.",
+      },
+      {
+        id: "manage",
+        title: "Manage & monitor",
+        steps: [
+          "Open Settings → AI to see your tier, monthly quota meter, and PAYG balance.",
+          "Toggle 'prefer my own key' (BYOK) or Pro Max 'auto-fallback to PAYG'.",
+          "Buy a subscription or PAYG pack from the checkout grid (Midtrans).",
+          "Track usage per source and top models on the Analytics page.",
         ],
       },
     ],

@@ -83,6 +83,25 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+/// One-time passcode for email sign-in. The 6-digit code is stored HASHED
+/// (sha256 + per-code salt) so a database read never reveals usable codes.
+/// Single-use, short-lived, and attempt-capped to blunt brute force.
+model EmailOtpToken {
+  id         String    @id @default(cuid())
+  /// Lowercased email the code was issued for.
+  email      String
+  /// sha256(salt + ":" + code) — never the raw code.
+  codeHash   String
+  salt       String
+  expiresAt  DateTime
+  /// Failed verification attempts; locked after MAX_ATTEMPTS.
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, createdAt])
+}
+
 model Workspace {
   id        String          @id @default(cuid())
   name      String
