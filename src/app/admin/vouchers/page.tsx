@@ -1,6 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getPageWindow, ListPagination } from "@/components/app/list-pagination";
+import { AdminListFilters } from "@/components/admin/admin-list-filters";
 import {
   Empty,
   EmptyDescription,
@@ -22,8 +24,15 @@ function formatDateInput(value: Date | null | undefined) {
   return value.toISOString().slice(0, 10);
 }
 
-export default async function AdminVouchersPage() {
-  const vouchers = await listAdminVouchers();
+export default async function AdminVouchersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>;
+}) {
+  const params = await searchParams;
+  const result = await listAdminVouchers({ q: params.q, page: Number(params.page) || 1 });
+  const window = getPageWindow(result.total, result.page, result.perPage);
+  const vouchers = result.rows;
 
   async function createAction(formData: FormData) {
     "use server";
@@ -117,10 +126,12 @@ export default async function AdminVouchersPage() {
         </CardContent>
       </Card>
 
+      <AdminListFilters q={params.q} placeholder="Cari kode voucher…" />
+
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-medium text-muted-foreground">
-            Existing vouchers ({vouchers.length})
+            Existing vouchers ({result.total})
           </h2>
         </div>
 
@@ -284,6 +295,11 @@ export default async function AdminVouchersPage() {
             </Card>
           ))
         )}
+        <ListPagination
+          pathname="/admin/vouchers"
+          searchParams={{ q: params.q }}
+          window={window}
+        />
       </div>
     </div>
   );

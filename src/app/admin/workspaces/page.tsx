@@ -1,30 +1,49 @@
 ﻿import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { getPageWindow, ListPagination } from "@/components/app/list-pagination";
+import { AdminListFilters } from "@/components/admin/admin-list-filters";
 import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { adminUpdateWorkspace, listAdminWorkspaces } from "@/server/admin";
 
-export default async function AdminWorkspacesPage() {
-  const rows = await listAdminWorkspaces();
+export default async function AdminWorkspacesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>;
+}) {
+  const params = await searchParams;
+  const result = await listAdminWorkspaces({ q: params.q, page: Number(params.page) || 1 });
+  const window = getPageWindow(result.total, result.page, result.perPage);
 
   async function updateAction(formData: FormData) {
     "use server";
+    // Empty input = leave unchanged; explicit 0 must stay 0 (not undefined).
+    const parseLimit = (raw: FormDataEntryValue | null): number | undefined => {
+      const s = String(raw ?? "").trim();
+      if (!s) return undefined;
+      const n = Number(s);
+      return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined;
+    };
     await adminUpdateWorkspace({
       workspaceId: String(formData.get("workspaceId") || ""),
       status: String(formData.get("status") || "active") as "active" | "suspended",
-      planCode: String(formData.get("planCode") || ""),
-      monthlySendLimit: Number(formData.get("monthlySendLimit") || 0) || undefined,
-      monthlyPublishLimit: Number(formData.get("monthlyPublishLimit") || 0) || undefined,
-      homeRegion: String(formData.get("homeRegion") || "") || undefined,
+      planCode: String(formData.get("planCode") || "").trim(),
+      monthlySendLimit: parseLimit(formData.get("monthlySendLimit")),
+      monthlyPublishLimit: parseLimit(formData.get("monthlyPublishLimit")),
+      homeRegion: String(formData.get("homeRegion") || "").trim() || undefined,
     });
   }
 
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Workspaces</h1>
+      <AdminListFilters q={params.q} placeholder="Cari nama / slug…" />
+      <p className="text-xs text-muted-foreground">
+        {result.total} workspace
+      </p>
       <div className="space-y-3">
-        {rows.map((ws) => (
+        {result.rows.map((ws) => (
           <Card key={ws.id}>
             <CardContent className="pt-6">
               <form action={updateAction} className="space-y-3 text-sm">
@@ -84,6 +103,11 @@ export default async function AdminWorkspacesPage() {
           </Card>
         ))}
       </div>
+      <ListPagination
+        pathname="/admin/workspaces"
+        searchParams={{ q: params.q }}
+        window={window}
+      />
     </div>
   );
 }

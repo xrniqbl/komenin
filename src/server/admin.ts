@@ -13,6 +13,22 @@ export async function requireSuperAdmin() {
   return { userId: user.id, user };
 }
 
+export type AdminListQuery = { q?: string; page?: number };
+export type AdminListResult<T> = {
+  rows: T[];
+  total: number;
+  page: number;
+  perPage: number;
+  totalPages: number;
+};
+
+/** DB-level pagination window derived from a total count. */
+function listWindow(q: AdminListQuery, total: number, perPage: number) {
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  const page = Math.min(Math.max(Math.floor(q.page || 1) || 1, 1), totalPages);
+  return { skip: (page - 1) * perPage, take: perPage, page, totalPages };
+}
+
 export async function getAdminOverview() {
   await requireSuperAdmin();
   const [workspaces, users, paidOrders, pendingOrders, activeSubs, vouchers, jobFails] =
@@ -41,11 +57,37 @@ export async function getAdminOverview() {
   };
 }
 
-export async function listAdminWorkspaces() {
+export async function listAdminWorkspaces(
+  q: AdminListQuery = {},
+): Promise<AdminListResult<{
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  planCode: string;
+  monthlySendLimit: number;
+  monthlyPublishLimit: number;
+  homeRegion: string;
+  _count: { memberships: number; socialAccounts: number };
+  subscriptions: Array<{ plan: { code: string } }>;
+}>> {
   await requireSuperAdmin();
-  return db.workspace.findMany({
+  const search = q.q?.trim();
+  const where = search
+    ? {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { slug: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+  const total = await db.workspace.count({ where });
+  const { skip, take, page, totalPages } = listWindow(q, total, 25);
+  const rows = await db.workspace.findMany({
+    where,
     orderBy: { createdAt: "desc" },
-    take: 100,
+    skip,
+    take,
     include: {
       _count: { select: { memberships: true, socialAccounts: true } },
       subscriptions: {
@@ -55,6 +97,7 @@ export async function listAdminWorkspaces() {
       },
     },
   });
+  return { rows, total, page, perPage: take, totalPages };
 }
 
 export async function adminUpdateWorkspace(input: {
@@ -91,13 +134,39 @@ export async function adminUpdateWorkspace(input: {
   return workspace;
 }
 
-export async function listAdminUsers() {
+export async function listAdminUsers(
+  q: AdminListQuery = {},
+): Promise<AdminListResult<{
+  id: string;
+  name: string | null;
+  email: string;
+  platformRole: string;
+  suspendedAt: Date | null;
+  suspendedReason: string | null;
+  createdAt: Date;
+  lastLoginAt: Date | null;
+  _count: { memberships: number };
+}>> {
   await requireSuperAdmin();
-  return db.user.findMany({
+  const search = q.q?.trim();
+  const where = search
+    ? {
+        OR: [
+          { email: { contains: search, mode: "insensitive" as const } },
+          { name: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+  const total = await db.user.count({ where });
+  const { skip, take, page, totalPages } = listWindow(q, total, 25);
+  const rows = await db.user.findMany({
+    where,
     orderBy: { createdAt: "desc" },
-    take: 100,
+    skip,
+    take,
     include: { _count: { select: { memberships: true } } },
   });
+  return { rows, total, page, perPage: take, totalPages };
 }
 
 export async function adminSetPlatformRole(input: {
@@ -105,6 +174,19 @@ export async function adminSetPlatformRole(input: {
   platformRole: "user" | "superadmin";
 }) {
   const { userId } = await requireSuperAdmin();
+  // Anti-lockout guards: without these an admin can demote themselves (or the
+  // only other superadmin) and permanently lose access to /admin.
+  if (input.userId === userId && input.platformRole !== "superadmin") {
+    throw new Error("Invalid role change: you cannot demote your own account");
+  }
+  if (input.platformRole !== "superadmin") {
+    const remaining = await db.user.count({
+      where: { platformRole: "superadmin", id: { not: input.userId } },
+    });
+    if (remaining === 0) {
+      throw new Error("Invalid role change: at least one superadmin must remain");
+    }
+  }
   const user = await db.user.update({
     where: { id: input.userId },
     data: { platformRole: input.platformRole },
@@ -121,18 +203,86 @@ export async function adminSetPlatformRole(input: {
   return user;
 }
 
-export async function listAdminOrders() {
+const ORDER_STATUSES = [
+  "pending",
+  "paid",
+  "failed",
+  "canceled",
+  "expired",
+  "refunded",
+] as const;
+
+export async function listAdminOrders(q: {
+  q?: string;
+  page?: number;
+  status?: string;
+} = {}): Promise<AdminListResult<{
+  id: string;
+  orderCode: string;
+  status: string;
+  totalIdr: number;
+  createdAt: Date;
+  paidAt: Date | null;
+  plan: { name: string };
+  workspace: { name: string };
+  voucher: { code: string } | null;
+}>> {
   await requireSuperAdmin();
-  return db.subscriptionOrder.findMany({
+  const search = q.q?.trim();
+  const status = ORDER_STATUSES.find((s) => s === q.status);
+  const where: {
+    status?: (typeof ORDER_STATUSES)[number];
+    OR?: Array<Record<string, unknown>>;
+  } = {};
+  if (status) where.status = status;
+  if (search) {
+    where.OR = [
+      { orderCode: { contains: search, mode: "insensitive" as const } },
+      { midtransOrderId: { contains: search } },
+      { workspace: { name: { contains: search, mode: "insensitive" as const } } },
+    ];
+  }
+  const total = await db.subscriptionOrder.count({ where });
+  const { skip, take, page, totalPages } = listWindow(q, total, 25);
+  const rows = await db.subscriptionOrder.findMany({
+    where,
     orderBy: { createdAt: "desc" },
-    take: 100,
+    skip,
+    take,
     include: { plan: true, workspace: true, voucher: true },
   });
+  return { rows, total, page, perPage: take, totalPages };
 }
 
-export async function listAdminVouchers() {
+export async function listAdminVouchers(
+  q: AdminListQuery = {},
+): Promise<AdminListResult<{
+  id: string;
+  code: string;
+  type: string;
+  value: number;
+  isActive: boolean;
+  redeemedCount: number;
+  maxRedemptions: number | null;
+  perWorkspaceLimit: number;
+  minSubtotalIdr: number | null;
+  allowedPlanCodes: string[];
+  expiresAt: Date | null;
+}>> {
   await requireSuperAdmin();
-  return db.voucher.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
+  const search = q.q?.trim();
+  const where = search
+    ? { code: { contains: search, mode: "insensitive" as const } }
+    : {};
+  const total = await db.voucher.count({ where });
+  const { skip, take, page, totalPages } = listWindow(q, total, 25);
+  const rows = await db.voucher.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    skip,
+    take,
+  });
+  return { rows, total, page, perPage: take, totalPages };
 }
 
 export async function adminCreateVoucher(input: {
@@ -261,9 +411,31 @@ export async function adminUpdateVoucher(input: {
   return voucher;
 }
 
-export async function listAdminJobs() {
+const JOB_STATUSES = ["queued", "running", "succeeded", "failed"] as const;
+
+export async function listAdminJobs(q: {
+  page?: number;
+  status?: string;
+} = {}): Promise<AdminListResult<{
+  id: string;
+  job: string;
+  status: string;
+  message: string | null;
+  startedAt: Date;
+  finishedAt: Date | null;
+}>> {
   await requireSuperAdmin();
-  return db.jobRun.findMany({ orderBy: { startedAt: "desc" }, take: 100 });
+  const status = JOB_STATUSES.find((s) => s === q.status);
+  const where = status ? { status } : {};
+  const total = await db.jobRun.count({ where });
+  const { skip, take, page, totalPages } = listWindow(q, total, 25);
+  const rows = await db.jobRun.findMany({
+    where,
+    orderBy: { startedAt: "desc" },
+    skip,
+    take,
+  });
+  return { rows, total, page, perPage: take, totalPages };
 }
 
 export async function listAdminFlags() {
@@ -309,18 +481,170 @@ export async function listAdminSso() {
   });
 }
 
-export async function listAdminAudit(limit = 100) {
+export async function listAdminAudit(q: AdminListQuery = {}): Promise<AdminListResult<{
+  id: string;
+  action: string;
+  createdAt: Date;
+  actor: { email: string | null } | null;
+  workspace: { name: string } | null;
+}>> {
   await requireSuperAdmin();
-  return db.auditLog.findMany({
+  const search = q.q?.trim();
+  const where = search
+    ? { action: { contains: search, mode: "insensitive" as const } }
+    : {};
+  const total = await db.auditLog.count({ where });
+  const { skip, take, page, totalPages } = listWindow(q, total, 20);
+  const rows = await db.auditLog.findMany({
+    where,
     orderBy: { createdAt: "desc" },
-    take: limit,
+    skip,
+    take,
     include: { actor: true, workspace: true },
   });
+  return { rows, total, page, perPage: take, totalPages };
 }
 
-export async function listAdminDeliveries() {
+export async function listAdminDeliveries(q: {
+  page?: number;
+  status?: string;
+} = {}): Promise<AdminListResult<{
+  id: string;
+  kind: string;
+  connector: string;
+  mode: string;
+  ok: boolean;
+  message: string | null;
+  createdAt: Date;
+}>> {
   await requireSuperAdmin();
-  return db.deliveryLog.findMany({ orderBy: { createdAt: "desc" }, take: 100 });
+  const okFilter =
+    q.status === "failed" ? false : q.status === "ok" ? true : undefined;
+  const where = okFilter === undefined ? {} : { ok: okFilter };
+  const total = await db.deliveryLog.count({ where });
+  const { skip, take, page, totalPages } = listWindow(q, total, 25);
+  const rows = await db.deliveryLog.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    skip,
+    take,
+  });
+  return { rows, total, page, perPage: take, totalPages };
+}
+
+/**
+ * Manually trigger a whitelisted worker job (retry a failure or force a run).
+ * Runs inline through the same runWorkerJob entry the cron uses, so the
+ * re-entrancy guard and per-workspace limits still apply.
+ */
+export async function adminRunJobNow(job: string) {
+  const { userId } = await requireSuperAdmin();
+  const { runWorkerJob, WORKER_JOBS } = await import("@/server/worker-jobs");
+  const jobName = WORKER_JOBS.find((name) => name === job);
+  if (!jobName) {
+    throw new Error(`Invalid job name: ${job}`);
+  }
+  const result = await runWorkerJob(jobName);
+  await db.auditLog.create({
+    data: {
+      actorUserId: userId,
+      action: "admin.job_triggered",
+      resourceType: "job_run",
+      metadata: { job: jobName, ok: result.ok, message: result.message },
+    },
+  });
+  revalidatePath("/admin/jobs");
+  revalidatePath("/admin");
+  return result;
+}
+
+/**
+ * Cancel a pending order (local status flip — no charge exists yet).
+ * Paid orders must go through adminRefundOrder instead.
+ */
+export async function adminCancelOrder(orderId: string) {
+  const { userId } = await requireSuperAdmin();
+  const result = await db.subscriptionOrder.updateMany({
+    where: { id: orderId, status: "pending" },
+    data: { status: "canceled" },
+  });
+  if (result.count === 0) {
+    throw new Error("Order not found or not pending");
+  }
+  await db.auditLog.create({
+    data: {
+      actorUserId: userId,
+      action: "admin.order_canceled",
+      resourceType: "subscription_order",
+      resourceId: orderId,
+    },
+  });
+  revalidatePath("/admin/billing");
+  revalidatePath("/admin");
+}
+
+/**
+ * Mark a paid order as refunded after the money has been returned via the
+ * Midtrans dashboard. This reconciles the local ledger only — it never calls
+ * Midtrans — so the reason is required for the audit trail.
+ */
+export async function adminRefundOrder(orderId: string, reason: string) {
+  const { userId } = await requireSuperAdmin();
+  const trimmed = reason.trim();
+  if (!trimmed) {
+    throw new Error("Order refund requires a reason");
+  }
+  const result = await db.subscriptionOrder.updateMany({
+    where: { id: orderId, status: "paid" },
+    data: { status: "refunded" },
+  });
+  if (result.count === 0) {
+    throw new Error("Order not found or not paid");
+  }
+  await db.auditLog.create({
+    data: {
+      actorUserId: userId,
+      action: "admin.order_refunded",
+      resourceType: "subscription_order",
+      resourceId: orderId,
+      metadata: { reason: trimmed.slice(0, 500) },
+    },
+  });
+  revalidatePath("/admin/billing");
+  revalidatePath("/admin");
+}
+
+/** Suspend or reinstate a user account. Suspension blocks new logins and ends existing sessions within ~1 minute. */
+export async function adminSetUserSuspended(input: {
+  userId: string;
+  suspended: boolean;
+  reason?: string;
+}) {
+  const { userId } = await requireSuperAdmin();
+  if (input.userId === userId) {
+    throw new Error("Invalid action: you cannot suspend your own account");
+  }
+  const data = input.suspended
+    ? {
+        suspendedAt: new Date(),
+        suspendedReason: input.reason?.trim().slice(0, 500) || null,
+      }
+    : { suspendedAt: null, suspendedReason: null };
+  const user = await db.user.update({
+    where: { id: input.userId },
+    data,
+  });
+  await db.auditLog.create({
+    data: {
+      actorUserId: userId,
+      action: input.suspended ? "admin.user_suspended" : "admin.user_reinstated",
+      resourceType: "user",
+      resourceId: user.id,
+      metadata: { reason: data.suspendedReason },
+    },
+  });
+  revalidatePath("/admin/users");
+  return user;
 }
 
 /**
