@@ -450,36 +450,201 @@ export const messages = {
     legalPages: {
       privacy: {
         title: "Privacy Policy",
-        subtitle: "We process workspace and account operational data to provide the service.",
-        points: [
-          "Data retention controls",
-          "Workspace isolation",
-          "Contact for data requests",
-        ],
+        subtitle: "How Komenin collects, uses, and protects your data.",
+        updated: "Last updated: 2 September 2026",
         cta: "Contact",
         href: "/contact",
+        sections: [
+          {
+            heading: "What we collect",
+            points: [
+              "Account data: name, email, and sign-in identifiers (Google, email OTP, or SSO).",
+              "Workspace configuration: connected social accounts, proxies, providers, and settings you create.",
+              "Operational content: drafts, comments, campaigns, approvals, and activity generated through the Service.",
+              "Credentials you provide (BYOK API keys, session tokens) — stored encrypted.",
+              "Usage and billing records: plan, orders, AI credit consumption (model and token counts, not your prompts).",
+              "Technical data: logs, IP address, and device/browser information needed to operate and secure the Service.",
+            ],
+          },
+          {
+            heading: "How we use it",
+            points: [
+              "Provide and operate the Service (drafting, scheduling, publishing, analytics).",
+              "Process payments and fulfill entitlements via our payment processor.",
+              "Secure the platform, prevent abuse, and enforce quotas and rate limits.",
+              "Communicate with you about your account, quota thresholds, and important changes.",
+              "Improve reliability and features (in aggregate, not by reading your private content).",
+            ],
+          },
+          {
+            heading: "AI processing and your prompts",
+            paragraphs: [
+              "When you use AI features, the text needed to generate a result is sent to the AI provider you configured (your own key, or our gateway for Komenin AI) solely to produce that result.",
+              "We record metering metadata — the model used and token counts — for billing and analytics. We do not use your prompts or generated content to train models, and we do not sell your content.",
+            ],
+          },
+          {
+            heading: "Third-party processors",
+            paragraphs: [
+              "We use subprocessors to deliver the Service, including: Midtrans (payments), Brevo (transactional email), our hosting/database provider, and the AI provider you select. Each processes data only as needed to provide its service to us.",
+              "Connected social platforms (Instagram, Threads, TikTok) receive the content you choose to publish through them, under their own terms and privacy policies.",
+            ],
+          },
+          {
+            heading: "Retention, security, and your rights",
+            points: [
+              "We retain workspace data while your account is active and delete or anonymize it within a reasonable period after closure, except where law requires longer retention.",
+              "We apply encryption in transit and at rest, per-workspace isolation, and access controls.",
+              "You may request access, correction, export, or deletion of your personal data via the contact page.",
+              "You can disconnect social accounts and remove stored credentials at any time in Settings.",
+            ],
+          },
+          {
+            heading: "Changes and contact",
+            paragraphs: [
+              "We may update this Policy; material changes will be notified in-app or by email before taking effect.",
+              "For privacy questions or data requests, use the contact page.",
+            ],
+          },
+        ],
       },
       terms: {
         title: "Terms of Service",
-        subtitle: "Use Komenin in compliance with platform policies and applicable law.",
-        points: [
-          "Acceptable use required",
-          "No warranty of platform compliance",
-          "Enterprise terms available",
-        ],
+        subtitle: "The agreement between you and Komenin for using the platform.",
+        updated: "Last updated: 2 September 2026",
         cta: "Read AUP",
         href: "/legal/aup",
+        sections: [
+          {
+            heading: "Acceptance of these Terms",
+            paragraphs: [
+              "By creating an account or using Komenin (\"the Service\"), you agree to these Terms of Service and our Acceptable Use Policy. If you use the Service on behalf of a company or workspace, you represent that you are authorized to bind that entity, and \"you\" refers to that entity.",
+              "If you do not agree, do not use the Service.",
+            ],
+          },
+          {
+            heading: "The Service",
+            paragraphs: [
+              "Komenin provides social-media operations tooling: connecting social accounts, AI-assisted comment and content drafting, approval workflows, scheduling, and analytics.",
+              "You are responsible for the social accounts you connect and for complying with each platform's terms (Instagram, Threads, TikTok, and others). The Service is a tool; publishing decisions and their consequences remain yours.",
+            ],
+          },
+          {
+            heading: "Accounts, workspaces, and security",
+            points: [
+              "You must provide accurate registration information and keep your credentials confidential.",
+              "You are responsible for all activity under your workspace and for the conduct of members you invite.",
+              "API keys and session credentials you provide (BYOK) are stored encrypted; you are responsible for their validity and for revoking them when no longer needed.",
+              "Notify us promptly of any unauthorized use of your account.",
+            ],
+          },
+          {
+            heading: "Subscriptions, billing, and Komenin AI credits",
+            paragraphs: [
+              "Paid plans and Komenin AI add-ons are billed in Indonesian Rupiah (IDR) via our payment processor (Midtrans). Prices are shown at checkout before you pay.",
+              "Social plans grant send/publish limits for the stated period. Komenin AI is a separate add-on with its own subscription tiers and pay-as-you-go (PAYG) credit packs.",
+              "AI credits: 1 credit equals 1 token (input + output), counted from the model's usage report. Unused subscription quota does not roll over between monthly quota periods. PAYG credits are valid for 12 months from purchase while your account is active, after which they expire.",
+              "Tier changes take effect at the next quota period (no proration). Except where required by law, payments are non-refundable once the corresponding entitlement or credits have been provisioned; a refund or chargeback may reverse the associated entitlement and any unspent credits.",
+            ],
+          },
+          {
+            heading: "Acceptable use",
+            paragraphs: [
+              "You must use the Service in compliance with our Acceptable Use Policy, applicable law, and platform rules. We may suspend or terminate access for abuse, spam, or violations.",
+            ],
+          },
+          {
+            heading: "Intellectual property and your content",
+            paragraphs: [
+              "You retain ownership of the content you create. You grant us a limited license to process that content solely to provide the Service (for example, generating drafts at your request).",
+              "We retain all rights to the Service itself, including software, design, and branding.",
+            ],
+          },
+          {
+            heading: "Disclaimers and limitation of liability",
+            paragraphs: [
+              "The Service is provided \"as is\" without warranties of any kind. We do not warrant that generated content complies with any platform's policies or that the Service will be uninterrupted or error-free.",
+              "To the maximum extent permitted by law, Komenin is not liable for indirect, incidental, or consequential damages, or for actions taken by third-party platforms (such as account suspension). Our aggregate liability is limited to the amount you paid us in the 3 months preceding the claim.",
+            ],
+          },
+          {
+            heading: "Changes and contact",
+            paragraphs: [
+              "We may update these Terms; material changes will be notified in-app or by email, and continued use after the effective date constitutes acceptance.",
+              "Questions about these Terms: use the contact page.",
+            ],
+          },
+        ],
       },
       aup: {
         title: "Acceptable Use Policy",
         subtitle: "Automation must respect platform rules, consent, and rate limits.",
-        points: [
-          "No spam campaigns",
-          "Approval and quota controls expected",
-          "Abuse may result in suspension",
-        ],
+        updated: "Last updated: 2 September 2026",
         cta: "Contact",
         href: "/contact",
+        sections: [
+          {
+            heading: "Scope of this Policy",
+            paragraphs: [
+              "This Acceptable Use Policy (\"AUP\") governs how you may use Komenin (\"the Service\") — the web app, the public API, and every automated action the Service performs on your behalf, including listeners, comment drafting, and scheduled publishing.",
+              "It applies to every member of your workspace and to all content sent through connected accounts. This AUP supplements our Terms of Service; capitalized terms have the meaning given there.",
+            ],
+          },
+          {
+            heading: "Follow the connected platforms' rules",
+            paragraphs: [
+              "Your Instagram, Threads, and TikTok accounts remain subject to each platform's own terms, automation policies, and community standards. Komenin is built to operate within those limits — not around them.",
+            ],
+            points: [
+              "Only connect accounts you own or are explicitly authorized to operate.",
+              "Respect each platform's rate limits and keep the Service's built-in delays, quotas, and approval controls enabled.",
+              "Do not use the Service to evade platform bans, restrictions, device or account verification, or other enforcement measures.",
+            ],
+          },
+          {
+            heading: "Prohibited content",
+            paragraphs: [
+              "You may not send, schedule, or store through the Service:",
+            ],
+            points: [
+              "Illegal content, or content that infringes intellectual property, privacy, or other rights of others.",
+              "Harassment, hate speech, threats, or content that exploits or endangers minors.",
+              "Malware, phishing, fraud, or schemes designed to deceive people or platforms.",
+              "Misleading engagement — undisclosed bots, fake personas, or inauthentic reviews and testimonials.",
+            ],
+          },
+          {
+            heading: "Prohibited behavior",
+            points: [
+              "Spam: unsolicited bulk comments, replies, or messages, or repeated unwanted contact with the same targets.",
+              "Engagement manipulation: buying, selling, or artificially inflating followers, likes, or comments — including bot networks and engagement pods.",
+              "Circumventing the Service's own controls: bypassing quotas, rate limits, approval flows, or abuse detections (for example by creating extra workspaces or accounts to evade limits).",
+              "Discovery abuse: scraping or monitoring content beyond what listeners and the API are designed to return.",
+              "Credential misuse: connecting sessions or API keys you are not authorized to use, or sharing them in violation of your organization's policies.",
+            ],
+          },
+          {
+            heading: "Consent and personal data",
+            paragraphs: [
+              "Automated outreach targets real people. You are responsible for having a lawful basis for the interactions you automate and for honoring opt-outs and deletion requests.",
+            ],
+            points: [
+              "Do not collect or store personal data from platforms except through the Service's supported features (inbox, leads, listeners).",
+              "Comply with applicable privacy laws (including Indonesia's PDP Law and, where relevant, GDPR) for the data you process through the Service.",
+            ],
+          },
+          {
+            heading: "Enforcement",
+            paragraphs: [
+              "We investigate suspected violations. Where feasible, we notify the workspace owner and describe what must be fixed.",
+            ],
+            points: [
+              "We may warn, limit features, pause sending, suspend, or terminate a workspace that breaches this AUP.",
+              "Serious violations — or repeated ones after a warning — may result in immediate suspension.",
+              "Report violations or ask questions about this Policy via the contact page.",
+            ],
+          },
+        ],
       },
     },
     faq: {
@@ -1071,36 +1236,201 @@ export const messages = {
     legalPages: {
       privacy: {
         title: "Kebijakan Privasi",
-        subtitle: "Kami memproses data operasional workspace dan akun untuk menyediakan layanan.",
-        points: [
-          "Kontrol retensi data",
-          "Isolasi workspace",
-          "Hubungi kami untuk permintaan data",
-        ],
+        subtitle: "Bagaimana Komenin mengumpulkan, menggunakan, dan melindungi data Anda.",
+        updated: "Terakhir diperbarui: 2 September 2026",
         cta: "Kontak",
         href: "/contact",
+        sections: [
+          {
+            heading: "Data yang kami kumpulkan",
+            points: [
+              "Data akun: nama, email, dan identitas masuk (Google, OTP email, atau SSO).",
+              "Konfigurasi workspace: akun sosial, proxy, provider, dan pengaturan yang Anda buat.",
+              "Konten operasional: draf, komentar, campaign, approval, dan aktivitas yang dihasilkan lewat Layanan.",
+              "Kredensial yang Anda berikan (API key BYOK, token sesi) — disimpan terenkripsi.",
+              "Catatan pemakaian dan tagihan: plan, order, konsumsi kredit AI (model dan jumlah token, bukan prompt Anda).",
+              "Data teknis: log, alamat IP, dan informasi perangkat/browser yang diperlukan untuk mengoperasikan dan mengamankan Layanan.",
+            ],
+          },
+          {
+            heading: "Cara kami menggunakannya",
+            points: [
+              "Menyediakan dan mengoperasikan Layanan (penyusunan draf, penjadwalan, publikasi, analitik).",
+              "Memproses pembayaran dan memenuhi entitlement lewat pemroses pembayaran kami.",
+              "Mengamankan platform, mencegah penyalahgunaan, dan menegakkan kuota serta rate limit.",
+              "Menghubungi Anda tentang akun, ambang kuota, dan perubahan penting.",
+              "Meningkatkan keandalan dan fitur (secara agregat, bukan dengan membaca konten privat Anda).",
+            ],
+          },
+          {
+            heading: "Pemrosesan AI dan prompt Anda",
+            paragraphs: [
+              "Saat Anda memakai fitur AI, teks yang diperlukan untuk menghasilkan output dikirim ke provider AI yang Anda konfigurasi (key sendiri, atau gateway kami untuk Komenin AI) semata untuk menghasilkan output itu.",
+              "Kami mencatat metadata metering — model yang dipakai dan jumlah token — untuk penagihan dan analitik. Kami tidak menggunakan prompt atau konten hasil Anda untuk melatih model, dan kami tidak menjual konten Anda.",
+            ],
+          },
+          {
+            heading: "Pemroses pihak ketiga",
+            paragraphs: [
+              "Kami menggunakan sub-prosesor untuk menyediakan Layanan, antara lain: Midtrans (pembayaran), Brevo (email transaksional), penyedia hosting/database kami, dan provider AI yang Anda pilih. Masing-masing memproses data hanya seperlunya untuk menyediakan layanannya kepada kami.",
+              "Platform sosial yang terhubung (Instagram, Threads, TikTok) menerima konten yang Anda pilih untuk dipublikasikan lewat mereka, sesuai syarat dan kebijakan privasi mereka.",
+            ],
+          },
+          {
+            heading: "Retensi, keamanan, dan hak Anda",
+            points: [
+              "Kami menyimpan data workspace selama akun Anda aktif dan menghapus atau menganonimkannya dalam jangka waktu yang wajar setelah penutupan, kecuali hukum mewajibkan retensi lebih lama.",
+              "Kami menerapkan enkripsi saat transit dan saat disimpan, isolasi per workspace, dan kontrol akses.",
+              "Anda dapat meminta akses, koreksi, ekspor, atau penghapusan data pribadi Anda lewat halaman kontak.",
+              "Anda dapat memutus akun sosial dan menghapus kredensial tersimpan kapan saja di Settings.",
+            ],
+          },
+          {
+            heading: "Perubahan dan kontak",
+            paragraphs: [
+              "Kami dapat memperbarui Kebijakan ini; perubahan material akan diberitahukan di aplikasi atau lewat email sebelum berlaku.",
+              "Untuk pertanyaan privasi atau permintaan data, gunakan halaman kontak.",
+            ],
+          },
+        ],
       },
       terms: {
         title: "Syarat Layanan",
-        subtitle: "Gunakan Komenin sesuai kebijakan platform dan hukum yang berlaku.",
-        points: [
-          "Wajib mematuhi acceptable use",
-          "Tidak ada jaminan kepatuhan platform",
-          "Syarat enterprise tersedia",
-        ],
+        subtitle: "Perjanjian antara Anda dan Komenin untuk penggunaan platform.",
+        updated: "Terakhir diperbarui: 2 September 2026",
         cta: "Baca AUP",
         href: "/legal/aup",
+        sections: [
+          {
+            heading: "Penerimaan Syarat ini",
+            paragraphs: [
+              "Dengan membuat akun atau menggunakan Komenin (\"Layanan\"), Anda menyetujui Syarat Layanan ini dan Kebijakan Penggunaan yang Dapat Diterima (AUP) kami. Jika Anda menggunakan Layanan atas nama perusahaan atau workspace, Anda menyatakan berwenang mengikat entitas tersebut, dan \"Anda\" merujuk pada entitas itu.",
+              "Jika Anda tidak setuju, jangan gunakan Layanan.",
+            ],
+          },
+          {
+            heading: "Layanan",
+            paragraphs: [
+              "Komenin menyediakan perangkat operasi media sosial: menghubungkan akun sosial, penyusunan komentar dan konten berbantuan AI, alur approval, penjadwalan, dan analitik.",
+              "Anda bertanggung jawab atas akun sosial yang Anda hubungkan dan atas kepatuhan terhadap ketentuan tiap platform (Instagram, Threads, TikTok, dan lainnya). Layanan adalah alat; keputusan publikasi dan konsekuensinya tetap menjadi milik Anda.",
+            ],
+          },
+          {
+            heading: "Akun, workspace, dan keamanan",
+            points: [
+              "Anda wajib memberikan informasi pendaftaran yang akurat dan menjaga kerahasiaan kredensial Anda.",
+              "Anda bertanggung jawab atas semua aktivitas di workspace Anda dan atas perilaku anggota yang Anda undang.",
+              "API key dan kredensial sesi yang Anda berikan (BYOK) disimpan terenkripsi; Anda bertanggung jawab atas validitasnya dan untuk mencabutnya bila tidak diperlukan.",
+              "Segera beri tahu kami jika ada penggunaan akun Anda tanpa izin.",
+            ],
+          },
+          {
+            heading: "Langganan, penagihan, dan kredit Komenin AI",
+            paragraphs: [
+              "Plan berbayar dan add-on Komenin AI ditagih dalam Rupiah (IDR) lewat pemroses pembayaran kami (Midtrans). Harga ditampilkan saat checkout sebelum Anda membayar.",
+              "Plan sosial memberikan batas kirim/publish untuk periode yang tertera. Komenin AI adalah add-on terpisah dengan tier langganan dan paket kredit pay-as-you-go (PAYG) sendiri.",
+              "Kredit AI: 1 kredit setara 1 token (input + output), dihitung dari laporan usage model. Kuota langganan yang tidak terpakai tidak dibawa ke periode kuota berikutnya. Kredit PAYG berlaku 12 bulan sejak pembelian selama akun Anda aktif, setelah itu hangus.",
+              "Perubahan tier berlaku pada periode kuota berikutnya (tanpa prorata). Kecuali diwajibkan hukum, pembayaran tidak dapat dikembalikan setelah entitlement atau kredit terkait telah diberikan; refund atau chargeback dapat membalikkan entitlement terkait beserta kredit yang belum terpakai.",
+            ],
+          },
+          {
+            heading: "Penggunaan yang dapat diterima",
+            paragraphs: [
+              "Anda wajib menggunakan Layanan sesuai AUP kami, hukum yang berlaku, dan aturan platform. Kami dapat menangguhkan atau menghentikan akses karena penyalahgunaan, spam, atau pelanggaran.",
+            ],
+          },
+          {
+            heading: "Kekayaan intelektual dan konten Anda",
+            paragraphs: [
+              "Anda tetap memiliki konten yang Anda buat. Anda memberi kami lisensi terbatas untuk memproses konten itu semata untuk menyediakan Layanan (misalnya, membuat draf atas permintaan Anda).",
+              "Kami mempertahankan semua hak atas Layanan itu sendiri, termasuk perangkat lunak, desain, dan merek.",
+            ],
+          },
+          {
+            heading: "Penafian dan batasan tanggung jawab",
+            paragraphs: [
+              "Layanan disediakan \"sebagaimana adanya\" tanpa jaminan apa pun. Kami tidak menjamin konten hasil mematuhi kebijakan platform mana pun, atau bahwa Layanan akan tanpa gangguan atau bebas kesalahan.",
+              "Sejauh diizinkan hukum, Komenin tidak bertanggung jawab atas kerugian tidak langsung, insidental, atau konsekuensial, maupun atas tindakan platform pihak ketiga (seperti penangguhan akun). Tanggung jawab agregat kami dibatasi pada jumlah yang Anda bayarkan kepada kami dalam 3 bulan sebelum klaim.",
+            ],
+          },
+          {
+            heading: "Perubahan dan kontak",
+            paragraphs: [
+              "Kami dapat memperbarui Syarat ini; perubahan material akan diberitahukan di aplikasi atau lewat email, dan penggunaan berkelanjutan setelah tanggal efektif berarti penerimaan.",
+              "Pertanyaan tentang Syarat ini: gunakan halaman kontak.",
+            ],
+          },
+        ],
       },
       aup: {
         title: "Kebijakan Penggunaan yang Dapat Diterima",
         subtitle: "Otomasi harus menghormati aturan platform, consent, dan rate limit.",
-        points: [
-          "Tidak boleh campaign spam",
-          "Kontrol approval dan kuota diharapkan",
-          "Penyalahgunaan dapat berujung penangguhan",
-        ],
+        updated: "Terakhir diperbarui: 2 September 2026",
         cta: "Kontak",
         href: "/contact",
+        sections: [
+          {
+            heading: "Cakupan Kebijakan ini",
+            paragraphs: [
+              "Kebijakan Penggunaan yang Dapat Diterima (\"AUP\") ini mengatur cara Anda menggunakan Komenin (\"Layanan\") — aplikasi web, API publik, dan setiap tindakan otomatis yang dilakukan Layanan atas nama Anda, termasuk listener, penyusunan komentar, dan publikasi terjadwal.",
+              "Kebijakan ini berlaku untuk semua anggota workspace Anda dan seluruh konten yang dikirim melalui akun yang terhubung. AUP ini melengkapi Syarat Layanan kami; istilah berkapital memiliki arti sebagaimana didefinisikan di sana.",
+            ],
+          },
+          {
+            heading: "Ikuti aturan platform yang terhubung",
+            paragraphs: [
+              "Akun Instagram, Threads, dan TikTok Anda tetap tunduk pada syarat, kebijakan otomasi, dan standar komunitas masing-masing platform. Komenin dirancang untuk beroperasi dalam batas tersebut — bukan melewatinya.",
+            ],
+            points: [
+              "Hanya hubungkan akun yang Anda miliki atau yang secara eksplisit berwenang kepada Anda untuk dioperasikan.",
+              "Hormati rate limit masing-masing platform dan biarkan delay, kuota, serta kontrol approval bawaan Layanan tetap aktif.",
+              "Jangan gunakan Layanan untuk menghindari banned, pembatasan, verifikasi perangkat atau akun, atau penegakan aturan lain dari platform.",
+            ],
+          },
+          {
+            heading: "Konten yang dilarang",
+            paragraphs: [
+              "Anda tidak boleh mengirim, menjadwalkan, atau menyimpan melalui Layanan:",
+            ],
+            points: [
+              "Konten yang melanggar hukum, atau yang melanggar hak kekayaan intelektual, privasi, atau hak lain pihak lain.",
+              "Pelecehan, ujaran kebencian, ancaman, atau konten yang mengeksploitasi dan membahayakan anak di bawah umur.",
+              "Malware, phishing, penipuan, atau skema yang dirancang untuk menipu pengguna maupun platform.",
+              "Engagement yang menyesatkan — bot tanpa disclosure, persona palsu, serta ulasan atau testimoni yang tidak autentik.",
+            ],
+          },
+          {
+            heading: "Perilaku yang dilarang",
+            points: [
+              "Spam: komentar, balasan, atau pesan massal yang tidak diminta, atau kontak berulang kepada target yang sama.",
+              "Manipulasi engagement: membeli, menjual, atau menggelembungkan followers, likes, atau komentar secara artifisial — termasuk jaringan bot dan engagement pod.",
+              "Mengakali kontrol Layanan sendiri: melewati kuota, rate limit, alur approval, atau deteksi penyalahgunaan (misalnya dengan membuat workspace atau akun tambahan untuk menghindari batasan).",
+              "Penyalahgunaan discovery: scraping atau pemantauan konten melampaui yang memang dirancang untuk listener dan API.",
+              "Penyalahgunaan kredensial: menghubungkan sesi atau API key yang tidak berwenang kepada Anda, atau membagikannya melanggar kebijakan organisasi Anda.",
+            ],
+          },
+          {
+            heading: "Consent dan data pribadi",
+            paragraphs: [
+              "Otomasi outreach menyasar orang sungguhan. Anda bertanggung jawab memiliki dasar hukum yang sah atas interaksi yang Anda otomatisasi, serta menghormati permintaan berhenti (opt-out) dan penghapusan data.",
+            ],
+            points: [
+              "Jangan mengumpulkan atau menyimpan data pribadi dari platform kecuali melalui fitur Layanan yang memang disediakan (inbox, leads, listener).",
+              "Patuhi hukum privasi yang berlaku (termasuk UU PDP di Indonesia dan, bila relevan, GDPR) untuk data yang Anda proses melalui Layanan.",
+            ],
+          },
+          {
+            heading: "Penegakan",
+            paragraphs: [
+              "Kami menyelidiki dugaan pelanggaran. Bila memungkinkan, kami memberi tahu pemilik workspace dan menjelaskan apa yang perlu diperbaiki.",
+            ],
+            points: [
+              "Kami dapat memberi peringatan, membatasi fitur, menghentikan sementara pengiriman, menangguhkan, atau mengakhiri workspace yang melanggar AUP ini.",
+              "Pelanggaran serius — atau pelanggaran berulang setelah peringatan — dapat berujung penangguhan seketika.",
+              "Laporkan pelanggaran atau ajukan pertanyaan tentang Kebijakan ini melalui halaman kontak.",
+            ],
+          },
+        ],
       },
     },
     faq: {
