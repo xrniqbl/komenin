@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { recordPublishDelivery } from "@/lib/publish-delivery-store";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
-import { isProductionRuntime, safeEqual } from "@/lib/security";
+import { allowDevStubs, safeEqual } from "@/lib/security";
 
 export const runtime = "nodejs";
 
@@ -18,12 +18,6 @@ type WebhookBody = {
   publishedAt?: string | null;
 };
 
-/** Open publish webhook only with explicit ALLOW_SECURITY_STUBS (never in production). */
-function allowInsecurePublishWebhook(): boolean {
-  if (isProductionRuntime()) return false;
-  return process.env.ALLOW_SECURITY_STUBS === "true";
-}
-
 export async function POST(request: Request) {
   const rate = await consumeRateLimit({
     key: getRequestRateKey(request, "api:publish:webhook"),
@@ -36,7 +30,7 @@ export async function POST(request: Request) {
   const expected = process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN?.trim();
   // Fail closed: token required unless ALLOW_SECURITY_STUBS=true in non-production.
   if (!expected) {
-    if (!allowInsecurePublishWebhook()) {
+      if (!allowDevStubs()) {
       return NextResponse.json(
         {
           error:
@@ -101,7 +95,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     endpoint: "/api/publish/webhook",
-    authRequired: tokenConfigured || !allowInsecurePublishWebhook(),
+    authRequired: tokenConfigured || !allowDevStubs(),
     usage:
       "POST JSON { platform, username, accountId, title, body, hashtags, caption, scheduledFor, publishedAt } with Authorization: Bearer <SOCIAL_PUBLISH_WEBHOOK_TOKEN>",
   });

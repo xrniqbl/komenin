@@ -30,7 +30,11 @@ export function requireConfiguredSecret(
 }
 
 export function allowDevStubs(): boolean {
-  if (isProductionRuntime()) return false;
+  // Only a genuine local dev process may enable insecure stubs. A bare
+  // ALLOW_SECURITY_STUBS=true on a deployed box (NODE_ENV=production, Vercel
+  // preview, `next start`, or NODE_ENV unset) must never open the SAML email
+  // stub, unsigned SAML, or SSRF localhost egress.
+  if (process.env.NODE_ENV !== "development") return false;
   // Require an explicit opt-in. Previously any SIMULATOR_MODE !== "false" (the
   // default is "true") silently enabled insecure stubs (SSRF/localhost egress,
   // SAML email stub) on every non-production environment.

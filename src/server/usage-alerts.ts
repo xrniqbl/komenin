@@ -1,5 +1,6 @@
-"use server";
-
+// Deliberately NOT a "use server" module: dispatchUsageWarningsForAllWorkspaces
+// iterates every workspace with no caller auth, so a "use server" directive
+// here would expose it as an unauthenticated RPC endpoint.
 import { db } from "@/lib/db";
 import { listRateLimitStatus } from "./rate-limits";
 

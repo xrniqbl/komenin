@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { isProductionRuntime } from "@/lib/security";
+import { allowDevStubs, isProductionRuntime } from "@/lib/security";
 import {
   completeSsoIdentityLogin,
   loginFromSamlResponse,
 } from "@/server/sso-login";
 
 export const runtime = "nodejs";
-
-/** Explicit opt-in only — do not enable via SIMULATOR_MODE alone. */
-function allowUnsignedSamlDev(): boolean {
-  if (isProductionRuntime()) return false;
-  return process.env.ALLOW_SECURITY_STUBS === "true";
-}
 
 /**
  * SAML ACS endpoint.
@@ -32,7 +26,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!allowUnsignedSamlDev()) {
+  if (!allowDevStubs()) {
     return NextResponse.json(
       {
         error:

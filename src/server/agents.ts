@@ -6,6 +6,7 @@ import { generateContextualCommentHybrid } from "@/lib/comment-engine";
 import { rankChunks } from "@/lib/knowledge/retrieve";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
+import { assertAgentInWorkspace } from "@/server/agent-scope";
 import { writeAuditLog } from "@/server/audit";
 
 export async function listAgents() {
@@ -243,6 +244,7 @@ export async function addKnowledgeDocument(input: {
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
   assertWorkspacePermission(workspace, "agents.manage");
+  await assertAgentInWorkspace(workspace.id, input.agentId);
 
   const doc = await db.knowledgeDocument.create({
     data: {
@@ -278,6 +280,7 @@ export async function addMemoryEntry(input: {
 }) {
   const { userId, workspace } = await requireActiveWorkspace();
   assertWorkspacePermission(workspace, "agents.manage");
+  await assertAgentInWorkspace(workspace.id, input.agentId);
 
   const entry = await db.memoryEntry.create({
     data: {

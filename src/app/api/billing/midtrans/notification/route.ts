@@ -2,10 +2,23 @@ import { NextResponse } from "next/server";
 import { getMidtransConfig, verifyMidtransSignature } from "@/lib/billing/midtrans";
 import { applyPaidOrder } from "@/server/billing";
 import { isProductionRuntime } from "@/lib/security";
+import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  // Unauthenticated-by-design endpoint: parse work and PaymentEvent logging
+  // must not be spammable before the signature check. 120/min/IP is far above
+  // legitimate notification traffic.
+  const rate = await consumeRateLimit({
+    key: getRequestRateKey(request, "api:billing:midtrans:notification"),
+    limit: 120,
+    windowMs: 60_000,
+  });
+  if (!rate.ok) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
+
   try {
     const payload = (await request.json()) as {
       order_id?: string;

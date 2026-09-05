@@ -13,6 +13,9 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const ticket = searchParams.get("ticket") || "";
+  // Pre-check only — NOT consumed here. The nonce is burned inside the
+  // credentials provider (src/lib/auth.ts), which re-verifies the ticket
+  // when Auth.js performs the actual sign-in.
   const payload = verifySsoTicket(ticket);
   if (!payload) {
     return NextResponse.redirect(new URL("/login?sso=invalid", request.url));

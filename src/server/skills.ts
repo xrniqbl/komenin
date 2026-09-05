@@ -8,6 +8,7 @@ import { ensureBuiltinSkills, runSkill } from "@/lib/skills/runtime";
 import { assertSafeOutboundUrl, UnsafeUrlError } from "@/lib/url-safety";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
+import { assertAgentInWorkspace } from "@/server/agent-scope";
 import { writeAuditLog } from "@/server/audit";
 
 function assertSkillWebhookConfig(
@@ -140,6 +141,7 @@ export async function executeSkillNow(input: {
     include: { triggers: true },
   });
   if (!skill) throw new Error("Skill not found");
+  await assertAgentInWorkspace(workspace.id, input.agentId);
 
   const result = await runSkill({
     workspaceId: workspace.id,

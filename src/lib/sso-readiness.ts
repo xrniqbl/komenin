@@ -3,6 +3,8 @@
  * Signature validation is still not implemented — do not claim production-ready.
  */
 
+import { allowDevStubs } from "@/lib/security";
+
 export type SsoReadiness = {
   productionAcsEnabled: boolean;
   unsignedDevAllowed: boolean;
@@ -21,8 +23,9 @@ export function evaluateSsoReadiness(input?: {
   const isProduction =
     input?.isProduction ??
     (process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production");
-  const allowSecurityStubs =
-    input?.allowSecurityStubs ?? process.env.ALLOW_SECURITY_STUBS === "true";
+  // Mirror the actual ACS gate (src/app/api/auth/sso/saml/acs/route.ts):
+  // stubs need NODE_ENV=development AND the explicit opt-in flag.
+  const allowSecurityStubs = input?.allowSecurityStubs ?? allowDevStubs();
   const enforceLogin =
     input?.enforceLogin ?? process.env.SSO_ENFORCE_LOGIN === "true";
 

@@ -6,7 +6,7 @@ import {
   OAUTH_CALLBACK_RATE_LIMIT,
   OAUTH_CALLBACK_WINDOW_MS,
 } from "@/lib/oauth-state";
-import { consumeRateLimit } from "@/lib/rate-limit";
+import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 import { isProductionRuntime } from "@/lib/security";
 import { upsertConnectorCredentialFromOAuth } from "@/server/connector-credentials";
 import { auth } from "@/lib/auth";
@@ -117,18 +117,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "missing code" }, { status: 400 });
   }
 
-  // Rate limit: prevent spam to provider API quota
-  const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0] ||
-                   request.headers.get("cf-connecting-ip") ||
-                   "unknown";
-  const rateKey = `oauth:instagram:${clientIp}`;
-  try {
-    await consumeRateLimit({
-      key: rateKey,
-      limit: OAUTH_CALLBACK_RATE_LIMIT,
-      windowMs: OAUTH_CALLBACK_WINDOW_MS,
-    });
-  } catch {
+  // Rate limit: prevent spam to provider API quota. consumeRateLimit reports
+  // exhaustion via { ok: false } rather than throwing, so ok must be checked.
+  const rate = await consumeRateLimit({
+    key: getRequestRateKey(request, "oauth:instagram"),
+    limit: OAUTH_CALLBACK_RATE_LIMIT,
+    windowMs: OAUTH_CALLBACK_WINDOW_MS,
+  });
+  if (!rate.ok) {
     return NextResponse.json(
       { error: "Too many attempts, please try again later" },
       { status: 429 }

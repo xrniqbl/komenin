@@ -4,17 +4,21 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import compression from 'compression';
 import type { Server } from 'node:http';
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import { handleMockBridgeRequest } from './bridge-contract';
 import { createLiveBridgeClient } from './bridge-client';
 
 function constantTimeEquals(provided: string, expected: string): boolean {
-  if (!provided || provided.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  // Hash both sides so timingSafeEqual always sees equal-length buffers —
+  // a raw length early-return leaks the expected token's length.
+  const left = createHash('sha256').update(provided || '').digest();
+  const right = createHash('sha256').update(expected).digest();
+  return timingSafeEqual(left, right);
 }
 
 export type BridgeServerConfig = {
   port?: number;
+  host?: string;
   mode?: 'mock' | 'live';
   liveUrl?: string;
   authToken?: string;
@@ -32,6 +36,10 @@ export class BridgeServer {
   constructor(config: BridgeServerConfig = {}) {
     this.config = {
       port: 3001,
+      // Loopback by default — this bridge is called server-to-server by the
+      // Next app; exposing it on 0.0.0.0 makes it reachable from any network
+      // the host is attached to. Override with BRIDGE_HOST only knowingly.
+      host: process.env.BRIDGE_HOST?.trim() || '127.0.0.1',
       mode: 'mock',
       mockDelay: 50,
       rateLimitWindowMs: 15 * 60 * 1000,
@@ -54,7 +62,19 @@ export class BridgeServer {
 
   private setupMiddleware() {
     this.app.use(helmet());
-    this.app.use(cors());
+    // No CORS by default: this bridge is called server-to-server, so browser
+    // cross-origin reads must fail. Set BRIDGE_ALLOWED_ORIGINS (comma-separated)
+    // only if a browser client genuinely needs to call it.
+    const allowedOrigins = (process.env.BRIDGE_ALLOWED_ORIGINS?.trim() || '')
+      .split(',')
+      .map(origin => origin.trim())
+      .filter(Boolean);
+    this.app.use(cors({
+      origin(origin, cb) {
+        if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+        cb(null, false);
+      }
+    }));
     this.app.use(express.json({ limit: '1mb' }));
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(compression());
@@ -139,16 +159,25 @@ export class BridgeServer {
       }
     });
 
-    // Raw endpoint for testing
-    this.app.post('/bridge/raw', (req, res) => {
-      res.json({ received: req.body, mode: this.config.mode });
-    });
+    // Raw endpoint for testing — a body echo is only useful during local
+    // development and must never exist on a deployed host.
+    if (process.env.NODE_ENV !== 'production') {
+      this.app.post('/bridge/raw', (req, res) => {
+        res.json({ received: req.body, mode: this.config.mode });
+      });
+    }
   }
 
   async start() {
     return new Promise<void>((resolve) => {
-      this.server = this.app.listen(this.config.port, () => {
-        console.log(`🚀 Bridge server started on port ${this.config.port} (${this.config.mode})`);
+      this.server = this.app.listen(this.config.port ?? 3001, this.config.host ?? '127.0.0.1', () => {
+        const bound = `${this.config.host}:${this.config.port}`;
+        if (this.config.mode === 'mock' && !this.config.authToken) {
+          console.warn(
+            `⚠️  Bridge server (mock) on ${bound} is UNAUTHENTICATED — loopback bind only; never expose it.`
+          );
+        }
+        console.log(`🚀 Bridge server started on ${bound} (${this.config.mode})`);
         resolve();
       });
     });

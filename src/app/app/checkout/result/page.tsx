@@ -15,21 +15,9 @@ export default async function CheckoutResultPage({
   const { workspace } = await requireActiveWorkspace();
   const params = await searchParams;
   const orderId = params.order_id || "";
-  let note = "Payment status will update after Midtrans notification.";
 
-  if (orderId && params.sim === "1") {
-    if (isProductionRuntime() || process.env.MIDTRANS_SERVER_KEY?.trim()) {
-      note = "Simulation payment is disabled for this environment.";
-    } else {
-      try {
-        await markSimulatedPaid(orderId);
-        note = "Simulation payment marked as paid.";
-      } catch (error) {
-        note = error instanceof Error ? error.message : "Unable to mark simulation payment.";
-      }
-    }
-  }
-
+  // Ownership-scoped lookup FIRST: the simulated-payment path below must only
+  // ever fulfil an order that belongs to the caller's workspace.
   const order = orderId
     ? await db.subscriptionOrder.findFirst({
         where: {
@@ -39,6 +27,23 @@ export default async function CheckoutResultPage({
         include: { plan: true },
       })
     : null;
+
+  let note = "Payment status will update after Midtrans notification.";
+
+  if (orderId && params.sim === "1") {
+    if (isProductionRuntime() || process.env.MIDTRANS_SERVER_KEY?.trim()) {
+      note = "Simulation payment is disabled for this environment.";
+    } else if (!order) {
+      note = "Missing or unknown order.";
+    } else {
+      try {
+        await markSimulatedPaid(orderId);
+        note = "Simulation payment marked as paid.";
+      } catch (error) {
+        note = error instanceof Error ? error.message : "Unable to mark simulation payment.";
+      }
+    }
+  }
 
   return (
     <div>

@@ -5,6 +5,7 @@ import { assertWorkspacePermission } from "@/lib/rbac";
 import { validateRiskPattern } from "@/lib/risk-scanner";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
+import { assertAgentInWorkspace } from "@/server/agent-scope";
 import { writeAuditLog } from "@/server/audit";
 
 export async function listRiskRules() {
@@ -27,6 +28,7 @@ export async function createRiskRule(input: {
   const pattern = input.pattern.trim();
   const patternError = validateRiskPattern(pattern);
   if (patternError) throw new Error(patternError);
+  await assertAgentInWorkspace(workspace.id, input.agentId);
 
   const rule = await db.riskRule.create({
     data: {

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { hashApiKey } from "@/lib/api-keys";
+import { hashApiKeyVariants } from "@/lib/api-keys";
 import { db } from "@/lib/db";
 import type { ApiScope } from "@/lib/api-keys";
 
@@ -25,11 +25,11 @@ export async function authenticateApiKey(req: NextRequest): Promise<AuthResult |
 
   if (!raw || !raw.startsWith("aeth_")) return null;
 
-  const hashed = hashApiKey(raw);
-
+  // With API_KEY_PEPPER set, both the peppered and pre-pepper hashes can
+  // match so keys minted before the pepper keep working until re-issued.
   const key = await db.apiKey.findFirst({
     where: {
-      hashedKey: hashed,
+      hashedKey: { in: hashApiKeyVariants(raw) },
       isActive: true,
     },
   });

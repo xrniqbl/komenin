@@ -1,5 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { generateApiKey, hashApiKey, isValidScope } from "@/lib/api-keys";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  generateApiKey,
+  hashApiKey,
+  hashApiKeyVariants,
+  isValidScope,
+  legacyHashApiKey,
+} from "@/lib/api-keys";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("api-keys", () => {
   it("generates key with prefix and hash", () => {
@@ -25,5 +35,22 @@ describe("api-keys", () => {
     expect(isValidScope("campaigns:read")).toBe(true);
     expect(isValidScope("accounts:read")).toBe(true);
     expect(isValidScope("invalid:scope")).toBe(false);
+  });
+
+  it("hashes identically without pepper (legacy scheme)", () => {
+    vi.stubEnv("API_KEY_PEPPER", "");
+    const raw = "aeth_testkey123";
+    expect(hashApiKey(raw)).toBe(legacyHashApiKey(raw));
+    expect(hashApiKeyVariants(raw)).toEqual([legacyHashApiKey(raw)]);
+  });
+
+  it("wraps the digest in HMAC when a pepper is set and keeps the legacy variant", () => {
+    vi.stubEnv("API_KEY_PEPPER", "unit-test-pepper");
+    const raw = "aeth_testkey123";
+    const peppered = hashApiKey(raw);
+    expect(peppered).not.toBe(legacyHashApiKey(raw));
+    expect(peppered.length).toBe(64);
+    expect(hashApiKeyVariants(raw)).toEqual([peppered, legacyHashApiKey(raw)]);
+    expect(hashApiKey(raw)).toBe(hashApiKey(raw)); // still deterministic
   });
 });
