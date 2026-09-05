@@ -49,6 +49,17 @@ const CHECKS = [
   // --- Core runtime ---
   { name: "DATABASE_URL", required: true },
   {
+    name: "DIRECT_DATABASE_URL",
+    required: true,
+    validate: (v) => {
+      const poolerUrl = process.env.DATABASE_URL?.trim();
+      if (poolerUrl && v === poolerUrl) {
+        return "must differ from DATABASE_URL (use the direct non-pooler endpoint) — migrations through PgBouncer can strand the advisory lock (P1002)";
+      }
+      return true;
+    },
+  },
+  {
     name: "AUTH_SECRET",
     required: true,
     validate: (v) => (v.length >= 16 ? true : "must be ≥16 chars (use 32+)"),

@@ -32,6 +32,10 @@ These fail closed via `evaluateProductionGate()` when `NODE_ENV=production`
 Also required by env schema:
 
 - `DATABASE_URL`
+- `DIRECT_DATABASE_URL` — the **direct (non-pooler)** Postgres endpoint, used by
+  Prisma migrate. On Neon this is the host **without** `-pooler`. Running
+  migrations through PgBouncer can strand the migration advisory lock on an idle
+  backend and every later migrate fails with P1002 (advisory lock timeout).
 - `AUTH_SECRET` (min 16; use 32+)
 - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`
 - `APP_URL` (public HTTPS origin)
