@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { contactPayloadSchema, contactWebhookUrl, salesInbox } from "@/lib/contact";
 import { FEATURE_FLAG_KEYS, isFeatureEnabled } from "@/lib/feature-flags";
+import { buildContactNotification, sendEmail } from "@/lib/email";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 import { safeOutboundFetch, UnsafeUrlError } from "@/lib/url-safety";
 import { writeAuditLog } from "@/server/audit";
@@ -12,9 +13,8 @@ export const runtime = "nodejs";
  *
  * Persistence: platform audit log (no workspace).
  * Delivery (best-effort, any configured):
+ *  - email to SUPPORT_INBOX_EMAIL (default cs@komenin.id) via Brevo
  *  - CONTACT_WEBHOOK_URL POST JSON
- *  - SALES_INBOX_EMAIL / CONTACT_TO_EMAIL via optional mailto-style webhook only
- *    (no SMTP dependency — Brevo sendEmail can be wired later behind same env)
  */
 export async function POST(request: Request) {
   const rate = await consumeRateLimit({
@@ -107,6 +107,23 @@ export async function POST(request: Request) {
         console.error("[contact] webhook delivery failed", error);
       }
     }
+  }
+
+  // Email the support inbox (best-effort — submission is safe in the audit log).
+  try {
+    const result = await sendEmail(
+      buildContactNotification({
+        name,
+        email,
+        message,
+        auditId: audit.id,
+        submittedAt: audit.createdAt,
+      }),
+    );
+    if (result.delivered) deliveredVia.push("email");
+  } catch (error) {
+    // sendEmail never throws; keep the safety net anyway.
+    console.error("[contact] email delivery failed", error);
   }
 
   // Update metadata with delivery path when possible (best-effort).
