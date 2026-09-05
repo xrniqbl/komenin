@@ -40,13 +40,14 @@ model User {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
-  accounts    Account[]
-  sessions    Session[]
-  memberships Membership[]
-  sentInvites Invite[]  @relation("InviteSender")
-  auditLogs   AuditLog[]
+  accounts           Account[]
+  sessions           Session[]
+  memberships        Membership[]
+  sentInvites        Invite[]            @relation("InviteSender")
+  auditLogs          AuditLog[]
   voucherRedemptions VoucherRedemption[]
   subscriptionOrders SubscriptionOrder[]
+  supportTickets     SupportTicket[]
 }
 
 model Account {
@@ -62,7 +63,7 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -112,78 +113,82 @@ model Workspace {
   updatedAt DateTime        @updatedAt
   deletedAt DateTime?
 
-  memberships    Membership[]
-  invites        Invite[]
-  auditLogs      AuditLog[]
-  socialAccounts SocialAccount[]
-  proxyEndpoints ProxyEndpoint[]
-  accountSessions AccountSession[]
-  ipRotationLogs IpRotationLog[]
-  sessionHealthChecks SessionHealthCheck[]
-  campaigns Campaign[]
-  listeners Listener[]
-  targetPosts TargetPost[]
-  commentDrafts CommentDraft[]
-  commentActions CommentAction[]
-  approvals Approval[]
-  agents Agent[]
-  contentCampaigns ContentCampaign[]
-  contentDrafts ContentDraft[]
-  connectorPolicy ConnectorPolicy @default(prefer_webhook)
-  planCode String @default("growth")
-  monthlySendLimit Int @default(5000)
-  monthlyPublishLimit Int @default(1000)
-  webhookEndpoints WebhookEndpoint[]
-  connectorCredentials ConnectorCredential[]
-  deliveryLogs DeliveryLog[]
-  jobRuns JobRun[]
-  notifications Notification[]
-  digestMarkers DigestMarker[]
-  aiSubscription WorkspaceAiSubscription?
-  aiCreditLedger AiCreditLedger[]
-  aiUsageEvents AiUsageEvent[]
-  aiBalance     WorkspaceAiBalance?
-  usageCounters UsageCounter[]
-  knowledgeDocuments KnowledgeDocument[]
-  knowledgeChunks KnowledgeChunk[]
-  memoryEntries MemoryEntry[]
-  skills Skill[]
-  skillRuns SkillRun[]
-  agentGuardrails AgentGuardrail[]
-  homeRegion      String   @default("ap-southeast-1")
-  ssoRequired     Boolean  @default(false)
-  billingEmail    String?
-  subscriptions   Subscription[]
-  subscriptionOrders SubscriptionOrder[]
-  voucherRedemptions VoucherRedemption[]
-  ssoConfigs        SsoConfig[]
-  riskRules         RiskRule[]
-  riskScanLogs      RiskScanLog[]
-  commentTemplates  CommentTemplate[]
-  competitorProfiles CompetitorProfile[]
-  apiKeys           ApiKey[]
-  customRoles       CustomRole[]
-  aiProviders       WorkspaceAiProvider[]
-  clientProfiles    ClientProfile[]
-  engagementLeads   EngagementLead[]
+  memberships           Membership[]
+  invites               Invite[]
+  auditLogs             AuditLog[]
+  socialAccounts        SocialAccount[]
+  proxyEndpoints        ProxyEndpoint[]
+  accountSessions       AccountSession[]
+  ipRotationLogs        IpRotationLog[]
+  sessionHealthChecks   SessionHealthCheck[]
+  campaigns             Campaign[]
+  listeners             Listener[]
+  targetPosts           TargetPost[]
+  commentDrafts         CommentDraft[]
+  commentActions        CommentAction[]
+  approvals             Approval[]
+  agents                Agent[]
+  contentCampaigns      ContentCampaign[]
+  contentDrafts         ContentDraft[]
+  connectorPolicy       ConnectorPolicy          @default(prefer_webhook)
+  planCode              String                   @default("growth")
+  monthlySendLimit      Int                      @default(5000)
+  monthlyPublishLimit   Int                      @default(1000)
+  webhookEndpoints      WebhookEndpoint[]
+  connectorCredentials  ConnectorCredential[]
+  deliveryLogs          DeliveryLog[]
+  jobRuns               JobRun[]
+  notifications         Notification[]
+  digestMarkers         DigestMarker[]
+  aiSubscription        WorkspaceAiSubscription?
+  aiCreditLedger        AiCreditLedger[]
+  aiUsageEvents         AiUsageEvent[]
+  aiBalance             WorkspaceAiBalance?
+  usageCounters         UsageCounter[]
+  knowledgeDocuments    KnowledgeDocument[]
+  knowledgeChunks       KnowledgeChunk[]
+  memoryEntries         MemoryEntry[]
+  skills                Skill[]
+  skillRuns             SkillRun[]
+  agentGuardrails       AgentGuardrail[]
+  homeRegion            String                   @default("ap-southeast-1")
+  ssoRequired           Boolean                  @default(false)
+  billingEmail          String?
+  subscriptions         Subscription[]
+  subscriptionOrders    SubscriptionOrder[]
+  voucherRedemptions    VoucherRedemption[]
+  ssoConfigs            SsoConfig[]
+  riskRules             RiskRule[]
+  riskScanLogs          RiskScanLog[]
+  commentTemplates      CommentTemplate[]
+  competitorProfiles    CompetitorProfile[]
+  apiKeys               ApiKey[]
+  customRoles           CustomRole[]
+  aiProviders           WorkspaceAiProvider[]
+  clientProfiles        ClientProfile[]
+  engagementLeads       EngagementLead[]
+  supportTickets        SupportTicket[]
   // Workspace-level AI defaults (provider keys live on WorkspaceAiProvider)
-  aiDefaultProviderId String?
-  aiDefaultModel      String?
-  aiFallbackModels    String[] @default([])
-  aiTemperature       Float    @default(0.5)
-  aiMaxTokens         Int      @default(280)
+  aiDefaultProviderId   String?
+  aiDefaultModel        String?
+  aiFallbackModels      String[]                 @default([])
+  aiTemperature         Float                    @default(0.5)
+  aiMaxTokens           Int                      @default(280)
   /// Prefer encrypted workspace providers (BYOK) before Komenin-funded AI.
-  aiPreferOwnKey      Boolean  @default(true)
+  aiPreferOwnKey        Boolean                  @default(true)
   /// Pro Max only: when the subscription quota is spent, continue on the PAYG
   /// balance instead of failing closed. Ignored for other tiers.
-  aiPaygFallbackEnabled Boolean @default(true)
-  /** Quiet hours (workspace local time, [start, end)). start == end disables. */
-  quietHoursStart     Int      @default(0)
-  quietHoursEnd       Int      @default(0)
-  /** Optional agency mode label shown in UI (e.g. "Acme Agency"). */
-  agencyLabel         String?
+  aiPaygFallbackEnabled Boolean                  @default(true)
+  /**
+   * Quiet hours (workspace local time, [start, end)). start == end disables.
+   */
+  quietHoursStart       Int                      @default(0)
+  quietHoursEnd         Int                      @default(0)
+  /**
+   * Optional agency mode label shown in UI (e.g. "Acme Agency").
+   */
+  agencyLabel           String?
 }
-
 
 model Membership {
   id          String           @id @default(cuid())
@@ -239,7 +244,6 @@ model AuditLog {
   @@index([workspaceId, createdAt(sort: Desc)])
 }
 
-
 enum Platform {
   instagram
   threads
@@ -292,36 +296,35 @@ model SocialAccount {
   updatedAt    DateTime            @updatedAt
   deletedAt    DateTime?
 
-  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  sessions  AccountSession[]
-  proxyAssignments ProxyAssignment[]
-  healthChecks SessionHealthCheck[]
-  rotationLogs IpRotationLog[]
-  campaignAccounts CampaignAccount[]
-  commentActions CommentAction[]
+  workspace            Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sessions             AccountSession[]
+  proxyAssignments     ProxyAssignment[]
+  healthChecks         SessionHealthCheck[]
+  rotationLogs         IpRotationLog[]
+  campaignAccounts     CampaignAccount[]
+  commentActions       CommentAction[]
+  contentCampaigns     ContentCampaign[]
+  contentDrafts        ContentDraft[]
+  connectorCredentials ConnectorCredential[]
+  deliveryLogs         DeliveryLog[]
 
   @@unique([workspaceId, platform, username])
   @@index([workspaceId, status])
-  contentCampaigns ContentCampaign[]
-  contentDrafts ContentDraft[]
-  connectorCredentials ConnectorCredential[]
-  deliveryLogs DeliveryLog[]
 }
 
-
 model AccountSession {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   workspaceId     String
   socialAccountId String
-  encryptedBlob   String   @db.Text
-  keyVersion      Int      @default(1)
+  encryptedBlob   String    @db.Text
+  keyVersion      Int       @default(1)
   userAgent       String
   fingerprintJson Json?
   expiresAt       DateTime?
   lastUsedAt      DateTime?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
@@ -331,40 +334,40 @@ model AccountSession {
 }
 
 model ProxyEndpoint {
-  id           String        @id @default(cuid())
-  workspaceId  String
-  label        String
-  protocol     ProxyProtocol
-  host         String
-  port         Int
-  usernameEnc  String?
-  passwordEnc  String?
-  provider     String?
-  type         ProxyType     @default(residential)
-  country      String?
-  rotationMode RotationMode  @default(sticky)
+  id             String        @id @default(cuid())
+  workspaceId    String
+  label          String
+  protocol       ProxyProtocol
+  host           String
+  port           Int
+  usernameEnc    String?
+  passwordEnc    String?
+  provider       String?
+  type           ProxyType     @default(residential)
+  country        String?
+  rotationMode   RotationMode  @default(sticky)
   rotateEveryMin Int?
-  isHealthy    Boolean       @default(true)
-  lastCheckedAt DateTime?
-  lastIp       String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  deletedAt    DateTime?
+  isHealthy      Boolean       @default(true)
+  lastCheckedAt  DateTime?
+  lastIp         String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
 
-  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  assignments ProxyAssignment[]
+  workspace    Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  assignments  ProxyAssignment[]
   rotationLogs IpRotationLog[]
 
   @@index([workspaceId, isHealthy])
 }
 
 model ProxyAssignment {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   workspaceId     String
   socialAccountId String
   proxyEndpointId String
-  isActive        Boolean  @default(true)
-  assignedAt      DateTime @default(now())
+  isActive        Boolean   @default(true)
+  assignedAt      DateTime  @default(now())
   releasedAt      DateTime?
 
   socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
@@ -408,7 +411,6 @@ model SessionHealthCheck {
   @@index([workspaceId, createdAt(sort: Desc)])
   @@index([socialAccountId, createdAt(sort: Desc)])
 }
-
 
 enum CampaignMode {
   draft
@@ -477,20 +479,20 @@ model Agent {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  workspace  Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  aiProvider WorkspaceAiProvider? @relation(fields: [aiProviderId], references: [id], onDelete: SetNull)
-  campaigns  Campaign[]
-  drafts     CommentDraft[]
+  workspace          Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  aiProvider         WorkspaceAiProvider? @relation(fields: [aiProviderId], references: [id], onDelete: SetNull)
+  campaigns          Campaign[]
+  drafts             CommentDraft[]
+  contentCampaigns   ContentCampaign[]
+  contentDrafts      ContentDraft[]
+  guardrails         AgentGuardrail[]
+  knowledgeDocuments KnowledgeDocument[]
+  memoryEntries      MemoryEntry[]
+  skillRuns          SkillRun[]
+  riskRules          RiskRule[]
 
   @@index([workspaceId, status])
   @@index([aiProviderId])
-  contentCampaigns ContentCampaign[]
-  contentDrafts ContentDraft[]
-  guardrails AgentGuardrail[]
-  knowledgeDocuments KnowledgeDocument[]
-  memoryEntries MemoryEntry[]
-  skillRuns SkillRun[]
-  riskRules RiskRule[]
 }
 
 enum AiProviderKind {
@@ -532,25 +534,25 @@ enum AiBillingSource {
 }
 
 model WorkspaceAiSubscription {
-  id                     String               @id @default(cuid())
-  workspaceId            String               @unique
-  tier                   AiTier               @default(none)
+  id                    String               @id @default(cuid())
+  workspaceId           String               @unique
+  tier                  AiTier               @default(none)
   /// Included credits per quota month (1 credit = 1 token).
-  monthlyCredits         BigInt               @default(0)
-  status                 AiSubscriptionStatus @default(active)
+  monthlyCredits        BigInt               @default(0)
+  status                AiSubscriptionStatus @default(active)
   /// Commitment / paid entitlement window (1 or 12 months).
-  termStart              DateTime
-  termEnd                DateTime
+  termStart             DateTime
+  termEnd               DateTime
   /// Independently advancing monthly quota window, even for annual plans.
-  quotaPeriodStart       DateTime
-  quotaPeriodEnd         DateTime
+  quotaPeriodStart      DateTime
+  quotaPeriodEnd        DateTime
   /// Tier changes apply only when quotaPeriodEnd is reached (no proration v1).
-  pendingTier            AiTier?
-  pendingMonthlyCredits  BigInt?
-  pendingPlanCode        String?
-  sourceOrderId          String?              @unique
-  createdAt              DateTime             @default(now())
-  updatedAt              DateTime             @updatedAt
+  pendingTier           AiTier?
+  pendingMonthlyCredits BigInt?
+  pendingPlanCode       String?
+  sourceOrderId         String?              @unique
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -563,26 +565,26 @@ model WorkspaceAiSubscription {
 /// usage/reservation/refund/expiry. `operationId` makes each financial effect
 /// idempotent and links reservation → settlement → usage.
 model AiCreditLedger {
-  id           String       @id @default(cuid())
-  workspaceId  String
-  operationId  String       @unique
-  kind         AiLedgerKind
-  credits      BigInt
-  balanceAfter BigInt?
+  id            String           @id @default(cuid())
+  workspaceId   String
+  operationId   String           @unique
+  kind          AiLedgerKind
+  credits       BigInt
+  balanceAfter  BigInt?
   /// Funding bucket for reservation/usage rows (subscription quota vs PAYG
   /// balance). NULL on grant/refund/expire rows (PAYG-only) and legacy rows.
   /// Without this, a reservation against one bucket would incorrectly reduce
   /// the OTHER bucket's computed balance (double-count on Pro Max fallback).
-  source       AiBillingSource?
-  refType      String?
-  refId        String?
+  source        AiBillingSource?
+  refType       String?
+  refId         String?
   sourceOrderId String?
-  usageEventId String?      @unique
+  usageEventId  String?          @unique
   /// Set only on grants; expiry is materialized as an explicit `expire` row.
-  expiresAt    DateTime?
-  createdAt    DateTime     @default(now())
+  expiresAt     DateTime?
+  createdAt     DateTime         @default(now())
 
-  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace  Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   usageEvent AiUsageEvent? @relation(fields: [usageEventId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, createdAt])
@@ -595,14 +597,14 @@ model AiCreditLedger {
 /// write. Reads hit this row instead of SUM()-scanning the whole ledger.
 /// The ledger remains the source of truth; this is a rebuildable cache.
 model WorkspaceAiBalance {
-  workspaceId     String   @id
+  workspaceId      String    @id
   /// PAYG prepaid balance (grants - payg_use - refund - expire ± reservations).
-  paygCredits     BigInt   @default(0)
+  paygCredits      BigInt    @default(0)
   /// Credits consumed from the subscription quota in the current quota period.
-  subscriptionUsed BigInt  @default(0)
+  subscriptionUsed BigInt    @default(0)
   /// Quota period this subscriptionUsed counter belongs to.
   quotaPeriodStart DateTime?
-  updatedAt       DateTime @updatedAt
+  updatedAt        DateTime  @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
@@ -632,17 +634,17 @@ model AiUsageEvent {
 }
 
 model WorkspaceAiProvider {
-  id         String         @id @default(cuid())
+  id          String         @id @default(cuid())
   workspaceId String
-  kind       AiProviderKind
-  label      String
-  baseUrl    String?
-  apiKeyEnc  String?        @db.Text
-  models     String[]
-  isEnabled  Boolean        @default(true)
-  priority   Int            @default(100)
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  kind        AiProviderKind
+  label       String
+  baseUrl     String?
+  apiKeyEnc   String?        @db.Text
+  models      String[]
+  isEnabled   Boolean        @default(true)
+  priority    Int            @default(100)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   agents    Agent[]
@@ -650,33 +652,32 @@ model WorkspaceAiProvider {
   @@index([workspaceId, isEnabled, priority])
 }
 
-
 model Campaign {
-  id            String         @id @default(cuid())
-  workspaceId   String
-  name          String
-  platform      Platform
-  mode          CampaignMode   @default(approval_required)
-  status        CampaignStatus @default(draft)
-  agentId       String?
-  clientId      String?
-  dailyLimit    Int            @default(30)
-  minDelaySec   Int            @default(45)
-  maxDelaySec   Int            @default(180)
-  goal          String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id          String         @id @default(cuid())
+  workspaceId String
+  name        String
+  platform    Platform
+  mode        CampaignMode   @default(approval_required)
+  status      CampaignStatus @default(draft)
+  agentId     String?
+  clientId    String?
+  dailyLimit  Int            @default(30)
+  minDelaySec Int            @default(45)
+  maxDelaySec Int            @default(180)
+  goal        String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
-  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  agent     Agent?     @relation(fields: [agentId], references: [id], onDelete: SetNull)
-  client    ClientProfile? @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  accounts  CampaignAccount[]
-  listeners Listener[]
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent       Agent?            @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  client      ClientProfile?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  accounts    CampaignAccount[]
+  listeners   Listener[]
   targetPosts TargetPost[]
-  drafts    CommentDraft[]
-  actions   CommentAction[]
-  approvals Approval[]
-  leads     EngagementLead[]
+  drafts      CommentDraft[]
+  actions     CommentAction[]
+  approvals   Approval[]
+  leads       EngagementLead[]
 
   @@index([workspaceId, status])
   @@index([clientId])
@@ -704,8 +705,8 @@ model Listener {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  campaign  Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaign  Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   posts     TargetPost[]
 
   @@index([workspaceId, isActive])
@@ -726,9 +727,9 @@ model TargetPost {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  campaign  Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  listener  Listener? @relation(fields: [listenerId], references: [id], onDelete: SetNull)
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaign  Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  listener  Listener?        @relation(fields: [listenerId], references: [id], onDelete: SetNull)
   drafts    CommentDraft[]
   actions   CommentAction[]
   approvals Approval[]
@@ -752,10 +753,10 @@ model CommentDraft {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  campaign   Campaign?  @relation(fields: [campaignId], references: [id], onDelete: SetNull)
-  targetPost TargetPost @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
-  agent      Agent?     @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  workspace  Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaign   Campaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  targetPost TargetPost     @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
+  agent      Agent?         @relation(fields: [agentId], references: [id], onDelete: SetNull)
   approval   Approval?
   action     CommentAction?
 
@@ -783,18 +784,18 @@ model Approval {
 }
 
 model CommentAction {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   workspaceId     String
   campaignId      String?
   targetPostId    String
-  commentDraftId  String?  @unique
+  commentDraftId  String?   @unique
   socialAccountId String?
   status          String
   resultMessage   String?
   scheduledFor    DateTime?
   executedAt      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   campaign      Campaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
@@ -868,7 +869,9 @@ model ContentDraft {
   title             String?
   body              String             @db.Text
   hashtags          String[]
-  /** Public image URL for native Instagram/Threads image posts. */
+  /**
+   * Public image URL for native Instagram/Threads image posts.
+   */
   mediaUrl          String?
   status            ContentDraftStatus @default(pending)
   scheduledFor      DateTime?
@@ -959,15 +962,15 @@ enum SkillRunStatus {
 }
 
 model WebhookEndpoint {
-  id           String   @id @default(cuid())
-  workspaceId  String
-  name         String
-  url          String
-  secretEnc    String?  @db.Text
-  actions      String[]
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  url         String
+  secretEnc   String?  @db.Text
+  actions     String[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -975,19 +978,19 @@ model WebhookEndpoint {
 }
 
 model ConnectorCredential {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   workspaceId     String
   socialAccountId String?
   provider        String
   label           String?
-  accessTokenEnc  String   @db.Text
-  refreshTokenEnc String?  @db.Text
+  accessTokenEnc  String    @db.Text
+  refreshTokenEnc String?   @db.Text
   apiBaseUrl      String?
   scopes          String[]
   expiresAt       DateTime?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   socialAccount SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
@@ -1134,15 +1137,15 @@ model KnowledgeChunk {
 }
 
 model MemoryEntry {
-  id           String   @id @default(cuid())
-  workspaceId  String
-  agentId      String?
-  entityType   String
-  entityKey    String
-  fact         String   @db.Text
-  confidence   Float    @default(0.7)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  workspaceId String
+  agentId     String?
+  entityType  String
+  entityKey   String
+  fact        String   @db.Text
+  confidence  Float    @default(0.7)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   agent     Agent?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
@@ -1219,7 +1222,6 @@ model SkillRunStep {
   @@index([runId])
 }
 
-
 enum PlatformRole {
   user
   superadmin
@@ -1259,13 +1261,13 @@ enum SsoProtocol {
 }
 
 model Region {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  name        String
-  isActive    Boolean  @default(true)
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  isActive  Boolean  @default(true)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum PlanKind {
@@ -1308,8 +1310,8 @@ model Subscription {
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  plan      Plan      @relation(fields: [planId], references: [id], onDelete: Restrict)
+  workspace Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  plan      Plan                @relation(fields: [planId], references: [id], onDelete: Restrict)
   orders    SubscriptionOrder[]
 
   @@index([workspaceId, status])
@@ -1471,20 +1473,20 @@ model CommentTemplate {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@index([workspaceId, category])
   @@unique([workspaceId, name])
+  @@index([workspaceId, category])
 }
 
 model CompetitorProfile {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   workspaceId   String
   handle        String
   platform      Platform
   displayName   String?
-  isActive      Boolean  @default(true)
+  isActive      Boolean   @default(true)
   lastFetchedAt DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -1493,17 +1495,17 @@ model CompetitorProfile {
 }
 
 model ApiKey {
-  id         String    @id @default(cuid())
+  id          String    @id @default(cuid())
   workspaceId String
-  name       String
-  prefix     String
-  hashedKey  String    @unique
-  scopes     String[]
-  lastUsedAt DateTime?
-  expiresAt  DateTime?
-  isActive   Boolean   @default(true)
-  createdBy  String?
-  createdAt  DateTime  @default(now())
+  name        String
+  prefix      String
+  hashedKey   String    @unique
+  scopes      String[]
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  isActive    Boolean   @default(true)
+  createdBy   String?
+  createdAt   DateTime  @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -1558,29 +1560,33 @@ model ClientProfile {
 
 /// Lead captured from social engagement (comment/inbox/approval).
 model EngagementLead {
-  id            String     @id @default(cuid())
-  workspaceId   String
-  clientId      String?
-  targetPostId  String?
-  campaignId    String?
-  platform      Platform?
-  handle        String
-  displayName   String?
-  contactEmail  String?
-  contactPhone  String?
-  source        LeadSource @default(manual)
-  status        LeadStatus @default(new)
-  intent        String?
-  notes         String?    @db.Text
-  postSnippet   String?    @db.Text
-  draftSnippet  String?    @db.Text
-  externalUrl   String?
-  /** Optional operator owner (User.id) for follow-up accountability. */
-  ownerUserId   String?
-  /** Next follow-up due date (workspace-local intent; stored UTC). */
-  followUpAt    DateTime?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id           String     @id @default(cuid())
+  workspaceId  String
+  clientId     String?
+  targetPostId String?
+  campaignId   String?
+  platform     Platform?
+  handle       String
+  displayName  String?
+  contactEmail String?
+  contactPhone String?
+  source       LeadSource @default(manual)
+  status       LeadStatus @default(new)
+  intent       String?
+  notes        String?    @db.Text
+  postSnippet  String?    @db.Text
+  draftSnippet String?    @db.Text
+  externalUrl  String?
+  /**
+   * Optional operator owner (User.id) for follow-up accountability.
+   */
+  ownerUserId  String?
+  /**
+   * Next follow-up due date (workspace-local intent; stored UTC).
+   */
+  followUpAt   DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   workspace  Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   client     ClientProfile? @relation(fields: [clientId], references: [id], onDelete: SetNull)
@@ -1594,3 +1600,69 @@ model EngagementLead {
   @@index([ownerUserId])
 }
 
+/// In-app support ticket opened by a workspace user (platform-level queue).
+model SupportTicket {
+  id            String                @id @default(cuid())
+  subject       String
+  category      SupportTicketCategory
+  priority      SupportTicketPriority @default(normal)
+  status        SupportTicketStatus   @default(open)
+  reporterId    String
+  reporterEmail String
+  reporterName  String?
+  workspaceId   String?
+  workspaceName String?
+  resolvedAt    DateTime?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  reporter  User                   @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  workspace Workspace?             @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  messages  SupportTicketMessage[]
+
+  @@index([status, createdAt])
+  @@index([reporterId])
+  @@index([workspaceId])
+}
+
+/// One message in a support ticket conversation (reporter, CS, or system).
+model SupportTicketMessage {
+  id         String                  @id @default(cuid())
+  ticketId   String
+  authorRole SupportTicketAuthorRole
+  authorId   String?
+  authorName String?
+  body       String                  @db.Text
+  createdAt  DateTime                @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}
+
+enum SupportTicketStatus {
+  open
+  in_progress
+  resolved
+  closed
+}
+
+enum SupportTicketCategory {
+  bug
+  billing
+  account
+  feature
+  other
+}
+
+enum SupportTicketPriority {
+  low
+  normal
+  high
+}
+
+enum SupportTicketAuthorRole {
+  reporter
+  cs
+  system
+}
