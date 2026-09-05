@@ -187,3 +187,43 @@ export async function sendInviteEmail(input: {
 
   return { delivered: result.delivered };
 }
+
+/**
+ * Support inbox for contact form + support tickets.
+ * Optional env override; defaults to the Komenin CS address.
+ */
+export function supportInbox(): string {
+  return process.env.SUPPORT_INBOX_EMAIL?.trim() || "cs@komenin.id";
+}
+
+/** Build (not send) the CS notification for a public contact-form submission. */
+export function buildContactNotification(input: {
+  name: string;
+  email: string;
+  message: string;
+  auditId: string;
+  submittedAt: Date;
+}): EmailMessage {
+  const subjectName =
+    input.name.length > 40 ? `${input.name.slice(0, 37)}...` : input.name;
+  return {
+    to: supportInbox(),
+    replyTo: input.email,
+    subject: `[Komenin Contact] ${subjectName}`,
+    text:
+      `New contact submission (${input.auditId})\n\n` +
+      `Name: ${input.name}\n` +
+      `Email: ${input.email}\n` +
+      `At: ${input.submittedAt.toISOString()}\n\n` +
+      input.message,
+    html: `<div style="font-family:system-ui,sans-serif;max-width:560px">
+  <h2 style="margin:0 0 12px;">New contact submission</h2>
+  <p style="margin:0 0 12px;color:#374151;">
+    <b>From:</b> ${escapeHtml(input.name)} &lt;${escapeHtml(input.email)}&gt;<br/>
+    <b>At:</b> ${input.submittedAt.toISOString()}<br/>
+    <b>Audit id:</b> ${escapeHtml(input.auditId)}
+  </p>
+  <pre style="white-space:pre-wrap;font-family:inherit;background:#f9fafb;padding:12px;border-radius:8px;">${escapeHtml(input.message)}</pre>
+</div>`,
+  };
+}
