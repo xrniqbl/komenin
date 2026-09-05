@@ -28,6 +28,14 @@ vi.mock("@/lib/url-safety", async () => {
   return { ...actual, safeOutboundFetch: vi.fn() };
 });
 
+// publishSocialPost lazily imports the vault resolver for workspace targets.
+// Without this mock the dynamic import pulls the Prisma/next server module
+// graph inside the test body, which alone eats most of the 5s test timeout
+// and flakes when the full suite runs in parallel. No DB in these tests.
+vi.mock("@/server/connector-credentials", () => ({
+  resolveOfficialCredential: vi.fn(async () => null),
+}));
+
 const fetchMock = safeOutboundFetch as unknown as ReturnType<typeof vi.fn>;
 
 afterEach(() => {
