@@ -18,6 +18,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { evaluateSsoReadiness } from "@/lib/sso-readiness";
+import { DeviceSessionsCard } from "@/components/settings/device-sessions-card";
+import { TotpSettingsCard } from "@/components/settings/totp-settings-card";
 import { getWorkspaceSsoConfig, saveWorkspaceSsoConfig } from "@/server/sso";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 
@@ -52,6 +54,11 @@ export default async function SecuritySettingsPage() {
         title="Security & SSO"
         description="Workspace residency controls and experimental SSO configuration."
       />
+
+      <div className="mb-6 space-y-6">
+        <TotpSettingsCard />
+        <DeviceSessionsCard />
+      </div>
 
       <Card className="mb-6 max-w-2xl border-amber-500/40 bg-amber-500/5">
         <CardHeader>

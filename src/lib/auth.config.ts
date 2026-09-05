@@ -31,6 +31,12 @@ export const authConfig = {
       if (session.user && token.sub) {
         session.user.id = token.sub;
       }
+      if (session.user) {
+        // Shared by the edge proxy and the Node instance: the TOTP gate and
+        // device revocation are enforced by Node-side guards (workspace-access).
+        session.user.totpGate = Boolean(token.totpGate);
+        session.currentJti = token.jti;
+      }
       return session;
     },
   },

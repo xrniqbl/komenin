@@ -8,6 +8,8 @@ import type { WorkspaceSummary } from "@/types/workspace";
 export async function listWorkspacesForUser(): Promise<WorkspaceSummary[]> {
   const session = await auth();
   if (!session?.user?.id) return [];
+  // TOTP-gated sessions (2FA enabled, code not yet re-verified) see nothing.
+  if (session.user.totpGate) return [];
 
   const memberships = await db.membership.findMany({
     where: { userId: session.user.id, status: "active" },
@@ -61,6 +63,8 @@ export async function requireActiveWorkspace(): Promise<{
 }> {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+  // 2FA challenge: users with TOTP enabled must re-verify before any data loads.
+  if (session.user.totpGate) redirect("/auth/totp-gate");
 
   const workspaces = await listWorkspacesForUser();
   if (workspaces.length === 0) redirect("/onboarding");

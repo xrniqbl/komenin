@@ -3,8 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // Migrations/introspect use the direct (non-pooler) endpoint: PgBouncer can
+  // leave Prisma's migration advisory lock stranded on an idle backend (P1002).
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 enum WorkspaceRole {
@@ -37,6 +40,13 @@ model User {
   googleSub     String?      @unique
   platformRole  PlatformRole @default(user)
   lastLoginAt   DateTime?
+  // TOTP 2FA — secret is AES-256-GCM encrypted (lib/encryption), null when never enrolled.
+  totpSecretEnc String?
+  totpEnabledAt DateTime?
+  // Platform-level suspension — set from /admin/users; blocks new logins and
+  // ends existing sessions via the jwt revocation check.
+  suspendedAt     DateTime?
+  suspendedReason String?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -48,6 +58,24 @@ model User {
   voucherRedemptions VoucherRedemption[]
   subscriptionOrders SubscriptionOrder[]
   supportTickets     SupportTicket[]
+  loginSessions      LoginSession[]
+}
+
+/// One row per issued login-token family (JWT jti). Lets the user list and
+/// revoke signed-in devices; revocation is enforced in the Node jwt callback.
+model LoginSession {
+  id         String    @id @default(cuid())
+  userId     String
+  jti        String    @unique
+  provider   String?
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  revokedAt  DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
 }
 
 model Account {
