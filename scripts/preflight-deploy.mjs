@@ -73,8 +73,26 @@ const CHECKS = [
   {
     name: "ENCRYPTION_KEY",
     required: true,
-    validate: (v) =>
-      /^[0-9a-fA-F]{64}$/.test(v) ? true : "must be exactly 64 hex characters",
+    validate: (v) => {
+      if (!/^[0-9a-fA-F]{64}$/.test(v)) return "must be exactly 64 hex characters";
+      // Reject guessable keys: a sequential or single-char key is effectively
+      // plaintext for anyone who has ever seen the repo/deploy bundle.
+      const collapsed = v.toLowerCase();
+      const uniqueChars = new Set(collapsed).size;
+      if (uniqueChars <= 4) {
+        return "too low entropy (≤4 distinct characters) — generate with: openssl rand -hex 32";
+      }
+      for (let i = 1; i < collapsed.length; i += 1) {
+        const code = collapsed.charCodeAt(i);
+        const prev = collapsed.charCodeAt(i - 1);
+        const isHexForward = code === prev + 1 || (prev === 57 && code === 97); // 9→a
+        const isHexBackward = code === prev - 1 || (prev === 97 && code === 57); // a→9
+        if (isHexForward || isHexBackward) {
+          return "looks like a sequential pattern — generate with: openssl rand -hex 32";
+        }
+      }
+      return true;
+    },
   },
   {
     name: "SIMULATOR_MODE",
@@ -168,6 +186,24 @@ const CHECKS = [
   { name: "KOMENIN_AI_MODELS_STARTER", required: false, note: "defaults exist" },
   { name: "KOMENIN_AI_MODELS_PRO", required: false },
   { name: "KOMENIN_AI_MODELS_PRO_MAX", required: false },
+
+  // --- API key hashing pepper (optional but strongly recommended) ---
+  {
+    name: "API_KEY_PEPPER",
+    required: strict,
+    note: "HMAC pepper for hashed API keys; without it hashes are bare sha256",
+    validate: (v) => (v.length >= 16 ? true : "must be ≥16 chars"),
+  },
+
+  // --- AI gateway transport (plaintext HTTP leaks the API key on the wire) ---
+  {
+    name: "AI_GATEWAY_BASE_URL",
+    required: false,
+    validate: (v) =>
+      /^https:\/\//.test(v)
+        ? true
+        : "must be an https:// URL — an API key sent over plaintext HTTP to a bare IP can be intercepted (MITM)",
+  },
 
   // --- OAuth connectors (optional per platform) ---
   { name: "INSTAGRAM_APP_ID", required: false, note: "Instagram OAuth" },
