@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import { randomBytes } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { assertWorkspacePermission } from "@/lib/rbac";
 import {
   ALL_PLANS,
@@ -293,6 +294,86 @@ export async function createCheckoutSnap(input: {
   };
 }
 
+/**
+ * Reverse everything a paid order granted — AI credits/subscription, workspace
+ * subscription, and plan downgrade when no other valid paid period remains.
+ * Idempotent (refundAiOrder guards its own operationIds). Runs inside the
+ * caller's transaction so status flip + reversal are atomic; used by BOTH the
+ * Midtrans webhook path and adminRefundOrder so an admin refund can never
+ * leave refunded customers with live paid entitlements.
+ */
+export async function revokeOrderEntitlements(
+  tx: Prisma.TransactionClient,
+  input: { orderId: string; workspaceId: string; subscriptionId?: string | null },
+) {
+  const now = new Date();
+
+  // Reverse AI entitlement/credits this order granted (idempotent).
+  await refundAiOrder(tx, {
+    workspaceId: input.workspaceId,
+    orderId: input.orderId,
+    now,
+  });
+
+  if (input.subscriptionId) {
+    await tx.subscription.updateMany({
+      where: {
+        id: input.subscriptionId,
+        status: { in: ["active", "trialing"] },
+      },
+      data: { status: "canceled", endsAt: now },
+    });
+  }
+  // Drop to free only when no other still-valid paid period remains.
+  const stillActive = await tx.subscription.findFirst({
+    where: {
+      workspaceId: input.workspaceId,
+      status: { in: ["active", "trialing"] },
+      endsAt: { gt: now },
+    },
+    select: { id: true },
+  });
+  if (!stillActive) {
+    await tx.workspace.update({
+      where: { id: input.workspaceId },
+      data: {
+        planCode: "free",
+        monthlySendLimit: FREE_ENTITLEMENTS.monthlySendLimit,
+        monthlyPublishLimit: FREE_ENTITLEMENTS.monthlyPublishLimit,
+      },
+    });
+  }
+}
+
+/**
+ * Mark a paid order refunded after the money was returned (Midtrans webhook or
+ * the admin dashboard) and revoke the entitlements it granted, in one
+ * transaction.
+ */
+export async function refundPaidOrderTx(
+  tx: Prisma.TransactionClient,
+  input: {
+    orderId: string;
+    paymentType?: string | null;
+    midtransTxnId?: string | null;
+  },
+) {
+  const order = await tx.subscriptionOrder.update({
+    where: { id: input.orderId },
+    data: {
+      status: "refunded",
+      paymentType: input.paymentType ?? undefined,
+      midtransTxnId: input.midtransTxnId ?? undefined,
+    },
+  });
+  await revokeOrderEntitlements(tx, {
+    orderId: order.id,
+    workspaceId: order.workspaceId,
+    subscriptionId: order.subscriptionId,
+  });
+  return order;
+}
+
 export async function applyPaidOrder(orderCode: string, payment?: {
   transactionId?: string;
   paymentType?: string;
@@ -396,50 +477,11 @@ export async function applyPaidOrder(orderCode: string, payment?: {
       return { ok: false, orderId: order.id, status: "refunded", alreadyRefunded: true };
     }
     await db.$transaction(async (tx) => {
-      const refunded = await tx.subscriptionOrder.update({
-        where: { id: order.id },
-        data: {
-          status: "refunded",
-          paymentType: payment?.paymentType,
-          midtransTxnId: payment?.transactionId,
-        },
-      });
-
-      // Reverse AI entitlement/credits this order granted (idempotent).
-      await refundAiOrder(tx, {
-        workspaceId: order.workspaceId,
+      await refundPaidOrderTx(tx, {
         orderId: order.id,
-        now,
+        paymentType: payment?.paymentType,
+        midtransTxnId: payment?.transactionId,
       });
-
-      if (refunded.subscriptionId) {
-        await tx.subscription.updateMany({
-          where: {
-            id: refunded.subscriptionId,
-            status: { in: ["active", "trialing"] },
-          },
-          data: { status: "canceled", endsAt: now },
-        });
-      }
-      // Drop to free only when no other still-valid paid period remains.
-      const stillActive = await tx.subscription.findFirst({
-        where: {
-          workspaceId: order.workspaceId,
-          status: { in: ["active", "trialing"] },
-          endsAt: { gt: now },
-        },
-        select: { id: true },
-      });
-      if (!stillActive) {
-        await tx.workspace.update({
-          where: { id: order.workspaceId },
-          data: {
-            planCode: "free",
-            monthlySendLimit: FREE_ENTITLEMENTS.monthlySendLimit,
-            monthlyPublishLimit: FREE_ENTITLEMENTS.monthlyPublishLimit,
-          },
-        });
-      }
     });
     await writeAuditLog({
       workspaceId: order.workspaceId,

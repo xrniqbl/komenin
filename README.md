@@ -34,16 +34,20 @@ to an **external bridge** implementing the versioned contract — see
 npm install
 cp .env.example .env.local        # fill DATABASE_URL, AUTH_SECRET, ENCRYPTION_KEY…
 npx prisma generate
-npx prisma migrate deploy         # or db push for a fresh dev DB
+npx prisma migrate deploy         # JANGAN pakai db:push di database produksi
 npm run dev                       # http://localhost:3000
 ```
 
-Workers (separate process):
+Workers (scheduled jobs — suruh aplikasi memanggil /api/worker/cron dengan
+CRON_SECRET; di Vercel via vercel.json crons, di Docker via service `cron`
+di docker-compose.yml):
 
 ```bash
-npm run worker            # full loop
-npm run worker:tick       # single tick
-npm run worker:health     # session health checks
+npm run worker            # bridge client worker process (bukan queue runner)
+npm run worker:dev        # sama, mode watch
+
+# Jalankan satu job sekali-dari-terminal:
+npx tsx scripts/run-worker.ts <job-name>   # mis. worker.tick / comment.send
 ```
 
 Local live-mode verification against the mock bridge:

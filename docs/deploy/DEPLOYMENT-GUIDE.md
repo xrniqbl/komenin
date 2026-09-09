@@ -283,7 +283,7 @@ docker ps
 curl http://localhost/api/health
 
 # Expected response:
-# {"status":"ok"}
+# {"ok":true,"service":"aether","timestamp":"..."}
 
 # Test main application
 curl https://aether.iniloka.id
@@ -428,12 +428,10 @@ SENTRY_ENVIRONMENT=production
 
 #### Prometheus + Grafana (Metrics)
 
-Install on separate monitoring server:
-```bash
-docker-compose -f monitoring.yml up -d
-```
-
-Add dashboard JSON from Grafana Lab (ID: 12345)
+> **Belum ada di repo:** `monitoring.yml` dan dashboard Grafana tidak disertakan.
+> Sementara ini andalkan `/api/health` (liveness) + `/api/status` (deep check,
+> memverifikasi DB & production gate) pada uptime monitor eksternal, dan kumpulkan
+> log via `docker compose logs`. Implementasi metrics endpoint ada di backlog.
 
 ---
 
@@ -442,15 +440,15 @@ Add dashboard JSON from Grafana Lab (ID: 12345)
 ### Health Checks
 
 Monitor these endpoints:
-- `/api/health` - Application health
-- `/api/health?full=1` - Full diagnostics
-- `/api/admin/jobs` - Worker job queue status
+- `/api/health` - Liveness probe (tanpa DB/rate limit — untuk LB & uptime monitor)
+- `/api/status` - Deep readiness (DB + production gate; rate-limited 60/menit)
+- Worker job history ada di panel `/admin/jobs` (bukan endpoint publik)
 
 ### Log Management
 
 ```bash
 # View real-time logs
-docker compose logs -f app worker db
+docker compose logs -f app cron backup db
 
 # Rotate logs (prevent disk fillup)
 sudo journalctl --vacuum-time=7d
@@ -521,8 +519,10 @@ Expected: https://aether.iniloka.id/api/auth/callback/google
 # Check OAuth secret format
 node -e "console.log(Buffer.from(process.env.AUTH_GOOGLE_SECRET, 'utf8').toString('base64'))"
 
-# Reset session tokens
-docker compose exec app npm run db:push -- reset-sessions
+# Reset session tokens (hapus semua login session aktif — semua user harus login ulang)
+docker compose exec app npx prisma db execute --stdin <<< 'DELETE FROM "LoginSession";'
+# Setelah itu, verifikasi migrasi selaras dengan schema:
+docker compose exec app npx prisma migrate status
 ```
 
 ### Issue 3: Slow Performance

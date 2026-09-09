@@ -217,20 +217,25 @@ SOCIAL_CONNECTOR_POLICY=prefer_webhook
 
 ## 6. Worker process
 
-Run separately from the web process when possible:
+Job worker TIDAK berupa proses terpisah — job dijalankan lewat endpoint
+`GET /api/worker/cron?job=<nama>` (`Authorization: Bearer $CRON_SECRET`),
+yang dijadwalkan oleh scheduler:
+
+- **Vercel**: `vercel.json` crons (comment.send & content.publish tiap 2 menit,
+  worker.tick tiap 5 menit, dst). Butuh plan Pro untuk cron per-menit.
+- **Docker/VPS**: service `cron` di docker-compose.yml (busybox crond, jadwal di
+  `deploy/cron-jobs`) — tanpa service ini comment/publish/billing.expire tidak
+  pernah berjalan.
+
+Menjalankan satu job manual dari terminal:
 
 ```bash
-npm run worker
-# or tick-specific:
-npm run worker:tick
-npm run worker:health
-npm run worker:poll
-npm run worker:generate
-npm run worker:send
-npm run worker:billing-expire
+npx tsx scripts/run-worker.ts <job-name>   # mis. worker.tick
+curl -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/worker/cron?job=comment.send"
 ```
 
-Vercel Cron (optional fallback): `vercel.json` hits `GET /api/worker/cron` every 5 minutes with `Authorization: Bearer $CRON_SECRET`. Prefer per-job schedules or an always-on worker for live loads — full `worker.tick` can approach function time limits.
+Catatan: `npm run worker` hanyalah bridge client, bukan queue runner. Untuk beban
+live yang berat, pertimbangkan memecah `worker.tick` per-job (fungsi maxDuration 60 detik).
 
 Checklist:
 
