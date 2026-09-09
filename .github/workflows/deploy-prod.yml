@@ -6,7 +6,7 @@ on:
   workflow_dispatch:  # Manual trigger
 
 env:
-  NODE_VERSION: '20.x'
+  NODE_VERSION: '22.x'
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
@@ -19,7 +19,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -38,6 +38,17 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
+          # Same dummy set as the Dockerfile builder stage — next build
+          # validates env at build time; real values are injected at runtime.
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+          AUTH_SECRET: "ci-build-time-placeholder-secret-0000"
+          AUTH_GOOGLE_ID: "ci-build"
+          AUTH_GOOGLE_SECRET: "ci-build"
+          ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+
+      - name: Set image tag
+        id: image
+        run: echo "tag=${REGISTRY}/${IMAGE_NAME}:${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to Container Registry
         uses: docker/login-action@v3
@@ -46,23 +57,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha
-            type=ref,event=branch
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          # Immutable SHA tag only — the server pins compose to exactly this
+          # tag so rollback is `docker compose up -d` with a previous SHA.
+          tags: ${{ steps.image.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -73,17 +75,42 @@ jobs:
           username: ${{ secrets.PRODUCTION_SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set -e
             cd /opt/aether
-            sudo docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            sudo docker-compose down
-            sudo docker-compose up -d
-            sudo docker system prune -f
+            IMAGE="${{ steps.image.outputs.tag }}"
+
+            # Private GHCR image: the server needs its own login (a PAT with
+            # read:packages stored once in /opt/aether/.ghcr-token).
+            if [ -f .ghcr-token ]; then
+              echo "${{ secrets.GHCR_USERNAME }}" | sudo docker login ghcr.io \
+                --username "$(cat .ghcr-username 2>/dev/null || echo '${{ secrets.GHCR_USERNAME }}')" \
+                --password-stdin < .ghcr-token || echo "WARN: ghcr login failed; continuing with cached images"
+            fi
+
+            sudo docker pull "$IMAGE"
+
+            # Remember the currently running tag for one-shot rollback.
+            PREV="$(sudo docker compose ps --format '{{.Image}}' app 2>/dev/null | head -1 || true)"
+            if [ -n "$PREV" ] && [ "$PREV" != "$IMAGE" ]; then
+              echo "$PREV" > .previous-image
+            fi
+
+            # Compose runs from the pinned image (see AETHER_IMAGE in
+            # .env.docker) — never a local rebuild of stale source.
+            echo "AETHER_IMAGE=$IMAGE" > .deploy-image.env
+            sudo docker compose --env-file .env.docker --env-file .deploy-image.env up -d --no-build app
+            sudo docker image prune -f
 
       - name: Health check after deploy
         run: |
           echo "Waiting for deployment to complete..."
-          sleep 30
-
-          curl -f http://${{ secrets.PRODUCTION_SERVER_URL }}/api/health || exit 1
-
-          echo "✅ Deployment successful!"
+          for i in $(seq 1 12); do
+            sleep 10
+            if curl -fsS "http://${{ secrets.PRODUCTION_SERVER_URL }}/api/health" | grep -q '"ok":true'; then
+              echo "✅ Deployment healthy!"
+              exit 0
+            fi
+            echo "attempt $i not healthy yet..."
+          done
+          echo "❌ Health check failed after 2 minutes"
+          exit 1

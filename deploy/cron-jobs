@@ -1,0 +1,11 @@
+# Worker cron schedule for the Docker stack — mirrors vercel.json crons.
+# Each line hits /api/worker/cron?job=… with the CRON_SECRET bearer token.
+# Busybox crond format (6 fields incl. day-of-week).
+
+*/2 * * * * wget -q -O- --header="Authorization: Bearer $CRON_SECRET" http://app:3000/api/worker/cron?job=comment.send >/dev/null 2>&1
+*/2 * * * * wget -q -O- --header="Authorization: Bearer $CRON_SECRET" http://app:3000/api/worker/cron?job=content.publish >/dev/null 2>&1
+*/5 * * * * wget -q -O- --header="Authorization: Bearer $CRON_SECRET" http://app:3000/api/worker/cron?job=worker.tick >/dev/null 2>&1
+*/30 * * * * wget -q -O- --header="Authorization: Bearer $CRON_SECRET" http://app:3000/api/worker/cron?job=ai.quota_notify >/dev/null 2>&1
+41 * * * * wget -q -O- --header="Authorization: Bearer $CRON_SECRET" http://app:3000/api/worker/cron?job=connector.refresh_tokens >/dev/null 2>&1
+23 * * * * wget -q -O- --header="Authorization: Bearer $CRON_SECRET" http://app:3000/api/worker/cron?job=ai.expire >/dev/null 2>&1
+15 1 * * * wget -q -O- --header="Authorization: Bearer $CRON_SECRET" http://app:3000/api/worker/cron?job=digest.approvals >/dev/null 2>&1

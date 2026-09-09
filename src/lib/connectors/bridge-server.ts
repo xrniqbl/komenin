@@ -33,6 +33,13 @@ export class BridgeServer {
   private liveClient?: ReturnType<typeof createLiveBridgeClient>;
   private server?: Server;
 
+  /** Replayed outcomes for idempotent redeliveries (see /bridge handler). */
+  private readonly idempotencyCache = new Map<
+    string,
+    { status: number; body: unknown; expiresAt: number }
+  >();
+  private readonly IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+
   constructor(config: BridgeServerConfig = {}) {
     this.config = {
       port: 3001,
@@ -124,6 +131,30 @@ export class BridgeServer {
           });
         }
 
+        // Idempotency: mutating actions may carry x-komenin-idempotency-key.
+        // A redelivery after a crash on the caller side replays the original
+        // outcome instead of posting twice. Entries expire with the window —
+        // real redeliveries happen within minutes, not days.
+        const idempotencyKey = req.get('x-komenin-idempotency-key');
+        const isMutation = action === 'sendComment' || action === 'publishPost';
+        if (idempotencyKey && isMutation) {
+          const seen = this.idempotencyCache.get(idempotencyKey);
+          if (seen && seen.expiresAt > Date.now()) {
+            return res.status(seen.status).json(seen.body);
+          }
+        }
+
+        const respond = (status: number, payload: unknown) => {
+          if (idempotencyKey && isMutation) {
+            this.idempotencyCache.set(idempotencyKey, {
+              status,
+              body: payload,
+              expiresAt: Date.now() + this.IDEMPOTENCY_TTL_MS,
+            });
+          }
+          res.status(status).json(payload);
+        };
+
         // Mock mode
         if (this.config.mode === 'mock') {
           await new Promise(resolve => setTimeout(resolve, this.config.mockDelay!));
@@ -132,13 +163,13 @@ export class BridgeServer {
             platform,
             ...body
           });
-          return res.status(result.status).json(result.body);
+          return respond(result.status, result.body);
         }
 
         // Live mode
         if (this.liveClient) {
           const result = await this.liveClient.call(action, platform, body);
-          return res.status(result.status).json(result.body);
+          return respond(result.status, result.body);
         }
 
         return res.status(500).json({
@@ -169,6 +200,16 @@ export class BridgeServer {
   }
 
   async start() {
+    // Opportunistic pruning so the idempotency cache cannot grow unbounded in
+    // long-lived processes.
+    const pruneIdempotency = setInterval(() => {
+      const now = Date.now();
+      for (const [key, entry] of this.idempotencyCache) {
+        if (entry.expiresAt <= now) this.idempotencyCache.delete(key);
+      }
+    }, 60 * 60 * 1000);
+    pruneIdempotency.unref?.();
+
     return new Promise<void>((resolve) => {
       this.server = this.app.listen(this.config.port ?? 3001, this.config.host ?? '127.0.0.1', () => {
         const bound = `${this.config.host}:${this.config.port}`;

@@ -102,4 +102,12 @@ export type ConnectorActionInput = {
   payload: ConnectorActionPayload;
   webhook?: ConnectorWebhookConfig | null;
   official?: ConnectorOfficialConfig | null;
+  /**
+   * Caller-chosen dedup key for mutating actions (sendComment/publishPost),
+   * e.g. the commentActionId / contentDraftId. Sent as `x-komenin-idempotency-key`
+   * so the bridge can recognize a retried delivery after a crash between the
+   * side effect and its local result write, and return the original outcome
+   * instead of posting twice.
+   */
+  idempotencyKey?: string | null;
 };

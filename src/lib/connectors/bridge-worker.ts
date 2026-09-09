@@ -38,17 +38,19 @@ export class BridgeWorker {
   async sendComment(
     platform: string,
     body: string,
-    targetPostExternalId: string
+    targetPostExternalId: string,
+    idempotencyKey?: string
   ) {
-    return this.execute('sendComment', { platform, body, targetPostExternalId });
+    return this.execute('sendComment', { platform, body, targetPostExternalId }, idempotencyKey);
   }
 
   async publishPost(
     platform: string,
     caption: string,
-    mediaUrls: string[] = []
+    mediaUrls: string[] = [],
+    idempotencyKey?: string
   ) {
-    return this.execute('publishPost', { platform, caption, mediaUrls });
+    return this.execute('publishPost', { platform, caption, mediaUrls }, idempotencyKey);
   }
 
   async healthProbe() {
@@ -57,16 +59,18 @@ export class BridgeWorker {
 
   private async execute(
     action: BridgeAction,
-    payload: any
+    payload: any,
+    idempotencyKey?: string
   ) {
     let lastError: Error | null = null;
-    // Mutations have no idempotency key, so only retry transport failures —
-    // retrying an ok=false business failure could duplicate posts/comments.
+    // Mutations have no safe blind retry — but they DO carry an idempotency
+    // key, so transport failures may be retried only when one was supplied;
+    // otherwise retrying an ok=false business failure could duplicate posts.
     const retryBusinessFailure = action === 'discoverPosts' || action === 'healthProbe';
 
     for (let attempt = 0; attempt < this.config.retries!; attempt++) {
       try {
-        const result = await this.callBridge(action, payload);
+        const result = await this.callBridge(action, payload, idempotencyKey);
 
         if (result.ok) {
           return {
@@ -88,7 +92,7 @@ export class BridgeWorker {
     throw lastError || new Error('Bridge execution failed after retries');
   }
 
-  private async callBridge(action: BridgeAction, payload: any) {
+  private async callBridge(action: BridgeAction, payload: any, idempotencyKey?: string) {
     if (this.config.mode === 'mock') {
       // Delegate to the shared contract handler so mock responses match the
       // real bridge shape (e.g. discoverPosts returns a posts array, healthProbe
@@ -103,7 +107,7 @@ export class BridgeWorker {
     }
 
     // Live mode
-    const result = await this.client.call(action, payload.platform || 'unknown', payload);
+    const result = await this.client.call(action, payload.platform || 'unknown', payload, idempotencyKey);
     return {
       ok: result.status === 200,
       ...result.body

@@ -61,6 +61,9 @@ async function postWebhook(
         ...(webhook.token ? { authorization: `Bearer ${webhook.token}` } : {}),
         "x-komenin-action": input.action,
         [BRIDGE_CONTRACT_HEADER]: BRIDGE_CONTRACT_VERSION,
+        ...(input.idempotencyKey
+          ? { "x-komenin-idempotency-key": input.idempotencyKey }
+          : {}),
       },
       body: JSON.stringify(body),
     });

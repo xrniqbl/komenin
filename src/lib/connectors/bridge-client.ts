@@ -27,7 +27,8 @@ export class BridgeClient {
   async call(
     action: BridgeAction,
     platform: string,
-    body: any
+    body: any,
+    idempotencyKey?: string | null
   ) {
     if (!this.config.baseUrl) {
       // Fail closed with a clear error instead of building the URL
@@ -50,7 +51,10 @@ export class BridgeClient {
         timestamp: Date.now()
       }, {
         timeout: this.config.timeout,
-        headers: this.config.headers
+        headers: {
+          ...this.config.headers,
+          ...(idempotencyKey ? { 'x-komenin-idempotency-key': idempotencyKey } : {})
+        }
       });
 
       return {

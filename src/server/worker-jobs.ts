@@ -978,6 +978,10 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
           targetPostUrl: action.targetPost.url,
           authorHandle: action.targetPost.authorHandle,
         },
+        // Stable per-action key: if this process dies after the bridge accepted
+        // the comment but before the result write, the stale-claim re-send
+        // carries the same key and the bridge can dedupe instead of double-posting.
+        idempotencyKey: `comment-action:${action.id}`,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Comment send error";
@@ -1258,6 +1262,8 @@ async function runContentPublish(limit = 30): Promise<WorkerJobResult> {
           mediaUrl: draft.mediaUrl,
         },
         policy: workspace?.connectorPolicy,
+        // Stable per-draft key — same crash-retry dedupe as comment sends.
+        idempotencyKey: `content-draft:${draft.id}`,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Content publish error";

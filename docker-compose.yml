@@ -19,6 +19,7 @@ networks:
 
 volumes:
   db_data:
+  db_backups:
   traefik_letsencrypt:
 
 services:
@@ -71,12 +72,14 @@ services:
 
   # ─────────────────────────────────────────────
   # Aether — aplikasi Next.js
+  # CI deploy men-set AETHER_IMAGE ke tag GHCR SHA; tanpa itu compose
+  # memakai image lokal (aether:latest) atau build dari source.
   # ─────────────────────────────────────────────
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    image: aether:latest
+    image: ${AETHER_IMAGE:-aether:latest}
     restart: unless-stopped
     depends_on:
       db:
@@ -117,6 +120,57 @@ services:
       - "traefik.http.routers.aether.entrypoints=websecure"
       - "traefik.http.routers.aether.tls.certresolver=le"
       - "traefik.http.services.aether.loadbalancer.server.port=3000"
+
+  # ─────────────────────────────────────────────
+  # Cron — scheduler untuk job worker. Jalur Vercel punya vercel.json crons,
+  # tapi di stack Docker TIDAK ADA scheduler bawaan: tanpa service ini
+  # comment.send / content.publish / billing.expire tidak pernah jalan.
+  # Memanggil /api/worker/cron?job=… dengan CRON_SECRET (satu container
+  # busybox crond, tanpa image tambahan yang harus dirawat).
+  # ─────────────────────────────────────────────
+  cron:
+    image: busybox:1.36
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      CRON_SECRET: ${CRON_SECRET}
+    volumes:
+      - "./deploy/cron-jobs:/opt/cron-jobs:ro"
+      - "./deploy/cron-entrypoint.sh:/usr/local/bin/cron-entrypoint.sh:ro"
+    command: ["/bin/sh", "/usr/local/bin/cron-entrypoint.sh"]
+    networks:
+      - internal
+
+  # ─────────────────────────────────────────────
+  # Backup — pg_dump harian via scripts/backup-db.sh (gzip + AES opsional +
+  # upload S3 opsional). Wajib: DATABASE_URL mengarah ke service db.
+  # Set BACKUP_ENCRYPTION_KEY (openssl rand -hex 32) agar dump terenkripsi.
+  # ─────────────────────────────────────────────
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public"
+      BACKUP_DIR: /backups
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-backups}
+    volumes:
+      - "db_backups:/backups"
+      - "./scripts/backup-db.sh:/usr/local/bin/backup-db.sh:ro"
+    entrypoint: >
+      sh -c "chmod +x /usr/local/bin/backup-db.sh 2>/dev/null || true;
+      echo '15 2 * * * sh /usr/local/bin/backup-db.sh' > /var/spool/cron/crontabs/root &&
+      sh /usr/local/bin/backup-db.sh || true;
+      exec crond -f -l 8"
+    networks:
+      - internal
 
   # ─────────────────────────────────────────────
   # CONTOH web kedua di VPS yang sama (opsional).

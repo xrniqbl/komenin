@@ -25,6 +25,7 @@ returns contract-v1 JSON.
 - Content type: `application/json`
 - Action header: `x-komenin-action: <action>`
 - Contract header: `x-komenin-contract: v1` (required on request; recommended on response)
+- Idempotency header (mutating actions only): `x-komenin-idempotency-key: <stable-key>`. `sendComment` sends `comment-action:<id>`, `publishPost` sends `content-draft:<id>`. When a redelivery arrives with a key seen in the last 24h, the bridge MUST replay the original response (same HTTP status + body) instead of performing the side effect again — this is what makes a caller crash between the platform call and its local result write safe from double-posting.
 
 ## Actions
 

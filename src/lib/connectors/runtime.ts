@@ -25,6 +25,8 @@ export async function executeSocialAction(input: {
   policy?: string | null;
   /** Prefer explicit workspace; falls back to target.workspaceId. */
   workspaceId?: string | null;
+  /** Dedup key for mutating actions (see ConnectorActionInput). */
+  idempotencyKey?: string | null;
 }): Promise<ConnectorResult> {
   const workspaceId = input.workspaceId ?? input.target.workspaceId ?? null;
   const target: ConnectorTarget = {
@@ -44,5 +46,6 @@ export async function executeSocialAction(input: {
       workspaceId,
       accountId: target.accountId,
     }),
+    idempotencyKey: input.idempotencyKey ?? null,
   });
 }

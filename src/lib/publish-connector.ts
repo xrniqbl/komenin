@@ -155,6 +155,8 @@ export async function publishSocialPost(input: {
   policy?: ConnectorPolicy | string | null;
   webhook?: ConnectorWebhookConfig | null;
   official?: ConnectorOfficialConfig | null;
+  /** Dedup key for publish retries (see ConnectorActionInput). */
+  idempotencyKey?: string | null;
 }): Promise<PublishResult> {
   const mode = input.forceMode || getRuntimeModeLabel();
   const publishedAt = new Date();
@@ -187,6 +189,7 @@ export async function publishSocialPost(input: {
       accountId: input.target.accountId,
       official: input.official,
     }),
+    idempotencyKey: input.idempotencyKey ?? null,
   });
 
   return {
