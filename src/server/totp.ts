@@ -1,10 +1,64 @@
 "use server";
 
+import { headers } from "next/headers";
+
 import { auth, unstable_update } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { decryptSecret, encryptSecret } from "@/lib/encryption";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { generateTotpSecret, otpauthUri, verifyTotp } from "@/lib/totp";
 import { writeAuditLog } from "@/server/audit";
+
+/**
+ * Brute-force brake for every TOTP verify path. These are server actions, so
+ * the /api/auth/* route limit never applies — without this, a 6-digit code
+ * with a ±1 window has ~300 valid candidates and online guessing is feasible.
+ * Fail-closed: if the durable limiter errors, deny rather than open the gate.
+ */
+async function enforceTotpAttemptLimit(userId: string): Promise<void> {
+  let ip = "unknown";
+  try {
+    const h = await headers();
+    ip =
+      h.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+      h.get("cf-connecting-ip")?.trim() ||
+      h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "unknown";
+  } catch {
+    // headers() unavailable (e.g. unusual runtime) — key on user only.
+  }
+  const result = await consumeRateLimit({
+    key: `totp-verify:${userId}:${ip}`,
+    limit: 5,
+    windowMs: 5 * 60_000,
+    failClosed: true,
+  });
+  if (!result.ok) {
+    throw new Error("Terlalu banyak percobaan. Tunggu beberapa menit, lalu coba lagi.");
+  }
+}
+
+/**
+ * Consume a code atomically: verify it AND record its counter step in one
+ * guarded update, so two concurrent verifies cannot both burn the same code.
+ * Returns false when the code is wrong OR was already used (step ≤ lastUsed).
+ */
+async function consumeTotpCode(
+  userId: string,
+  secretEnc: string,
+  code: string,
+): Promise<boolean> {
+  const step = verifyTotp(decryptSecret(secretEnc), code);
+  if (step === null) return false;
+  const claimed = await db.user.updateMany({
+    where: {
+      id: userId,
+      OR: [{ totpLastUsedStep: null }, { totpLastUsedStep: { lt: step } }],
+    },
+    data: { totpLastUsedStep: step },
+  });
+  return claimed.count === 1;
+}
 
 async function requireUser() {
   const session = await auth();
@@ -38,7 +92,8 @@ export async function startTotpEnrollment(): Promise<{
   const secret = generateTotpSecret();
   await db.user.update({
     where: { id: session.user.id },
-    data: { totpSecretEnc: encryptSecret(secret), totpEnabledAt: null },
+    // Fresh enrollment resets replay tracking together with the secret.
+    data: { totpSecretEnc: encryptSecret(secret), totpEnabledAt: null, totpLastUsedStep: null },
   });
 
   return {
@@ -50,12 +105,13 @@ export async function startTotpEnrollment(): Promise<{
 /** Verify a code against the pending secret and activate 2FA. */
 export async function confirmTotpEnrollment(code: string): Promise<{ ok: boolean }> {
   const session = await requireUser();
+  await enforceTotpAttemptLimit(session.user.id);
   const user = await db.user.findUnique({
     where: { id: session.user.id },
     select: { totpSecretEnc: true },
   });
   if (!user?.totpSecretEnc) throw new Error("Missing pending TOTP enrollment");
-  if (!verifyTotp(decryptSecret(user.totpSecretEnc), code)) {
+  if (!(await consumeTotpCode(session.user.id, user.totpSecretEnc, code))) {
     return { ok: false };
   }
 
@@ -77,6 +133,7 @@ export async function confirmTotpEnrollment(code: string): Promise<{ ok: boolean
 /** Disable 2FA — requires a valid current code (possession proof). */
 export async function disableTotp(code: string): Promise<{ ok: boolean }> {
   const session = await requireUser();
+  await enforceTotpAttemptLimit(session.user.id);
   const user = await db.user.findUnique({
     where: { id: session.user.id },
     select: { totpSecretEnc: true, totpEnabledAt: true },
@@ -84,13 +141,13 @@ export async function disableTotp(code: string): Promise<{ ok: boolean }> {
   if (!user?.totpEnabledAt || !user.totpSecretEnc) {
     throw new Error("Missing active TOTP enrollment");
   }
-  if (!verifyTotp(decryptSecret(user.totpSecretEnc), code)) {
+  if (!(await consumeTotpCode(session.user.id, user.totpSecretEnc, code))) {
     return { ok: false };
   }
 
   await db.user.update({
     where: { id: session.user.id },
-    data: { totpSecretEnc: null, totpEnabledAt: null },
+    data: { totpSecretEnc: null, totpEnabledAt: null, totpLastUsedStep: null },
   });
   await writeAuditLog({
     actorUserId: session.user.id,
@@ -108,6 +165,7 @@ export async function disableTotp(code: string): Promise<{ ok: boolean }> {
 export async function verifyTotpGate(code: string): Promise<{ ok: boolean }> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
+  await enforceTotpAttemptLimit(session.user.id);
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
@@ -118,7 +176,7 @@ export async function verifyTotpGate(code: string): Promise<{ ok: boolean }> {
     await unstable_update({ user: { totpGate: false } }).catch(() => {});
     return { ok: true };
   }
-  if (!verifyTotp(decryptSecret(user.totpSecretEnc), code)) {
+  if (!(await consumeTotpCode(session.user.id, user.totpSecretEnc, code))) {
     return { ok: false };
   }
 

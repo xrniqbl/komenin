@@ -124,17 +124,28 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         // the user has 2FA enabled; the challenge page clears it. Suspended
         // users get no device session at all — the revoked flag strips their
         // user id on the next guarded request.
+        //
+        // Fail-closed on ERROR: a DB failure here must never disable the 2FA
+        // gate (default gated) nor mint an untracked session. A definitive
+        // "user row not found" is not an error — a brand-new user cannot have
+        // 2FA yet, so the gate stays off to avoid a bogus challenge.
+        let totpEnabled = false;
+        let suspended = false;
+        let dbError = false;
         try {
           const dbUser = await db.user.findUnique({
             where: { id: user.id },
             select: { totpEnabledAt: true, suspendedAt: true },
           });
-          token.totpGate = Boolean(dbUser?.totpEnabledAt);
-          if (dbUser?.suspendedAt) {
-            token.revoked = true;
-          }
+          totpEnabled = Boolean(dbUser?.totpEnabledAt);
+          suspended = Boolean(dbUser?.suspendedAt);
         } catch {
-          token.totpGate = false;
+          dbError = true;
+          totpEnabled = true;
+        }
+        token.totpGate = totpEnabled;
+        if (suspended) {
+          token.revoked = true;
         }
 
         if (!token.revoked) {
@@ -148,7 +159,14 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
               },
             });
           } catch {
-            // Device tracking must never block a legitimate login.
+            // Without a LoginSession row the revocation poll would kill this
+            // token within 60s anyway — refuse the sign-in up front instead
+            // of minting a session that appears logged-out. Only first-time
+            // users mid-adapter-persist (no readable row, no DB error) fall
+            // through; the poll treats their missing row as revoked.
+            if (dbError) {
+              throw new Error("Could not create device session; try again");
+            }
           }
         }
         return token;

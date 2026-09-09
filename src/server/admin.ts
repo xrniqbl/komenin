@@ -4,10 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { refundPaidOrderTx } from "@/server/billing";
 
 export async function requireSuperAdmin() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+  // Admin surface enforces the same 2FA gate as the workspace surface — a
+  // superadmin with TOTP enabled must clear /auth/totp-gate before acting.
+  if (session.user.totpGate) redirect("/auth/totp-gate");
   const user = await db.user.findUnique({ where: { id: session.user.id } });
   if (!user || user.platformRole !== "superadmin") redirect("/app");
   return { userId: user.id, user };
@@ -585,8 +589,11 @@ export async function adminCancelOrder(orderId: string) {
 
 /**
  * Mark a paid order as refunded after the money has been returned via the
- * Midtrans dashboard. This reconciles the local ledger only — it never calls
- * Midtrans — so the reason is required for the audit trail.
+ * Midtrans dashboard. Uses the same reversal transaction as the webhook path:
+ * AI credits/subscription are reversed and the workspace drops to free when no
+ * other paid period remains — an admin refund never leaves paid entitlements
+ * live. This reconciles the local ledger only — it never calls Midtrans — so
+ * the reason is required for the audit trail.
  */
 export async function adminRefundOrder(orderId: string, reason: string) {
   const { userId } = await requireSuperAdmin();
@@ -594,12 +601,25 @@ export async function adminRefundOrder(orderId: string, reason: string) {
   if (!trimmed) {
     throw new Error("Order refund requires a reason");
   }
-  const result = await db.subscriptionOrder.updateMany({
+  const claimed = await db.subscriptionOrder.updateMany({
     where: { id: orderId, status: "paid" },
     data: { status: "refunded" },
   });
-  if (result.count === 0) {
+  if (claimed.count === 0) {
     throw new Error("Order not found or not paid");
+  }
+  try {
+    await db.$transaction(async (tx) => {
+      await refundPaidOrderTx(tx, { orderId });
+    });
+  } catch (error) {
+    // Reversal failed — restore the paid status so the admin can retry the
+    // whole operation instead of an order stuck refunded with live entitlements.
+    await db.subscriptionOrder.updateMany({
+      where: { id: orderId, status: "refunded" },
+      data: { status: "paid" },
+    });
+    throw error;
   }
   await db.auditLog.create({
     data: {
@@ -607,7 +627,10 @@ export async function adminRefundOrder(orderId: string, reason: string) {
       action: "admin.order_refunded",
       resourceType: "subscription_order",
       resourceId: orderId,
-      metadata: { reason: trimmed.slice(0, 500) },
+      metadata: {
+        reason: trimmed.slice(0, 500),
+        entitlementsRevoked: true,
+      },
     },
   });
   revalidatePath("/admin/billing");

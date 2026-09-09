@@ -31,21 +31,30 @@ describe("totp", () => {
 
   it("verifies the current code and tolerates ±1 step of drift", () => {
     const t = 59_000;
-    expect(verifyTotp(RFC_SECRET, "287082", { timestampMs: t })).toBe(true);
+    expect(verifyTotp(RFC_SECRET, "287082", { timestampMs: t })).toBe(1);
     // Two steps ahead is outside the ±1 window and must fail.
-    expect(verifyTotp(RFC_SECRET, totpAt(RFC_SECRET, t + 60_000), { timestampMs: t })).toBe(false);
+    expect(verifyTotp(RFC_SECRET, totpAt(RFC_SECRET, t + 60_000), { timestampMs: t })).toBeNull();
     // The ±1 window accepts the neighbouring step's code.
-    expect(verifyTotp(RFC_SECRET, totpAt(RFC_SECRET, t - 30_000), { timestampMs: t })).toBe(true);
-    expect(verifyTotp(RFC_SECRET, totpAt(RFC_SECRET, t + 30_000), { timestampMs: t })).toBe(true);
+    expect(verifyTotp(RFC_SECRET, totpAt(RFC_SECRET, t - 30_000), { timestampMs: t })).toBe(0);
+    expect(verifyTotp(RFC_SECRET, totpAt(RFC_SECRET, t + 30_000), { timestampMs: t })).toBe(2);
+  });
+
+  it("returns the matched step so callers can reject reused (replayed) codes", () => {
+    const t = 59_000;
+    const step = verifyTotp(RFC_SECRET, "287082", { timestampMs: t });
+    expect(step).not.toBeNull();
+    // The same code maps to the same step — the server layer must reject any
+    // verify whose step is ≤ the last successfully used step.
+    expect(verifyTotp(RFC_SECRET, "287082", { timestampMs: t })).toBe(step);
   });
 
   it("rejects malformed or wrong codes", () => {
-    expect(verifyTotp(RFC_SECRET, "28708", { timestampMs: 59_000 })).toBe(false);
-    expect(verifyTotp(RFC_SECRET, "2870821", { timestampMs: 59_000 })).toBe(false);
-    expect(verifyTotp(RFC_SECRET, "abcdef", { timestampMs: 59_000 })).toBe(false);
-    expect(verifyTotp(RFC_SECRET, "", { timestampMs: 59_000 })).toBe(false);
+    expect(verifyTotp(RFC_SECRET, "28708", { timestampMs: 59_000 })).toBeNull();
+    expect(verifyTotp(RFC_SECRET, "2870821", { timestampMs: 59_000 })).toBeNull();
+    expect(verifyTotp(RFC_SECRET, "abcdef", { timestampMs: 59_000 })).toBeNull();
+    expect(verifyTotp(RFC_SECRET, "", { timestampMs: 59_000 })).toBeNull();
     // Normalizes spaces/dashes typed by users.
-    expect(verifyTotp(RFC_SECRET, "287-082", { timestampMs: 59_000 })).toBe(true);
+    expect(verifyTotp(RFC_SECRET, "287-082", { timestampMs: 59_000 })).not.toBeNull();
   });
 
   it("generates distinct 160-bit secrets", () => {

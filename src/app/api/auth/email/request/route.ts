@@ -30,10 +30,13 @@ export async function POST(request: Request) {
   if (csrf) return csrf;
 
   // Per-IP rate limit (loose) — protects the email provider quota.
+  // Fail-closed: login-critical surface must not silently fall back to
+  // per-instance memory when the durable limiter is down.
   const ipRate = await consumeRateLimit({
     key: getRequestRateKey(request, "auth:email:request:ip"),
     limit: 10,
     windowMs: 60_000,
+    failClosed: true,
   });
   if (!ipRate.ok) {
     return NextResponse.json(
@@ -59,6 +62,7 @@ export async function POST(request: Request) {
     key: `auth:email:request:${email}`,
     limit: 3,
     windowMs: 10 * 60_000,
+    failClosed: true,
   });
   if (!emailRate.ok) {
     return NextResponse.json(

@@ -43,6 +43,9 @@ model User {
   // TOTP 2FA — secret is AES-256-GCM encrypted (lib/encryption), null when never enrolled.
   totpSecretEnc String?
   totpEnabledAt DateTime?
+  // Replay protection: the last successfully verified counter step (30s units).
+  // A verify whose step is <= this value is a reused code and is rejected.
+  totpLastUsedStep Int?
   // Platform-level suspension — set from /admin/users; blocks new logins and
   // ends existing sessions via the jwt revocation check.
   suspendedAt     DateTime?

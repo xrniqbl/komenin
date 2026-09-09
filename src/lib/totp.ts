@@ -74,27 +74,31 @@ export function totpAt(
 /**
  * Verify a 6-digit code allowing ±1 time step of clock drift (±30s).
  * Comparison is timing-safe; input is normalized (spaces, non-digits).
+ *
+ * Returns the matched counter step (relative to epoch, 30s units) so callers
+ * can enforce single-use replay protection: reject any code whose step is
+ * ≤ the last successfully used step.
  */
 export function verifyTotp(
   secretBase32: string,
   code: string,
   options: { window?: number; timestampMs?: number; stepSeconds?: number } = {},
-): boolean {
+): number | null {
   const normalized = String(code || "").replace(/\D/g, "");
-  if (normalized.length !== 6) return false;
+  if (normalized.length !== 6) return null;
   const step = options.stepSeconds ?? 30;
   const window = options.window ?? 1;
   const now = options.timestampMs ?? Date.now();
   const expected = Buffer.from(normalized, "utf8");
   for (let drift = -window; drift <= window; drift += 1) {
-    const candidate = totpAt(secretBase32, now + drift * step * 1000, {
-      stepSeconds: step,
-    });
+    const candidateTime = now + drift * step * 1000;
+    const counter = Math.max(0, Math.floor(candidateTime / 1000 / step));
+    const candidate = totpAt(secretBase32, candidateTime, { stepSeconds: step });
     if (candidate.length === expected.length && timingSafeEqual(Buffer.from(candidate, "utf8"), expected)) {
-      return true;
+      return counter;
     }
   }
-  return false;
+  return null;
 }
 
 export function otpauthUri(input: {

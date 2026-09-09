@@ -130,19 +130,33 @@ async function consumeUpstash(
 
 /**
  * Consume one rate-limit token for `input.key`. Prefers the durable Upstash
- * backend; transparently falls back to the in-memory bucket on outage so a
- * Redis failure never takes the endpoint down.
+ * backend; on Upstash outage it degrades to the in-memory bucket so a Redis
+ * failure never takes the endpoint down — UNLESS `failClosed` is set, which
+ * turns the outage into a denial instead. Auth-critical surfaces (login, OTP,
+ * TOTP verify) must use failClosed: a silent per-instance fallback re-opens
+ * brute-force windows on every deploy/scale-out event.
  */
 export async function consumeRateLimit(input: {
   key: string;
   limit: number;
   windowMs: number;
+  failClosed?: boolean;
 }): Promise<RateLimitResult> {
   const config = upstashConfig();
   if (config) {
     try {
       return await consumeUpstash(input, config);
     } catch (error) {
+      if (input.failClosed) {
+        console.error("[rate-limit] upstash backend failed, failing closed", error);
+        return {
+          ok: false,
+          limit: input.limit,
+          remaining: 0,
+          resetAt: Date.now() + input.windowMs,
+          backend: "upstash",
+        };
+      }
       console.warn("[rate-limit] upstash backend failed, using memory", error);
     }
   }
