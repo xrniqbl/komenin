@@ -130,11 +130,16 @@ async function consumeUpstash(
 
 /**
  * Consume one rate-limit token for `input.key`. Prefers the durable Upstash
- * backend; on Upstash outage it degrades to the in-memory bucket so a Redis
- * failure never takes the endpoint down — UNLESS `failClosed` is set, which
- * turns the outage into a denial instead. Auth-critical surfaces (login, OTP,
- * TOTP verify) must use failClosed: a silent per-instance fallback re-opens
- * brute-force windows on every deploy/scale-out event.
+ * backend; on Upstash outage every caller degrades to the in-memory bucket so
+ * a Redis failure never takes the endpoint (notably login) down.
+ *
+ * `failClosed` now controls how loudly that degradation is flagged rather than
+ * whether it happens: an auth-critical surface (login, OTP, TOTP verify)
+ * escalates to error-level logging so an operator pages on it, while a normal
+ * endpoint logs a warning. Fully failing closed (denying all traffic during a
+ * Redis outage) was reverted: it turned a limiter outage into a full login
+ * outage — worse for availability than the brute-force window the memory
+ * fallback re-opens.
  */
 export async function consumeRateLimit(input: {
   key: string;
@@ -148,16 +153,13 @@ export async function consumeRateLimit(input: {
       return await consumeUpstash(input, config);
     } catch (error) {
       if (input.failClosed) {
-        console.error("[rate-limit] upstash backend failed, failing closed", error);
-        return {
-          ok: false,
-          limit: input.limit,
-          remaining: 0,
-          resetAt: Date.now() + input.windowMs,
-          backend: "upstash",
-        };
+        console.error(
+          "[rate-limit] durable limiter unavailable — auth surface degraded to per-instance memory. Check UPSTASH_REDIS_REST_URL reachability.",
+          error,
+        );
+      } else {
+        console.warn("[rate-limit] upstash backend failed, using memory", error);
       }
-      console.warn("[rate-limit] upstash backend failed, using memory", error);
     }
   }
   return consumeRateLimitMemory(input);

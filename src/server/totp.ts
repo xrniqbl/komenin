@@ -13,7 +13,8 @@ import { writeAuditLog } from "@/server/audit";
  * Brute-force brake for every TOTP verify path. These are server actions, so
  * the /api/auth/* route limit never applies — without this, a 6-digit code
  * with a ±1 window has ~300 valid candidates and online guessing is feasible.
- * Fail-closed: if the durable limiter errors, deny rather than open the gate.
+ * If the durable limiter errors, the per-instance memory fallback applies and
+ * an error is logged for alerting (see consumeRateLimit).
  */
 async function enforceTotpAttemptLimit(userId: string): Promise<void> {
   let ip = "unknown";

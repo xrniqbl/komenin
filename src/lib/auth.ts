@@ -189,28 +189,41 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         const lsAt = typeof token.lsAt === "number" ? token.lsAt : 0;
         if (now - rcAt > 60_000) {
           token.rcAt = now;
-          const row = await db.loginSession
-            .findUnique({
+          // Poll both revocation sources in one try — a connect/pool failure
+          // must not read as "row missing → revoked". A transient Neon idle
+          // disconnect used to permanently kill every active session (users
+          // stuck in a /login ↔ /app redirect loop). On error the session is
+          // KEPT and revocation is simply deferred to the next throttle
+          // cycle; worst case, a revocation lands one outage + 60s late.
+          try {
+            const row = await db.loginSession.findUnique({
               where: { jti: token.jti },
               select: { revokedAt: true },
-            })
-            .catch(() => null);
-          if (!row || row.revokedAt) {
-            token.revoked = true;
-            delete token.sub;
-            return token;
-          }
-          // Platform suspension also ends existing sessions (same throttle).
-          const user = await db.user
-            .findUnique({
+            });
+            if (!row || row.revokedAt) {
+              token.revoked = true;
+              delete token.sub;
+              return token;
+            }
+            // Platform suspension also ends existing sessions (same throttle).
+            const user = await db.user.findUnique({
               where: { id: token.sub },
               select: { suspendedAt: true },
-            })
-            .catch(() => null);
-          if (user?.suspendedAt) {
-            token.revoked = true;
-            delete token.sub;
-            return token;
+            });
+            if (user?.suspendedAt) {
+              token.revoked = true;
+              delete token.sub;
+              return token;
+            }
+            token.dbFailures = 0;
+          } catch (error) {
+            const failures =
+              typeof token.dbFailures === "number" ? token.dbFailures + 1 : 1;
+            token.dbFailures = failures;
+            console.error(
+              `[auth] revocation poll DB error (streak ${failures}) — session kept, re-check deferred`,
+              error instanceof Error ? error.message : error,
+            );
           }
           if (now - lsAt > 5 * 60_000) {
             token.lsAt = now;
@@ -221,6 +234,15 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
               })
               .catch(() => {});
           }
+        } else if (typeof token.dbFailures === "number" && token.dbFailures >= 10) {
+          // DB has been unreachable for ≥10 consecutive poll cycles (~10 min):
+          // stop trusting the last-good state, revoke defensively. A genuine
+          // suspension then takes effect within minutes of the DB returning,
+          // while brief blips still ride through.
+          token.revoked = true;
+          delete token.sub;
+          console.error("[auth] DB unreachable across 10 revocation polls — revoking session defensively");
+          return token;
         }
       }
       return token;
