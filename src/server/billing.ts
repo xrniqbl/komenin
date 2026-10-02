@@ -19,6 +19,7 @@ import {
   fulfillAiCreditsOrder,
   fulfillAiSubscriptionOrder,
   refundAiOrder,
+  refundAiOrderPartial,
 } from "@/lib/ai/billing";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
@@ -446,7 +447,25 @@ export async function applyPaidOrder(orderCode: string, payment?: {
   // Refund / chargeback must run even when order is already "paid" (Midtrans
   // sends these after settlement). Do this BEFORE the already-paid short-circuit.
   if (status === "partial_refund") {
-    // Keep entitlement; OrderStatus has no partial_refunded value. Audit only.
+    const gross = parseMidtransGrossAmount(grossCandidate);
+    let creditsRefunded = 0n;
+    // Proportional clawback (F4): reverse the refunded IDR fraction of the
+    // order's AI credits inside one transaction. Entitlement (subscription /
+    // plan limits) is kept — only the unspent credit portion is reversed.
+    if (gross != null && gross > 0) {
+      await db.$transaction(async (tx) => {
+        const result = await refundAiOrderPartial(tx, {
+          workspaceId: order.workspaceId,
+          orderId: order.id,
+          refundAmountIdr: gross,
+          orderTotalIdr: order.totalIdr,
+          transactionId: payment?.transactionId ?? null,
+          now,
+        });
+        creditsRefunded = result.creditsRefunded;
+      });
+    }
+    // Keep entitlement; OrderStatus has no partial_refunded value.
     if (order.status === "paid" || order.status === "refunded") {
       await db.subscriptionOrder.update({
         where: { id: order.id },
@@ -465,6 +484,9 @@ export async function applyPaidOrder(orderCode: string, payment?: {
       metadata: {
         paymentType: payment?.paymentType || null,
         transactionId: payment?.transactionId || null,
+        refundAmountIdr: gross ?? null,
+        orderTotalIdr: order.totalIdr,
+        creditsRefunded: creditsRefunded.toString(),
         entitlementRevoked: false,
         priorStatus: order.status,
       },

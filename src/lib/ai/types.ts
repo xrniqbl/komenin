@@ -52,6 +52,12 @@ export type AiChatResult = {
   }>;
 };
 
+/** Token usage as reported by the provider (F4: real usage metering). */
+export type AiTokenUsage = {
+  inputTokens: number;
+  outputTokens: number;
+};
+
 export type AiRouterStatus = {
   enabled: boolean;
   providerCount: number;

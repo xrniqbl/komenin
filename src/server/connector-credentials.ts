@@ -69,6 +69,28 @@ export async function listConnectorCredentials(provider?: string) {
   return rows.map(toSummary);
 }
 
+const OFFICIAL_API_BASE_ALLOWLIST = [
+  "graph.facebook.com",
+  "graph.threads.net",
+  "graph.instagram.com",
+  "open.tiktokapis.com",
+  "open-api.tiktok.com",
+  "business-api.tiktok.com",
+] as const;
+
+/** Official API base hosts are pinned — no .local/.internal carve-outs. */
+export function isAllowedOfficialApiBaseUrl(raw: string): boolean {
+  let host = "";
+  try {
+    host = assertSafeOutboundUrl(raw).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return OFFICIAL_API_BASE_ALLOWLIST.some(
+    (allowed) => host === allowed || host.endsWith(`.${allowed}`),
+  );
+}
+
 async function upsertConnectorCredentialInternal(input: {
   userId: string;
   workspaceId: string;
@@ -99,29 +121,15 @@ async function upsertConnectorCredentialInternal(input: {
     if (!account) throw new Error("Social account not found");
   }
 
-  // Validate apiBaseUrl against safe outbound URL policy
+  // Validate apiBaseUrl against the pinned provider allowlist (SSRF guard).
   let validatedApiBaseUrl: string | null = null;
   if (input.apiBaseUrl?.trim()) {
-    try {
-      const url = assertSafeOutboundUrl(input.apiBaseUrl);
-      // Restrict to known provider hosts only
-      const allowedHosts = [
-        "graph.facebook.com",
-        "graph.tiktok.com",
-        "api.tiktok.com",
-        "open.tiktokapis.com",
-      ];
-      const host = url.hostname.toLowerCase();
-      const isAllowed = allowedHosts.some((h) => host.endsWith(h));
-      if (!isAllowed && !host.endsWith(".internal") && !host.endsWith(".local")) {
-        throw new UnsafeUrlError(
-          `API base URL hostname must be from an approved provider domain`,
-        );
-      }
-      validatedApiBaseUrl = url.toString();
-    } catch {
-      throw new UnsafeUrlError("Invalid or unsafe API base URL");
+    if (!isAllowedOfficialApiBaseUrl(input.apiBaseUrl)) {
+      throw new UnsafeUrlError(
+        "API base URL hostname must be from an approved provider domain",
+      );
     }
+    validatedApiBaseUrl = assertSafeOutboundUrl(input.apiBaseUrl).toString();
   }
 
   const data = {

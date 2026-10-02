@@ -69,6 +69,21 @@ export async function releaseContentCampaign(campaignId: string): Promise<void> 
   });
 }
 
+export async function claimMention(mentionId: string): Promise<boolean> {
+  const result = await db.mention.updateMany({
+    where: { id: mentionId, status: "new" },
+    data: { status: "generating" },
+  });
+  return result.count === 1;
+}
+
+export async function releaseMention(mentionId: string): Promise<void> {
+  await db.mention.updateMany({
+    where: { id: mentionId, status: "generating" },
+    data: { status: "new" },
+  });
+}
+
 /**
  * Recover work stranded in a transient claim state when its run is stale.
  * A claim older than maxAgeMs means the worker died (timeout/redeploy), so
@@ -78,7 +93,7 @@ export async function releaseStaleClaims(
   maxAgeMs = 10 * 60 * 1000,
 ): Promise<number> {
   const cutoff = new Date(Date.now() - maxAgeMs);
-  const [comments, posts, drafts, campaigns] = await Promise.all([
+  const [comments, posts, drafts, campaigns, mentions] = await Promise.all([
     db.commentAction.updateMany({
       where: { status: "sending", executedAt: null, updatedAt: { lt: cutoff } },
       data: { status: "scheduled" },
@@ -95,6 +110,10 @@ export async function releaseStaleClaims(
       where: { status: "generating", updatedAt: { lt: cutoff } },
       data: { status: "active" },
     }),
+    db.mention.updateMany({
+      where: { status: "generating", updatedAt: { lt: cutoff } },
+      data: { status: "new" },
+    }),
   ]);
-  return comments.count + posts.count + drafts.count + campaigns.count;
+  return comments.count + posts.count + drafts.count + campaigns.count + mentions.count;
 }

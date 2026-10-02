@@ -7,6 +7,11 @@ import type {
   ConnectorActionInput,
   ConnectorResult,
 } from "@/lib/connectors/types";
+import {
+  assertSafeOutboundUrl,
+  safeOutboundFetch,
+  UnsafeUrlError,
+} from "@/lib/url-safety";
 
 /**
  * Official adapters are capability-gated.
@@ -47,7 +52,25 @@ export async function runOfficialConnector(
   }
 
   try {
-    const response = await fetch(`${apiBase}/${input.action}`, {
+    // SSRF guard: a workspace-controlled apiBaseUrl must pass the same
+    // resolved-DNS policy as AI providers. assertSafeOutboundUrl is checked
+    // again here (defense in depth) because this value crosses a trust
+    // boundary from DB/env into an outbound fetch.
+    let validatedBase: string;
+    try {
+      validatedBase = assertSafeOutboundUrl(apiBase).toString().replace(/\/$/, "");
+    } catch (error) {
+      return {
+        ok: false,
+        mode: "live",
+        connector: "official",
+        message:
+          error instanceof UnsafeUrlError
+            ? `Official API base blocked: ${error.message}`
+            : "Official API base URL is not allowed",
+      };
+    }
+    const response = await safeOutboundFetch(`${validatedBase}/${input.action}`, {
       method: "POST",
       headers: {
         "content-type": "application/json",

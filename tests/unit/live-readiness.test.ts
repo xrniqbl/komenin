@@ -76,3 +76,64 @@ describe("evaluateLiveReadiness", () => {
     );
   });
 });
+
+describe("mention ingest readiness (F2)", () => {
+  const extraKeys = [
+    "INSTAGRAM_APP_SECRET",
+    "THREADS_APP_SECRET",
+    "TIKTOK_CLIENT_SECRET",
+    "INSTAGRAM_WEBHOOK_VERIFY_TOKEN",
+  ] as const;
+  const extraSnapshot: Record<string, string | undefined> = {};
+
+  function saveExtra() {
+    for (const key of extraKeys) extraSnapshot[key] = process.env[key];
+  }
+  function restoreExtra() {
+    for (const key of extraKeys) {
+      if (extraSnapshot[key] === undefined) delete process.env[key];
+      else process.env[key] = extraSnapshot[key];
+    }
+  }
+
+  saveExtra();
+  afterEach(restoreExtra);
+
+  it("warns when no mention ingest path is configured", () => {
+    process.env.SIMULATOR_MODE = "false";
+    process.env.SOCIAL_PUBLISH_WEBHOOK_URL = "https://bridge.example/hooks/aether";
+    process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN = "super-secret-token-value";
+    for (const key of extraKeys) delete process.env[key];
+    const result = evaluateLiveReadiness();
+    expect(
+      result.warnings.some((w) => w.includes("mention ingest path")),
+    ).toBe(true);
+  });
+
+  it("does not warn about mention ingest when an app secret is set", () => {
+    process.env.SIMULATOR_MODE = "false";
+    process.env.SOCIAL_PUBLISH_WEBHOOK_URL = "https://bridge.example/hooks/aether";
+    process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN = "super-secret-token-value";
+    process.env.INSTAGRAM_APP_SECRET = "ig-app-secret";
+    process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN = "verify-me";
+    const result = evaluateLiveReadiness();
+    expect(
+      result.warnings.some((w) => w.includes("mention ingest path")),
+    ).toBe(false);
+    expect(
+      result.warnings.some((w) => w.includes("INSTAGRAM_WEBHOOK_VERIFY_TOKEN")),
+    ).toBe(false);
+  });
+
+  it("warns about the missing Meta verify token when only the app secret is set", () => {
+    process.env.SIMULATOR_MODE = "false";
+    process.env.SOCIAL_PUBLISH_WEBHOOK_URL = "https://bridge.example/hooks/aether";
+    process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN = "super-secret-token-value";
+    process.env.INSTAGRAM_APP_SECRET = "ig-app-secret";
+    delete process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN;
+    const result = evaluateLiveReadiness();
+    expect(
+      result.warnings.some((w) => w.includes("INSTAGRAM_WEBHOOK_VERIFY_TOKEN")),
+    ).toBe(true);
+  });
+});

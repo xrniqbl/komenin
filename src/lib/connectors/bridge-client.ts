@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { assertSafeOutboundUrl } from '../url-safety';
 import type { BridgeAction } from './bridge-contract';
 export type { BridgeAction } from './bridge-contract';
 
@@ -41,7 +42,22 @@ export class BridgeClient {
         },
       };
     }
-    const url = `${this.config.baseUrl}/bridge`;
+    // SSRF guard: liveUrl is operator-configured (BRIDGE_LIVE_URL). Validate
+    // the URL shape synchronously and refuse redirects at request time so a
+    // compromised bridge cannot bounce the app's bearer token elsewhere.
+    let validatedBase: string;
+    try {
+      validatedBase = assertSafeOutboundUrl(this.config.baseUrl).toString().replace(/\/$/, "");
+    } catch {
+      return {
+        status: 500,
+        body: {
+          ok: false,
+          error: 'BridgeClient baseUrl is not allowed',
+        },
+      };
+    }
+    const url = `${validatedBase}/bridge`;
 
     try {
       const response = await axios.post(url, {
@@ -51,6 +67,7 @@ export class BridgeClient {
         timestamp: Date.now()
       }, {
         timeout: this.config.timeout,
+        maxRedirects: 0,
         headers: {
           ...this.config.headers,
           ...(idempotencyKey ? { 'x-komenin-idempotency-key': idempotencyKey } : {})

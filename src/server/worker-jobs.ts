@@ -2,7 +2,7 @@
 import { dailyActionIncrementData, effectiveActionsToday } from "@/lib/account-quota";
 import { FREE_ENTITLEMENTS } from "@/lib/billing/entitlements";
 import { db } from "@/lib/db";
-import { generateContextualCommentHybrid } from "@/lib/comment-engine";
+import { generateContextualCommentHybrid, pickDelaySeconds } from "@/lib/comment-engine";
 import { executeSocialAction } from "@/lib/connectors/runtime";
 import { buildContentSchedule, generateContentPosts } from "@/lib/content-engine";
 import { publishSocialPost } from "@/lib/publish-connector";
@@ -14,6 +14,7 @@ import {
   claimCommentAction,
   claimContentCampaign,
   claimContentDraft,
+  claimMention,
   claimTargetPost,
   releaseStaleClaims,
 } from "@/lib/worker-claims";
@@ -22,6 +23,7 @@ import {
   rankChunks,
   tokenize,
 } from "@/lib/knowledge/retrieve";
+import { renderTemplate } from "@/lib/template-engine";
 import {
   ensureBuiltinSkills,
   matchSkillsForText,
@@ -34,6 +36,7 @@ export type WorkerJobName =
   | "listener.poll"
   | "comment.generate"
   | "comment.send"
+  | "mention.process"
   | "content.generate"
   | "content.publish"
   | "knowledge.ingest"
@@ -417,12 +420,26 @@ async function runListenerPolls(limit = 10): Promise<WorkerJobResult> {
   let created = 0;
   for (const listener of listeners) {
     try {
+    // Native Instagram hashtag discovery needs the platform-side account id
+    // (SocialAccount.externalId); resolve any active account on the platform.
+    const discoveryAccount = await db.socialAccount.findFirst({
+      where: {
+        workspaceId: listener.workspaceId,
+        platform: listener.platform,
+        status: { in: ["healthy", "degraded", "limited"] },
+        deletedAt: null,
+      },
+      select: { id: true, externalId: true, username: true },
+      orderBy: { createdAt: "asc" },
+    });
     const discovery = await executeSocialAction({
       action: "discoverPosts",
       workspaceId: listener.workspaceId,
       target: {
         platform: listener.platform,
-        username: "listener",
+        username: discoveryAccount?.username || "listener",
+        accountId: discoveryAccount?.id ?? null,
+        externalId: discoveryAccount?.externalId ?? null,
         workspaceId: listener.workspaceId,
       },
       payload: {
@@ -791,6 +808,93 @@ async function runCommentGenerate(limit = 20): Promise<WorkerJobResult> {
   };
 }
 
+/** Max total attempts per CommentAction (1 initial + retries). */
+export const MAX_COMMENT_SEND_ATTEMPTS = 3;
+/** Backoff ladder in minutes: retry 1 → 2m, retry 2 → 10m, retry 3 → 30m. */
+export const RETRY_DELAYS_MINUTES = [2, 10, 30];
+
+/**
+ * Backoff delay for the retry scheduled after an attempt whose pre-send
+ * attemptCount is `attemptCount` (0 before the first send). Indexed by the
+ * retry number (attemptCount), not attemptCount + 1, so retry 1 gets 2m and
+ * retry 2 gets 10m — matching the documented 2m → 10m → 30m ladder.
+ */
+export function retryDelayMinutesForAttempt(attemptCount: number): number {
+  return RETRY_DELAYS_MINUTES[attemptCount] ?? 30;
+}
+
+/**
+ * Whether a due send should be deferred for workspace quiet hours.
+ * quietHoursApply defaults to true (matching the AutoReplySettings column
+ * default) — only an explicit false disables the deferral.
+ */
+export function shouldDeferForQuietHours(input: {
+  inQuietHours: boolean;
+  quietHoursApply: boolean | undefined;
+}): boolean {
+  return input.inQuietHours && (input.quietHoursApply ?? true);
+}
+
+/**
+ * Transient send failures are retried with backoff; permanent rejections
+ * (policy/permission/not-found style) fail immediately.
+ */
+export function isRetryableSendFailure(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("timeout") ||
+    m.includes("timed out") ||
+    m.includes("rate limit") ||
+    m.includes("ratelimit") ||
+    m.includes("429") ||
+    m.includes("500") ||
+    m.includes("502") ||
+    m.includes("503") ||
+    m.includes("504") ||
+    m.includes("network") ||
+    m.includes("econn") ||
+    m.includes("socket") ||
+    m.includes("temporarily") ||
+    m.includes("unavailable") ||
+    m.includes("fetch failed") ||
+    m.includes("aborted")
+  );
+}
+
+/**
+ * Schedule a retry for a claimed CommentAction: bump attemptCount and push
+ * scheduledFor out by the backoff delay. Returns false when retries are
+ * exhausted (caller then marks the action failed). The claim (status=sending)
+ * is released back to scheduled only when a retry was actually scheduled.
+ */
+async function scheduleCommentActionRetry(
+  actionId: string,
+  reason: string,
+): Promise<boolean> {
+  const action = await db.commentAction.findUnique({
+    where: { id: actionId },
+    select: { attemptCount: true, status: true },
+  });
+  if (!action || action.status !== "sending") return false;
+  const nextAttempt = action.attemptCount + 1;
+  if (nextAttempt >= MAX_COMMENT_SEND_ATTEMPTS) return false;
+
+  const delayMin = retryDelayMinutesForAttempt(action.attemptCount);
+  await db.commentAction.update({
+    where: { id: actionId },
+    data: {
+      attemptCount: nextAttempt,
+      status: "scheduled",
+      scheduledFor: new Date(Date.now() + delayMin * 60 * 1000),
+      resultMessage: `Retry ${nextAttempt}/${MAX_COMMENT_SEND_ATTEMPTS - 1} in ${delayMin}m: ${reason}`.slice(
+        0,
+        500,
+      ),
+    },
+  });
+  return true;
+}
+
 async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
   const { runSendPreflight } = await import("@/lib/send-preflight");
   const due = await db.commentAction.findMany({
@@ -803,6 +907,7 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
       targetPost: true,
       socialAccount: true,
       campaign: true,
+      mention: true,
     },
     orderBy: { scheduledFor: "asc" },
     take: limit,
@@ -816,6 +921,7 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
     // deliver the same comment twice.
     const claimed = await claimCommentAction(action.id);
     if (!claimed) continue;
+    const attempt = action.attemptCount;
 
     const workspace = await db.workspace.findUnique({
       where: { id: action.workspaceId },
@@ -823,13 +929,26 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
 
     // Quiet hours: release the claim and leave the action scheduled so it is
     // retried once the window ends — never fail a send for being too early.
+    // The workspace's AutoReplySettings.quietHoursApply flag is honored: an
+    // explicit false disables the deferral (default true matches the column).
+    let quietHoursApply: boolean | undefined;
+    if (workspace) {
+      const autoReplySettings = await db.autoReplySettings.findUnique({
+        where: { workspaceId: action.workspaceId },
+        select: { quietHoursApply: true },
+      });
+      quietHoursApply = autoReplySettings?.quietHoursApply;
+    }
     if (
       workspace &&
-      isInQuietHours({
-        date: new Date(),
-        timeZone: workspace.timezone,
-        startHour: workspace.quietHoursStart,
-        endHour: workspace.quietHoursEnd,
+      shouldDeferForQuietHours({
+        inQuietHours: isInQuietHours({
+          date: new Date(),
+          timeZone: workspace.timezone,
+          startHour: workspace.quietHoursStart,
+          endHour: workspace.quietHoursEnd,
+        }),
+        quietHoursApply,
       })
     ) {
       await db.commentAction.updateMany({
@@ -887,9 +1006,17 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
         : Promise.resolve([]),
     ]);
 
+    // Mention replies share one anchor TargetPost per parent thread, so its
+    // content belongs to the FIRST mention on that thread. Risk-scan against
+    // the actual mention being replied to instead of the stale anchor.
+    const preflightPostContent =
+      action.source === "mention_reply" && action.mention
+        ? action.mention.content
+        : action.targetPost?.content;
+
     const preflight = runSendPreflight({
       body,
-      postContent: action.targetPost?.content,
+      postContent: preflightPostContent,
       customRules: riskRules,
       account: action.socialAccount
         ? {
@@ -963,6 +1090,8 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
     // AND leave this action claimed until the 10-min stale sweep).
     let result: Awaited<ReturnType<typeof executeSocialAction>>;
     try {
+      // Mention replies target the parent comment, not the anchor post.
+      const isMentionReply = action.source === "mention_reply" && action.replyToExternalId;
       result = await executeSocialAction({
         action: "sendComment",
         workspaceId: action.workspaceId,
@@ -974,9 +1103,13 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
         },
         payload: {
           body,
-          targetPostExternalId: action.targetPost.externalId,
+          targetPostExternalId: isMentionReply
+            ? action.replyToExternalId
+            : action.targetPost.externalId,
           targetPostUrl: action.targetPost.url,
-          authorHandle: action.targetPost.authorHandle,
+          authorHandle: isMentionReply
+            ? action.replyToAuthor || action.targetPost.authorHandle
+            : action.targetPost.authorHandle,
         },
         // Stable per-action key: if this process dies after the bridge accepted
         // the comment but before the result write, the stale-claim re-send
@@ -984,11 +1117,16 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
         idempotencyKey: `comment-action:${action.id}`,
       });
     } catch (error) {
+      // Connector throw = transient candidate: back off and retry instead of
+      // failing permanently on the first network blip.
       const message = error instanceof Error ? error.message : "Comment send error";
-      await db.commentAction.update({
-        where: { id: action.id },
-        data: { status: "failed", executedAt: new Date(), resultMessage: message },
-      });
+      const retried = await scheduleCommentActionRetry(action.id, message);
+      if (!retried) {
+        await db.commentAction.update({
+          where: { id: action.id },
+          data: { status: "failed", executedAt: new Date(), resultMessage: message },
+        });
+      }
       await db.deliveryLog.create({
         data: {
           workspaceId: action.workspaceId,
@@ -998,11 +1136,41 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
           mode: getRuntimeModeLabel(),
           ok: false,
           message,
-          payload: { stage: "execute_throw" } as Prisma.InputJsonValue,
+          payload: {
+            stage: "execute_throw",
+            attempt: attempt + 1,
+            willRetry: retried,
+          } as Prisma.InputJsonValue,
         },
       });
       failed += 1;
       continue;
+    }
+
+    if (!result.ok && isRetryableSendFailure(result.message)) {
+      // Transient provider failure: back off (exponential, capped) and retry
+      // up to MAX_COMMENT_SEND_ATTEMPTS before declaring the action failed.
+      const retried = await scheduleCommentActionRetry(action.id, result.message);
+      if (retried) {
+        await db.deliveryLog.create({
+          data: {
+            workspaceId: action.workspaceId,
+            socialAccountId: action.socialAccountId,
+            kind: "send_comment",
+            connector: result.connector,
+            mode: result.mode,
+            ok: false,
+            message: `Retry scheduled: ${result.message}`,
+            payload: {
+              stage: "retry_scheduled",
+              attempt: attempt + 1,
+              nextAttemptInMinutes: retryDelayMinutesForAttempt(attempt),
+            } as Prisma.InputJsonValue,
+          },
+        });
+        failed += 1;
+        continue;
+      }
     }
 
     await db.$transaction(async (tx) => {
@@ -1022,10 +1190,23 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
           data: { status: result.ok ? "sent" : "rejected" },
         });
       }
-      await tx.targetPost.update({
-        where: { id: action.targetPostId },
-        data: { status: result.ok ? "sent" : "failed" },
-      });
+      // Anchor posts are synthetic for mention replies — leave their status
+      // untouched (approved) so comment.generate never ingests them.
+      if (action.source !== "mention_reply") {
+        await tx.targetPost.update({
+          where: { id: action.targetPostId },
+          data: { status: result.ok ? "sent" : "failed" },
+        });
+      }
+      if (action.mentionId) {
+        await tx.mention.update({
+          where: { id: action.mentionId },
+          data: {
+            status: result.ok ? "sent" : "failed",
+            processedAt: new Date(),
+          },
+        });
+      }
       if (result.ok && action.socialAccountId && action.socialAccount) {
         await tx.socialAccount.update({
           where: { id: action.socialAccountId },
@@ -1073,6 +1254,413 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
     message: `Sent ${sent}, failed ${failed} (${blockedPreflight} preflight)`,
     count: sent,
     details: { failed, blockedPreflight, mode: getRuntimeModeLabel() },
+  };
+}
+
+/**
+ * Auto-reply pipeline for incoming mentions/comments on the workspace's own
+ * accounts. Per mention: resolve AutoReplySettings (disabled → ignored),
+ * count today's replies against maxRepliesPerDay, generate a contextual reply
+ * grounded in the mention text + agent knowledge, risk-scan, then either queue
+ * an Approval (approval_required) or schedule the CommentAction directly
+ * (auto). The send itself rides the normal comment.send job with
+ * source=mention_reply and replyToExternalId pointing at the parent comment.
+ */
+async function runMentionProcess(limit = 20): Promise<WorkerJobResult> {
+  const { runSendPreflight } = await import("@/lib/send-preflight");
+  const mentions = await db.mention.findMany({
+    where: { status: "new" },
+    include: { socialAccount: true },
+    orderBy: { receivedAt: "asc" },
+    take: limit,
+  });
+
+  let drafted = 0;
+  let autoScheduled = 0;
+  let skipped = 0;
+  let failed = 0;
+  let quotaFailed = 0;
+
+  for (const mention of mentions) {
+    // Atomic claim: overlapping ticks must not generate two replies.
+    const claimed = await claimMention(mention.id);
+    if (!claimed) continue;
+
+    try {
+      const settings = await db.autoReplySettings.findUnique({
+        where: { workspaceId: mention.workspaceId },
+      });
+      if (!settings || !settings.enabled) {
+        await db.mention.update({
+          where: { id: mention.id },
+          data: { status: "ignored", processedAt: new Date() },
+        });
+        skipped += 1;
+        continue;
+      }
+
+      const dayStart = new Date();
+      dayStart.setHours(0, 0, 0, 0);
+      const repliesToday = await db.commentAction.count({
+        where: {
+          workspaceId: mention.workspaceId,
+          source: "mention_reply",
+          createdAt: { gte: dayStart },
+        },
+      });
+      if (repliesToday >= settings.maxRepliesPerDay) {
+        await db.mention.update({
+          where: { id: mention.id },
+          data: { status: "ignored", processedAt: new Date() },
+        });
+        skipped += 1;
+        continue;
+      }
+
+      // Duplicate-reply guard: one reply per (account, mention comment). A
+      // re-sent webhook or a user repeating the same comment must not earn a
+      // second identical reply. The reply target is the mention's own
+      // externalId (the comment id), so this dedupes per parent comment.
+      if (mention.socialAccountId) {
+        const existingReply = await db.commentAction.findFirst({
+          where: {
+            workspaceId: mention.workspaceId,
+            socialAccountId: mention.socialAccountId,
+            source: "mention_reply",
+            replyToExternalId: mention.externalId,
+            status: { in: ["scheduled", "sending", "sent"] },
+          },
+          select: { id: true },
+        });
+        if (existingReply) {
+          await db.mention.update({
+            where: { id: mention.id },
+            data: { status: "ignored", processedAt: new Date() },
+          });
+          skipped += 1;
+          continue;
+        }
+      }
+
+      const agent = settings.agentId
+        ? await db.agent.findFirst({
+            where: { id: settings.agentId, workspaceId: mention.workspaceId },
+          })
+        : await db.agent.findFirst({
+            where: { workspaceId: mention.workspaceId, status: "active" },
+            orderBy: { createdAt: "asc" },
+          });
+      if (!agent) {
+        await db.mention.update({
+          where: { id: mention.id },
+          data: { status: "failed", processedAt: new Date() },
+        });
+        await createNotification({
+          workspaceId: mention.workspaceId,
+          title: "Auto-reply: belum ada agent",
+          body: "Pilih agent di Settings → Auto-Reply agar balasan komentar masuk bisa digenerate.",
+          href: "/app/mentions",
+        });
+        failed += 1;
+        continue;
+      }
+
+      const chunks = await db.knowledgeChunk.findMany({
+        where: {
+          workspaceId: mention.workspaceId,
+          document: {
+            status: "ready",
+            OR: [{ agentId: agent.id }, { agentId: null }],
+          },
+        },
+        take: 50,
+        orderBy: { createdAt: "desc" },
+      });
+      const ranked = rankChunks(
+        mention.content,
+        chunks.map((chunk) => ({ id: chunk.id, content: chunk.content })),
+        3,
+      );
+      const knowledgeContext = ranked.map((item) => item.content);
+
+      let generated: Awaited<ReturnType<typeof generateContextualCommentHybrid>>;
+      if (settings.templateText?.trim()) {
+        // Template mode (F3): static reply template overrides AI generation —
+        // deterministic, zero-credit, still risk-scanned below like any draft.
+        const template = settings.templateText.trim();
+        const content = renderTemplate(template, {
+          authorHandle: mention.authorHandle,
+          platform: mention.platform,
+          postSnippet: mention.content.slice(0, 140),
+          agentName: agent.name,
+          topic: mention.parentContent?.slice(0, 140) || null,
+        });
+        generated = {
+          content,
+          model: "template",
+          providerId: "template",
+          riskFlags: ["template_reply"],
+          blocked: false,
+          source: "template",
+        };
+      } else {
+        try {
+          generated = await generateContextualCommentHybrid({
+            postContent: mention.content,
+            authorHandle: mention.authorHandle,
+            platform: mention.platform,
+            language: agent.language,
+            tone: agent.tone,
+            systemPrompt: agent.systemPrompt,
+            agentName: agent.name,
+            knowledgeContext,
+            workspaceId: mention.workspaceId,
+            preferredProviderId: agent.aiProviderId,
+            preferredModel: agent.model,
+            temperature: agent.temperature,
+            maxTokens: agent.maxTokens,
+            style: agent.style,
+            formality: agent.formality,
+            emojiPolicy: agent.emojiPolicy,
+            ctaStyle: agent.ctaStyle,
+            maxSentences: agent.maxSentences,
+            bannedTopics: agent.bannedTopics,
+            mustInclude: agent.mustInclude,
+          });
+        } catch (error) {
+          const { AiQuotaExceededError, AiModelNotAllowedError } = await import(
+            "@/lib/ai/router"
+          );
+          const message = error instanceof Error ? error.message : "Mention reply generation error";
+          await db.mention.update({
+            where: { id: mention.id },
+            data: { status: "failed", processedAt: new Date() },
+          });
+          if (
+            error instanceof AiQuotaExceededError ||
+            error instanceof AiModelNotAllowedError
+          ) {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const already = await db.notification.findFirst({
+              where: {
+                workspaceId: mention.workspaceId,
+                title: { contains: "AI quota" },
+                createdAt: { gte: todayStart },
+              },
+              select: { id: true },
+            });
+            if (!already) {
+              await createNotification({
+                workspaceId: mention.workspaceId,
+                title: "AI quota habis — auto-reply dijeda",
+                body: `${error.message} Tambahkan API key sendiri, upgrade tier, atau beli kredit pay-as-you-go di Settings → AI.`,
+                href: "/app/settings/ai",
+              });
+            }
+          }
+          await db.deliveryLog.create({
+            data: {
+              workspaceId: mention.workspaceId,
+              socialAccountId: mention.socialAccountId,
+              kind: "mention_ingest",
+              connector: "comment_engine",
+              mode: getRuntimeModeLabel(),
+              ok: false,
+              message,
+              payload: { stage: "mention_generate_throw", mentionId: mention.id } as Prisma.InputJsonValue,
+            },
+          });
+          quotaFailed += 1;
+          continue;
+        }
+      }
+
+      // Pre-send risk gate before committing the draft/action. Hard-blocked
+      // content is parked in approval regardless of mode — never auto-sent.
+      const riskRules = await db.riskRule.findMany({
+        where: { workspaceId: mention.workspaceId, isActive: true },
+        select: { type: true, pattern: true, severity: true },
+        take: 100,
+      });
+      const preflight = runSendPreflight({
+        body: generated.content,
+        postContent: mention.content,
+        customRules: riskRules,
+        account: mention.socialAccount
+          ? {
+              status: mention.socialAccount.status,
+              healthScore: mention.socialAccount.healthScore,
+              actionsToday: effectiveActionsToday(mention.socialAccount),
+              dailyQuota: mention.socialAccount.dailyQuota,
+            }
+          : null,
+        recentBodies: [],
+        monthly: null,
+      });
+      const hardBlocked = preflight.blocked || generated.blocked;
+
+      // CommentDraft/Approval/CommentAction all key off TargetPost. A mention
+      // replies to a parent comment whose parent post is external, so anchor
+      // the pipeline on a synthetic TargetPost row representing that parent.
+      // It is created "approved" so comment.generate never picks it up.
+      const parentExternalId = mention.parentExternalId || mention.externalId;
+      const anchorPost = await db.targetPost.upsert({
+        where: {
+          workspaceId_platform_externalId: {
+            workspaceId: mention.workspaceId,
+            platform: mention.platform,
+            externalId: parentExternalId,
+          },
+        },
+        create: {
+          workspaceId: mention.workspaceId,
+          platform: mention.platform,
+          externalId: parentExternalId,
+          authorHandle: mention.authorHandle,
+          content: mention.parentContent || mention.content,
+          url: mention.url,
+          status: "approved",
+        },
+        update: {},
+        select: { id: true },
+      });
+
+      let skippedLocked = false;
+      await db.$transaction(async (tx) => {
+        // Serialize auto-reply scheduling per workspace on its settings row.
+        // Concurrent mention.process ticks (dedicated cron + worker.tick) both
+        // passed the pre-check count above; under the row lock the count is
+        // re-read against committed rows, so the second tick sees the first
+        // tick's action and stops at maxRepliesPerDay instead of exceeding it.
+        await tx.$executeRaw`SELECT id FROM "AutoReplySettings" WHERE id = ${settings.id} FOR UPDATE`;
+        const lockedRepliesToday = await tx.commentAction.count({
+          where: {
+            workspaceId: mention.workspaceId,
+            source: "mention_reply",
+            createdAt: { gte: dayStart },
+          },
+        });
+        if (lockedRepliesToday >= settings.maxRepliesPerDay) {
+          await tx.mention.update({
+            where: { id: mention.id },
+            data: { status: "ignored", processedAt: new Date() },
+          });
+          skippedLocked = true;
+          return;
+        }
+
+        const draft = await tx.commentDraft.create({
+          data: {
+            workspaceId: mention.workspaceId,
+            targetPostId: anchorPost.id,
+            agentId: agent.id,
+            content: generated.content,
+            status: "pending",
+            model: generated.model,
+            providerId: generated.providerId,
+            riskFlags: [
+              ...generated.riskFlags,
+              ...(preflight.risk.flags.length ? preflight.risk.flags : []),
+              ...(ranked.length ? ["knowledge_grounded"] : []),
+            ],
+            mentionId: mention.id,
+          },
+        });
+
+        if (settings.mode === "auto" && !hardBlocked && mention.socialAccountId) {
+          // Auto mode: skip approval, schedule the reply with a human-like
+          // delay. The send itself rides comment.send like any other action.
+          const delay = pickDelaySeconds(45, 180);
+          await tx.commentAction.create({
+            data: {
+              workspaceId: mention.workspaceId,
+              targetPostId: anchorPost.id,
+              commentDraftId: draft.id,
+              socialAccountId: mention.socialAccountId,
+              status: "scheduled",
+              scheduledFor: new Date(Date.now() + delay * 1000),
+              resultMessage: `Auto-reply scheduled with ${delay}s human-like delay`,
+          source: "mention_reply",
+          replyToExternalId: mention.externalId,
+          replyToAuthor: mention.authorHandle,
+          mentionId: mention.id,
+            },
+          });
+          await tx.mention.update({
+            where: { id: mention.id },
+            data: { status: "approved", processedAt: new Date() },
+          });
+        } else {
+          // approval_required mode, hard-blocked content (never auto-sent), or
+          // auto mode without an owning account → operator review.
+          await tx.approval.create({
+            data: {
+              workspaceId: mention.workspaceId,
+              targetPostId: anchorPost.id,
+              commentDraftId: draft.id,
+              status: "pending",
+            },
+          });
+          await tx.mention.update({
+            where: { id: mention.id },
+            data: { status: "drafted", processedAt: new Date() },
+          });
+        }
+      });
+
+      if (skippedLocked) {
+        // Quota was exhausted by a concurrent tick between the pre-check and
+        // the locked re-count — the mention is already marked ignored.
+        skipped += 1;
+        continue;
+      }
+
+      await bumpUsage(mention.workspaceId, "generates", 1);
+      if (settings.mode === "auto" && !hardBlocked && mention.socialAccountId) {
+        autoScheduled += 1;
+      } else {
+        drafted += 1;
+        await createNotification({
+          workspaceId: mention.workspaceId,
+          title: "Balasan komentar siap review",
+          body: `${mention.content.slice(0, 140)}`,
+          href: "/app/mentions",
+        });
+      }
+    } catch (error) {
+      // Isolate per-mention failures so one bad row cannot stall the batch.
+      const message = error instanceof Error ? error.message : "Mention process error";
+      await db.mention
+        .update({
+          where: { id: mention.id, status: "generating" },
+          data: { status: "failed", processedAt: new Date() },
+        })
+        .catch(() => undefined);
+      await db.deliveryLog
+        .create({
+          data: {
+            workspaceId: mention.workspaceId,
+            socialAccountId: mention.socialAccountId,
+            kind: "mention_ingest",
+            connector: "mention_pipeline",
+            mode: getRuntimeModeLabel(),
+            ok: false,
+            message,
+            payload: { stage: "mention_process_throw", mentionId: mention.id } as Prisma.InputJsonValue,
+          },
+        })
+        .catch(() => undefined);
+      failed += 1;
+    }
+  }
+
+  return {
+    job: "mention.process",
+    ok: failed === 0,
+    message: `Mentions: ${drafted} drafted, ${autoScheduled} auto-scheduled, ${skipped} skipped, ${failed} failed${quotaFailed ? `, ${quotaFailed} failed:quota` : ""}`,
+    count: drafted + autoScheduled,
+    details: { drafted, autoScheduled, skipped, failed, quotaFailed },
   };
 }
 
@@ -1800,6 +2388,9 @@ export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult>
       case "comment.send":
         result = await runCommentSend();
         break;
+      case "mention.process":
+        result = await runMentionProcess();
+        break;
       case "content.generate":
         result = await runContentGenerate();
         break;
@@ -1837,6 +2428,9 @@ export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult>
         // Recover work stranded in a transient claim state from a crashed or
         // timed-out previous tick before fanning out.
         await releaseStaleClaims().catch(() => 0);
+        // mention.process intentionally NOT in this fan-out: the dedicated
+        // cron (?job=mention.process, */5) runs it — running it here too would
+        // make two same-cadence invocations race over the same mention batch.
         const settled = await Promise.allSettled([
           runSessionHealthChecks(),
           runProxyRotate(),
@@ -1907,6 +2501,7 @@ export const WORKER_JOBS: WorkerJobName[] = [
   "listener.poll",
   "comment.generate",
   "comment.send",
+  "mention.process",
   "content.generate",
   "content.publish",
   "knowledge.ingest",

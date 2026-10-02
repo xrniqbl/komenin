@@ -82,7 +82,24 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         if (existing?.suspendedAt) return null;
 
         const result = await verifyEmailOtp(email, code);
-        if (!result.ok) return null;
+        if (!result.ok) {
+          // Security signal without PII: the workspace is unknown pre-login, so
+          // this row is workspace-less by design. Throttled by the OTP attempt
+          // cap (5/code) plus the per-IP/per-email route limits.
+          try {
+            const { db: auditDb } = await import("@/lib/db");
+            await auditDb.auditLog.create({
+              data: {
+                action: "auth.otp.verify_failed",
+                resourceType: "user",
+                metadata: { reason: result.reason },
+              },
+            });
+          } catch {
+            // Audit must never block authentication.
+          }
+          return null;
+        }
 
         // Auto-create the account on first successful verify (mirrors the
         // Google OAuth first-sign-in path; the workspace is created later in

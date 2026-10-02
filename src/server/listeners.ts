@@ -68,12 +68,26 @@ export async function pollListener(listenerId: string) {
   if (!listener) throw new Error("Listener not found");
 
   const mode = getRuntimeModeLabel();
+  // Native Instagram hashtag discovery needs the platform-side account id
+  // (SocialAccount.externalId); resolve any active account on the platform.
+  const discoveryAccount = await db.socialAccount.findFirst({
+    where: {
+      workspaceId: workspace.id,
+      platform: listener.platform,
+      status: { in: ["healthy", "degraded", "limited"] },
+      deletedAt: null,
+    },
+    select: { id: true, externalId: true, username: true },
+    orderBy: { createdAt: "asc" },
+  });
   const discovery = await executeSocialAction({
     action: "discoverPosts",
     workspaceId: workspace.id,
     target: {
       platform: listener.platform,
-      username: "listener",
+      username: discoveryAccount?.username || "listener",
+      accountId: discoveryAccount?.id ?? null,
+      externalId: discoveryAccount?.externalId ?? null,
       workspaceId: workspace.id,
     },
     payload: {

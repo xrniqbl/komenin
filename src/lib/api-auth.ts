@@ -52,7 +52,7 @@ export async function authenticateApiKey(req: NextRequest): Promise<AuthResult |
 }
 
 export function hasScope(scopes: string[], required: ApiScope): boolean {
-  return scopes.includes(required) || scopes.includes("*");
+  return scopes.includes(required);
 }
 
 export function requireScope(scopes: string[], required: ApiScope): { ok: true } | { ok: false; error: string } {

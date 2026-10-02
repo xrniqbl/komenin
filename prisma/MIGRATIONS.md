@@ -42,3 +42,10 @@ after committing migration folders under `prisma/migrations/`.
 - Do **not** rely on `db:push` for shared environments.
 - Keep `prisma/schema.prisma` as source of truth.
 - Review generated SQL before applying to production.
+
+## 20260923100000_mention_auto_reply
+
+Mention ingest + auto-reply pipeline (Mention, AutoReplySettings, CommentSource,
+MentionStatus, CommentAction/CommentDraft.mentionId, DeliveryKind.mention_ingest).
+Webhook route: /api/connectors/webhooks/[platform]. Cron: mention.process */5.
+Deploy: `prisma migrate deploy`, lalu verifikasi cron mention.process 200.

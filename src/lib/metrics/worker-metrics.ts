@@ -9,6 +9,43 @@ export interface JobStats {
   status: 'success' | 'failed' | 'cancelled';
 }
 
+/**
+ * Bounded label values for the worker.jobs.errors metric. Raw error messages
+ * must never become metric labels — each variation would create a new
+ * time-series (unbounded cardinality).
+ */
+export type WorkerErrorType =
+  | 'quota'
+  | 'preflight'
+  | 'connector'
+  | 'billing'
+  | 'auth'
+  | 'unknown';
+
+/** Bucket a free-form job failure message into a bounded error_type label. */
+export function classifyWorkerError(message: string): WorkerErrorType {
+  const m = message.toLowerCase();
+  if (m.includes('quota') || m.includes('limit')) return 'quota';
+  if (m.includes('preflight') || m.includes('blocked')) return 'preflight';
+  if (m.includes('billing') || m.includes('payment') || m.includes('refund')) {
+    return 'billing';
+  }
+  if (m.includes('unauthorized') || m.includes('auth') || m.includes('token')) {
+    return 'auth';
+  }
+  if (
+    m.includes('connector') ||
+    m.includes('fetch') ||
+    m.includes('network') ||
+    m.includes('timeout') ||
+    m.includes('503') ||
+    m.includes('failed')
+  ) {
+    return 'connector';
+  }
+  return 'unknown';
+}
+
 export class WorkerMetrics {
   // Track job execution counts
   private jobCounts = new Map<string, {
@@ -32,7 +69,8 @@ export class WorkerMetrics {
   }
 
   /**
-   * Record failed job execution
+   * Record failed job execution. `errorType` accepts a raw message and is
+   * classified into a bounded label before export.
    */
   onJobFailure(jobName: string, durationMs: number, errorType: string) {
     this.trackJob(jobName, 'failed', durationMs);
@@ -44,7 +82,7 @@ export class WorkerMetrics {
 
     this.exportToMonitoring('worker.jobs.errors', {
       job_name: jobName,
-      error_type: errorType,
+      error_type: classifyWorkerError(errorType),
     }, 1);
 
     console.error(`[WORKER] ✗ ${jobName} failed after ${durationMs}ms - ${errorType}`);
@@ -124,4 +162,14 @@ export class WorkerMetrics {
   reset() {
     this.jobCounts.clear();
   }
+}
+
+/** Shared singleton so every cron invocation reports into one collector. */
+let sharedWorkerMetrics: WorkerMetrics | null = null;
+
+export function getWorkerMetrics(): WorkerMetrics {
+  if (!sharedWorkerMetrics) {
+    sharedWorkerMetrics = new WorkerMetrics();
+  }
+  return sharedWorkerMetrics;
 }

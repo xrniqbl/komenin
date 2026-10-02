@@ -74,6 +74,7 @@ vi.mock("@/lib/db", () => {
 import {
   resolveAiBilling,
   recordAiUsage,
+  refundAiOrderPartial,
   tierAllowsPaygFallback,
   tierFromPlanCode,
 } from "@/lib/ai/billing";
@@ -352,5 +353,141 @@ describe("recordAiUsage", () => {
     });
     const event = mocked.__usageCreate.mock.calls[0][0];
     expect(event.data.usageSource).toBe("estimated");
+  });
+});
+
+describe("refundAiOrderPartial", () => {
+  async function callPartial(
+    tx: unknown,
+    over: Partial<Parameters<typeof refundAiOrderPartial>[1]> = {},
+  ) {
+    return refundAiOrderPartial(tx as never, {
+      workspaceId: "ws_1",
+      orderId: "ord_1",
+      refundAmountIdr: 25_000,
+      orderTotalIdr: 100_000,
+      now: new Date(),
+      ...over,
+    });
+  }
+
+  function makeTx(behavior: {
+    grant?: unknown;
+    ledgerByOpId?: Record<string, unknown>;
+    unspent?: bigint;
+  }) {
+    const created: Array<Record<string, unknown>> = [];
+    const balanceUpserts: Array<Record<string, unknown>> = [];
+    const tx = {
+      aiCreditLedger: {
+        findUnique: vi.fn(async ({ where }: { where: { operationId: string } }) => {
+          const opId = where.operationId;
+          if (opId === "order:ord_1:grant") return behavior.grant ?? null;
+          return behavior.ledgerByOpId?.[opId] ?? null;
+        }),
+        findFirst: vi.fn(async ({ where }: { where: { operationId: string } }) => {
+          const opId = where.operationId;
+          if (opId === "order:ord_1:grant") return behavior.grant ?? null;
+          return behavior.ledgerByOpId?.[opId] ?? null;
+        }),
+        findMany: vi.fn(async ({ where }: { where: { kind: string } }) => {
+          // computeUnspentGrantPortion: grants + payg_use rows.
+          if (where.kind === "grant") {
+            return behavior.grant ? [behavior.grant] : [];
+          }
+          const unspent = behavior.unspent ?? 0n;
+          const grantCredits = BigInt(
+            (behavior.grant as { credits?: bigint } | undefined)?.credits ?? 0n,
+          );
+          const used = grantCredits - unspent;
+          return used > 0n ? [{ credits: -used, createdAt: new Date() }] : [];
+        }),
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+          created.push(data);
+          return { id: `led_${created.length}`, ...data };
+        }),
+      },
+      workspaceAiBalance: {
+        upsert: vi.fn(async (args: Record<string, unknown>) => {
+          balanceUpserts.push(args);
+          return {};
+        }),
+      },
+    };
+    return { tx, created, balanceUpserts };
+  }
+
+  const grant = { id: "led_grant", credits: 1_000n, createdAt: new Date() };
+
+  it("claws back the proportional unspent share and records it per event", async () => {
+    const { tx, created, balanceUpserts } = makeTx({ grant, unspent: 800n });
+    const result = await callPartial(tx, { refundAmountIdr: 25_000 });
+
+    expect(result.reversed).toBe(true);
+    // 25% of the 1000-credit grant = 250, within the 800 unspent.
+    expect(result.creditsRefunded).toBe(250n);
+    expect(created).toHaveLength(1);
+    expect(created[0].kind).toBe("refund");
+    expect(created[0].credits).toBe(-250n);
+    expect(balanceUpserts).toHaveLength(1);
+  });
+
+  it("claws back a second partial refund for the same order (no fixed idempotency key)", async () => {
+    // First partial (25%) already recorded — a second event for the same order
+    // must still claw back its own proportional share.
+    const { tx, created } = makeTx({
+      grant,
+      unspent: 800n,
+      ledgerByOpId: {
+        "order:ord_1:partial-refund": {
+          id: "led_prev",
+          kind: "refund",
+          credits: -250n,
+        },
+      },
+    });
+    const result = await callPartial(tx, { refundAmountIdr: 25_000 });
+
+    expect(result.reversed).toBe(true);
+    expect(result.creditsRefunded).toBe(250n);
+    expect(created).toHaveLength(1);
+    expect(created[0].credits).toBe(-250n);
+  });
+
+  it("skips when the full refund marker already exists (grant already reversed)", async () => {
+    const { tx, created, balanceUpserts } = makeTx({
+      grant,
+      unspent: 0n,
+      ledgerByOpId: {
+        "order:ord_1:refund": { id: "led_full", kind: "refund", credits: -1000n },
+      },
+    });
+    const result = await callPartial(tx, { refundAmountIdr: 25_000 });
+
+    expect(result.reversed).toBe(false);
+    expect(result.creditsRefunded).toBe(0n);
+    // No marker row either — a full refund already reconciled this order, so a
+    // late partial event must not add audit noise.
+    expect(created).toHaveLength(0);
+    expect(balanceUpserts).toHaveLength(0);
+  });
+
+  it("never claws back more than the still-unspent portion", async () => {
+    const { tx, created } = makeTx({ grant, unspent: 100n });
+    const result = await callPartial(tx, { refundAmountIdr: 50_000 });
+
+    // 50% of 1000 = 500 proportional, but only 100 remains unspent.
+    expect(result.creditsRefunded).toBe(100n);
+    expect(created[0].credits).toBe(-100n);
+  });
+
+  it("claws back at least 1 credit for any positive refunded fraction", async () => {
+    // Rp 1 of a Rp 100.000 order over a 1000-credit grant floors to 0 — the
+    // documented minimum-1 rule keeps tiny refunds from vanishing.
+    const { tx, created } = makeTx({ grant, unspent: 500n });
+    const result = await callPartial(tx, { refundAmountIdr: 1 });
+
+    expect(result.creditsRefunded).toBe(1n);
+    expect(created[0].credits).toBe(-1n);
   });
 });

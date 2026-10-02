@@ -1,11 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusPill } from "@/components/session-routing/status-pill";
 import { platformLabel, statusTone } from "@/lib/session-routing";
-import { getAccount, rotateAccountIp, runAccountHealthCheck } from "@/server/accounts";
+import {
+  deleteAccount,
+  getAccount,
+  rotateAccountIp,
+  runAccountHealthCheck,
+} from "@/server/accounts";
 import { ReimportSessionForm } from "@/components/accounts/reimport-session-form";
 
 export default async function AccountDetailPage({
@@ -16,6 +21,12 @@ export default async function AccountDetailPage({
   const { accountId } = await params;
   const account = await getAccount(accountId);
   if (!account) notFound();
+
+  async function disconnect() {
+    "use server";
+    await deleteAccount(accountId);
+    redirect("/app/accounts?notice=Account+disconnected");
+  }
 
   const proxy = account.proxyAssignments[0]?.proxyEndpoint;
   const activeSession = account.sessions[0];
@@ -81,6 +92,11 @@ export default async function AccountDetailPage({
               >
                 <Button variant="default" type="submit">
                   Rotate IP
+                </Button>
+              </form>
+              <form action={disconnect}>
+                <Button variant="destructive" type="submit">
+                  Disconnect account
                 </Button>
               </form>
             </div>

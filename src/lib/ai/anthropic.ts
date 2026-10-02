@@ -1,8 +1,12 @@
-import type { AiChatMessage, AiProviderConfig } from "@/lib/ai/types";
+import type { AiChatMessage, AiProviderConfig, AiTokenUsage } from "@/lib/ai/types";
 import { safeOutboundFetch } from "@/lib/url-safety";
 
 type AnthropicMessageResponse = {
   content?: Array<{ type?: string; text?: string }>;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+  };
   error?: { message?: string; type?: string };
 };
 
@@ -41,7 +45,7 @@ export async function chatCompletionsAnthropic(input: {
   messages: AiChatMessage[];
   temperature?: number;
   maxTokens?: number;
-}): Promise<string> {
+}): Promise<{ content: string; usage: AiTokenUsage | null }> {
   if (!input.provider.apiKey) {
     throw new Error("Anthropic API key required");
   }
@@ -88,7 +92,16 @@ export async function chatCompletionsAnthropic(input: {
       .join("")
       .trim();
     if (!text) throw new Error("Anthropic returned empty content");
-    return text;
+    // F4: Anthropic always reports usage in the messages response.
+    const usage =
+      Number.isFinite(payload.usage?.input_tokens) &&
+      Number.isFinite(payload.usage?.output_tokens)
+        ? {
+            inputTokens: Math.max(0, Math.ceil(payload.usage!.input_tokens!)),
+            outputTokens: Math.max(0, Math.ceil(payload.usage!.output_tokens!)),
+          }
+        : null;
+    return { content: text, usage };
   } finally {
     clearTimeout(timeout);
   }

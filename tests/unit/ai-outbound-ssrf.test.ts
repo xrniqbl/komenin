@@ -102,18 +102,23 @@ describe("AI outbound fetch hardening", () => {
   it("sends the bearer token to a safe public provider", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
-        JSON.stringify({ choices: [{ message: { content: "hello" } }] }),
+        JSON.stringify({
+          choices: [{ message: { content: "hello" } }],
+          usage: { prompt_tokens: 12, completion_tokens: 5 },
+        }),
         { status: 200 },
       ),
     );
 
-    const content = await chatCompletionsOpenAiCompatible({
+    const result = await chatCompletionsOpenAiCompatible({
       provider: provider("https://example-public.test/v1"),
       model: "m1",
       messages,
     });
 
-    expect(content).toBe("hello");
+    expect(result.content).toBe("hello");
+    // F4: real provider-reported usage is surfaced for metering.
+    expect(result.usage).toEqual({ inputTokens: 12, outputTokens: 5 });
     const init = fetchSpy.mock.calls[0][1] as RequestInit;
     const headers = init.headers as Record<string, string>;
     expect(headers.authorization).toBe("Bearer sk-test");

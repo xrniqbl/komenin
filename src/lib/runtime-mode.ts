@@ -74,6 +74,31 @@ export function evaluateLiveReadiness(): LiveReadiness {
   if (policy === "official_only" && !hasOfficialEnv) {
     warnings.push("official_only policy set but no official API base URL / access tokens are configured.");
   }
+  // Mention auto-reply ingestion readiness (F2): the webhook receiver fails
+  // closed without a platform app secret, so without one (and without official
+  // tokens for polling fallback) incoming mentions can never arrive.
+  const hasMentionIngestPath = Boolean(
+    process.env.INSTAGRAM_APP_SECRET?.trim() ||
+      process.env.THREADS_APP_SECRET?.trim() ||
+      process.env.TIKTOK_CLIENT_SECRET?.trim() ||
+      process.env.INSTAGRAM_ACCESS_TOKEN?.trim() ||
+      process.env.THREADS_ACCESS_TOKEN?.trim() ||
+      process.env.TIKTOK_ACCESS_TOKEN?.trim(),
+  );
+  if (!hasMentionIngestPath) {
+    warnings.push(
+      "No mention ingest path: set a platform app secret (INSTAGRAM_APP_SECRET / THREADS_APP_SECRET / TIKTOK_CLIENT_SECRET) for webhooks or official tokens for polling — otherwise incoming mentions never reach /app/mentions.",
+    );
+  }
+  if (
+    !process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN?.trim() &&
+    (process.env.INSTAGRAM_APP_SECRET?.trim() ||
+      process.env.THREADS_APP_SECRET?.trim())
+  ) {
+    warnings.push(
+      "INSTAGRAM_WEBHOOK_VERIFY_TOKEN is empty — the Meta subscription handshake accepts any hub.verify_token.",
+    );
+  }
   if (!process.env.WORKER_SECRET?.trim()) {
     warnings.push("WORKER_SECRET is empty — worker tick endpoints are unprotected.");
   }

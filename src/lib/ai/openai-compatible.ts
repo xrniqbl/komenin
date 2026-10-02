@@ -1,4 +1,4 @@
-import type { AiChatMessage, AiProviderConfig } from "@/lib/ai/types";
+import type { AiChatMessage, AiProviderConfig, AiTokenUsage } from "@/lib/ai/types";
 import { safeOutboundFetch } from "@/lib/url-safety";
 
 type ChatCompletionResponse = {
@@ -7,6 +7,10 @@ type ChatCompletionResponse = {
       content?: string | Array<{ type?: string; text?: string }>;
     };
   }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+  };
   error?: {
     message?: string;
   };
@@ -30,7 +34,7 @@ export async function chatCompletionsOpenAiCompatible(input: {
   messages: AiChatMessage[];
   temperature?: number;
   maxTokens?: number;
-}): Promise<string> {
+}): Promise<{ content: string; usage: AiTokenUsage | null }> {
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(),
@@ -72,7 +76,18 @@ export async function chatCompletionsOpenAiCompatible(input: {
     if (!content) {
       throw new Error("AI provider returned empty content");
     }
-    return content;
+    // F4: real token usage when the provider reports it (OpenAI-compatible
+    // `usage` block); null keeps the caller on the estimate path.
+    const promptTokens = Number(payload.usage?.prompt_tokens);
+    const completionTokens = Number(payload.usage?.completion_tokens);
+    const usage =
+      Number.isFinite(promptTokens) && Number.isFinite(completionTokens)
+        ? {
+            inputTokens: Math.max(0, Math.ceil(promptTokens)),
+            outputTokens: Math.max(0, Math.ceil(completionTokens)),
+          }
+        : null;
+    return { content, usage };
   } finally {
     clearTimeout(timeout);
   }

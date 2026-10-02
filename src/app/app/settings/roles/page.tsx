@@ -12,7 +12,7 @@ export default async function RolesPage() {
     <div>
       <PageHeader
         title="Custom Roles"
-        description="Create fine-grained roles by composing permissions. Assign to members via invite."
+        description="Create fine-grained roles by composing permissions. Assign to members via invite. A custom role replaces (not extends) the member's system permissions."
       />
       <RolesManager customRoles={customRoles} systemRoles={systemRoles} />
     </div>

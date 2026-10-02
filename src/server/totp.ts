@@ -13,23 +13,30 @@ import { writeAuditLog } from "@/server/audit";
  * Brute-force brake for every TOTP verify path. These are server actions, so
  * the /api/auth/* route limit never applies — without this, a 6-digit code
  * with a ±1 window has ~300 valid candidates and online guessing is feasible.
- * If the durable limiter errors, the per-instance memory fallback applies and
- * an error is logged for alerting (see consumeRateLimit).
+ *
+ * Server actions cannot trust client-controlled proxy headers, so the key is
+ * anchored on the user id. The raw IP chain is appended as a secondary suffix
+ * (best-effort, never trusted): it spreads the budget across NATs without
+ * letting X-Forwarded-For spoofing reset it, because the userId prefix alone
+ * already enforces the 5/5min cap per account.
  */
 async function enforceTotpAttemptLimit(userId: string): Promise<void> {
-  let ip = "unknown";
+  let ipSuffix = "unknown";
   try {
     const h = await headers();
-    ip =
-      h.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
-      h.get("cf-connecting-ip")?.trim() ||
-      h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      "unknown";
+    const chain = [
+      h.get("x-vercel-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
+      h.get("cf-connecting-ip") ? [h.get("cf-connecting-ip")!.trim()] : [],
+      h.get("x-forwarded-for")?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
+    ].flat();
+    // Prefer the right-most (last-proxy-added) hop; attacker-controlled
+    // left-most entries are never used alone.
+    ipSuffix = chain.length > 0 ? chain[chain.length - 1] : "unknown";
   } catch {
     // headers() unavailable (e.g. unusual runtime) — key on user only.
   }
   const result = await consumeRateLimit({
-    key: `totp-verify:${userId}:${ip}`,
+    key: `totp-verify:${userId}:${ipSuffix}`,
     limit: 5,
     windowMs: 5 * 60_000,
     failClosed: true,

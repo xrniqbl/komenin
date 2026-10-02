@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getEnv } from "@/lib/env";
+import { getWorkerMetrics } from "@/lib/metrics/worker-metrics";
 import { isProductionRuntime, safeEqual } from "@/lib/security";
 import { runWorkerJob, type WorkerJobName, WORKER_JOBS } from "@/server/worker-jobs";
 import { writeAuditLog } from "@/server/audit";
@@ -56,7 +57,15 @@ export async function GET(request: Request) {
     );
   }
 
+  const startedAt = Date.now();
   const result = await runWorkerJob(job);
+  // F4: record job duration/success so failure-rate alerts actually fire.
+  const metrics = getWorkerMetrics();
+  if (result.ok) {
+    metrics.onJobComplete(job, Date.now() - startedAt);
+  } else {
+    metrics.onJobFailure(job, Date.now() - startedAt, result.message.slice(0, 80));
+  }
 
   await writeAuditLog({
     action: `worker.cron.${job}`,

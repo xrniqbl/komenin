@@ -80,10 +80,14 @@ export async function verifyEmailOtp(email: string, code: string): Promise<Verif
     timingSafeEqual(Buffer.from(candidate), Buffer.from(token.codeHash));
 
   if (!match) {
-    await db.emailOtpToken.update({
-      where: { id: token.id },
+    // Atomic guard: only increment while attempts < MAX_ATTEMPTS. Concurrent
+    // mismatches race on updateMany — exactly one batch wins the last slot
+    // and the losers observe count === 0, which also locks the code.
+    const bumped = await db.emailOtpToken.updateMany({
+      where: { id: token.id, consumedAt: null, attempts: { lt: MAX_ATTEMPTS } },
       data: { attempts: { increment: 1 } },
     });
+    if (bumped.count === 0) return { ok: false, reason: "locked" };
     return { ok: false, reason: "mismatch" };
   }
 

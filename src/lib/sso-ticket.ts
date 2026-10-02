@@ -1,5 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
+import { isProductionRuntime } from "@/lib/security";
+
 export type SsoTicketPayload = {
   userId: string;
   workspaceId: string;
@@ -9,8 +11,17 @@ export type SsoTicketPayload = {
 };
 
 function ticketSecret(): string {
+  // Dedicated secret in production — falling back to AUTH_SECRET during a
+  // rotation would invalidate every in-flight SSO handshake, so the fallback
+  // is dev-only and production boot fails loudly.
+  const dedicated = process.env.SSO_TICKET_SECRET?.trim();
+  if (dedicated) return dedicated;
+  if (isProductionRuntime()) {
+    throw new Error(
+      "SSO_TICKET_SECRET is required in production (no AUTH_SECRET fallback)",
+    );
+  }
   return (
-    process.env.SSO_TICKET_SECRET?.trim() ||
     process.env.AUTH_SECRET?.trim() ||
     process.env.ENCRYPTION_KEY?.trim() ||
     ""

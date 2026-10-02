@@ -32,26 +32,26 @@ enum WorkspaceStatus {
 }
 
 model User {
-  id            String       @id @default(cuid())
-  name          String?
-  email         String       @unique
-  emailVerified DateTime?
-  image         String?
-  googleSub     String?      @unique
-  platformRole  PlatformRole @default(user)
-  lastLoginAt   DateTime?
+  id               String       @id @default(cuid())
+  name             String?
+  email            String       @unique
+  emailVerified    DateTime?
+  image            String?
+  googleSub        String?      @unique
+  platformRole     PlatformRole @default(user)
+  lastLoginAt      DateTime?
   // TOTP 2FA — secret is AES-256-GCM encrypted (lib/encryption), null when never enrolled.
-  totpSecretEnc String?
-  totpEnabledAt DateTime?
+  totpSecretEnc    String?
+  totpEnabledAt    DateTime?
   // Replay protection: the last successfully verified counter step (30s units).
   // A verify whose step is <= this value is a reused code and is rejected.
   totpLastUsedStep Int?
   // Platform-level suspension — set from /admin/users; blocks new logins and
   // ends existing sessions via the jwt revocation check.
-  suspendedAt     DateTime?
-  suspendedReason String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  suspendedAt      DateTime?
+  suspendedReason  String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   accounts           Account[]
   sessions           Session[]
@@ -168,6 +168,8 @@ model Workspace {
   webhookEndpoints      WebhookEndpoint[]
   connectorCredentials  ConnectorCredential[]
   deliveryLogs          DeliveryLog[]
+  mentions              Mention[]
+  autoReplySettings     AutoReplySettings?
   jobRuns               JobRun[]
   notifications         Notification[]
   digestMarkers         DigestMarker[]
@@ -338,6 +340,7 @@ model SocialAccount {
   contentDrafts        ContentDraft[]
   connectorCredentials ConnectorCredential[]
   deliveryLogs         DeliveryLog[]
+  mentions             Mention[]
 
   @@unique([workspaceId, platform, username])
   @@index([workspaceId, status])
@@ -521,6 +524,7 @@ model Agent {
   memoryEntries      MemoryEntry[]
   skillRuns          SkillRun[]
   riskRules          RiskRule[]
+  autoReplySettings  AutoReplySettings[]
 
   @@index([workspaceId, status])
   @@index([aiProviderId])
@@ -781,6 +785,7 @@ model CommentDraft {
   providerId   String?
   model        String?
   riskFlags    String[]
+  mentionId    String?     @unique
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -788,6 +793,7 @@ model CommentDraft {
   campaign   Campaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   targetPost TargetPost     @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
   agent      Agent?         @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  mention    Mention?       @relation(fields: [mentionId], references: [id], onDelete: SetNull)
   approval   Approval?
   action     CommentAction?
 
@@ -814,27 +820,103 @@ model Approval {
   @@index([workspaceId, status, createdAt(sort: Desc)])
 }
 
+enum CommentSource {
+  target_post
+  mention_reply
+}
+
 model CommentAction {
-  id              String    @id @default(cuid())
-  workspaceId     String
-  campaignId      String?
-  targetPostId    String
-  commentDraftId  String?   @unique
-  socialAccountId String?
-  status          String
-  resultMessage   String?
-  scheduledFor    DateTime?
-  executedAt      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                String        @id @default(cuid())
+  workspaceId       String
+  campaignId        String?
+  targetPostId      String
+  commentDraftId    String?       @unique
+  socialAccountId   String?
+  status            String
+  resultMessage     String?
+  scheduledFor      DateTime?
+  executedAt        DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  /// Set when this action is a reply to an incoming comment/mention rather
+  /// than a comment on a discovered target post.
+  source            CommentSource @default(target_post)
+  replyToExternalId String?
+  replyToAuthor     String?
+  mentionId         String?       @unique
+  attemptCount      Int           @default(0)
 
   workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   campaign      Campaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   targetPost    TargetPost     @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
   commentDraft  CommentDraft?  @relation(fields: [commentDraftId], references: [id], onDelete: SetNull)
   socialAccount SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  mention       Mention?       @relation(fields: [mentionId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([workspaceId, status, scheduledFor])
+}
+
+enum MentionStatus {
+  new
+  generating
+  drafted
+  approved
+  sent
+  ignored
+  failed
+}
+
+/// Incoming comment/mention/reply on the workspace's own social accounts,
+/// ingested via platform webhooks or polling (discovery), then fed into the
+/// auto-reply pipeline.
+model Mention {
+  id               String        @id @default(cuid())
+  workspaceId      String
+  platform         Platform
+  socialAccountId  String?
+  externalId       String
+  /// externalId of the parent post/comment being replied to
+  parentExternalId String
+  parentContent    String        @db.Text
+  authorHandle     String
+  content          String        @db.Text
+  url              String?
+  status           MentionStatus @default(new)
+  /// Raw webhook/ingest payload for debugging (delivery webhook style)
+  rawPayload       Json?
+  receivedAt       DateTime      @default(now())
+  processedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+  draft         CommentDraft?
+  action        CommentAction?
+
+  @@unique([workspaceId, platform, externalId])
+  @@index([workspaceId, status, receivedAt(sort: Desc)])
+  @@index([socialAccountId, receivedAt(sort: Desc)])
+}
+
+/// Per-workspace auto-reply configuration for incoming mentions.
+model AutoReplySettings {
+  id               String   @id @default(cuid())
+  workspaceId      String   @unique
+  enabled          Boolean  @default(false)
+  agentId          String?
+  mode             String   @default("approval_required")
+  maxRepliesPerDay Int      @default(20)
+  quietHoursApply  Boolean  @default(true)
+  /// Optional reply template ("Balas {{authorHandle}} pakai {{template}}").
+  /// When set it overrides AI generation; variables render via renderTemplate.
+  templateText     String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent     Agent?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
 }
 
 enum ContentIntervalUnit {
@@ -940,6 +1022,7 @@ enum DeliveryKind {
   health_probe
   rotate_proxy
   send_comment_preflight
+  mention_ingest
 }
 
 enum LeadStatus {

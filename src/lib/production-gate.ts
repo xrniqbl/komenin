@@ -1,4 +1,5 @@
 import { getEnv } from "@/lib/env";
+import { isEncryptionRotationStaged } from "@/lib/encryption";
 import { isProductionRuntime } from "@/lib/security";
 
 export type ProductionGateResult = {
@@ -117,13 +118,30 @@ export function evaluateProductionGate(): ProductionGateResult {
   }
 
   if (!process.env.OAUTH_STATE_SECRET?.trim()) {
-    warnings.push(
-      "OAUTH_STATE_SECRET unset — OAuth state MAC falls back to AUTH_SECRET/ENCRYPTION_KEY (rotate carefully)",
+    errors.push(
+      "OAUTH_STATE_SECRET is required in production (OAuth state has no AUTH_SECRET fallback)",
     );
   }
   if (!process.env.SSO_TICKET_SECRET?.trim()) {
+    errors.push(
+      "SSO_TICKET_SECRET is required in production (SSO tickets have no AUTH_SECRET fallback)",
+    );
+  }
+  if (!process.env.API_KEY_PEPPER?.trim()) {
+    errors.push(
+      "API_KEY_PEPPER is required in production (unpeppered key hashes are bare sha256)",
+    );
+  } else if (process.env.API_KEY_PEPPER.trim().length < 16) {
+    errors.push("API_KEY_PEPPER must be ≥16 chars");
+  }
+  if (!process.env.UPSTASH_REDIS_REST_URL?.trim() || !process.env.UPSTASH_REDIS_REST_TOKEN?.trim()) {
+    errors.push(
+      "UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are required in production (fail-closed auth rate limits deny traffic during a limiter outage)",
+    );
+  }
+  if (isEncryptionRotationStaged()) {
     warnings.push(
-      "SSO_TICKET_SECRET unset — SSO ticket MAC falls back to AUTH_SECRET/ENCRYPTION_KEY (rotate carefully)",
+      "ENCRYPTION_KEY_PREVIOUS is staged — finish rotation with scripts/re-encrypt-secrets.mjs, then remove it and redeploy",
     );
   }
 

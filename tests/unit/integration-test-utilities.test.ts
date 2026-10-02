@@ -13,7 +13,10 @@ import {
   emailSchema
 } from '@/lib/validation';
 import { consumeRateLimitMemory } from '@/lib/rate-limit';
-import { verifyWebhookSignature } from '@/lib/webhook-verifier';
+import {
+  verifyTikTokSignature,
+  verifyWebhookSignature,
+} from '@/app/api/connectors/webhooks/[platform]/route';
 import {
   successResponse,
   errorResponse,
@@ -111,28 +114,26 @@ describe('Integration: Security & Validation', () => {
       const payload = JSON.stringify({ type: 'test', data: 'important' });
       const secret = 'test-webhook-secret-key';
 
-      const signature = crypto
-        .createHmac('sha256', secret)
-        .update(payload, 'utf8')
-        .digest('hex');
+      const signature =
+        'sha256=' +
+        crypto.createHmac('sha256', secret).update(payload, 'utf8').digest('hex');
 
-      const isValid = verifyWebhookSignature(payload, signature, secret);
+      const isValid = verifyWebhookSignature({ secret, body: payload, signatureHeader: signature });
       expect(isValid).toBe(true);
     });
 
     it('rejects invalid signature', () => {
       const payload = '{"type":"test"}';
       const secret = 'correct-secret';
-      const invalidSignature = 'wrong-signature';
 
-      const isValid = verifyWebhookSignature(payload, invalidSignature, secret);
+      const isValid = verifyWebhookSignature({ secret, body: payload, signatureHeader: 'wrong-signature' });
       expect(isValid).toBe(false);
     });
 
     it('handles missing signature gracefully', () => {
       const payload = '{}';
 
-      const isValid = verifyWebhookSignature(payload, '', '');
+      const isValid = verifyWebhookSignature({ secret: '', body: payload, signatureHeader: null });
       expect(isValid).toBe(false);
     });
 
@@ -143,11 +144,11 @@ describe('Integration: Security & Validation', () => {
 
       const signature = crypto
         .createHmac('sha256', secret)
-        .update(payload, 'utf8')
+        .update(`${timestamp}.${payload}`, 'utf8')
         .digest('hex');
 
       const formattedSignature = `t=${timestamp},s=${signature}`;
-      const isValid = verifyWebhookSignature(payload, formattedSignature, secret);
+      const isValid = verifyTikTokSignature({ secret, body: payload, signatureHeader: formattedSignature });
       expect(isValid).toBe(true);
     });
   });

@@ -2,7 +2,12 @@ import { randomUUID } from "node:crypto";
 import { chatCompletionsAnthropic } from "@/lib/ai/anthropic";
 import { getAiProviders, isAiGatewayEnabled, sortProviders } from "@/lib/ai/config";
 import { chatCompletionsOpenAiCompatible } from "@/lib/ai/openai-compatible";
-import type { AiChatRequest, AiChatResult, AiProviderConfig } from "@/lib/ai/types";
+import type {
+  AiChatRequest,
+  AiChatResult,
+  AiProviderConfig,
+  AiTokenUsage,
+} from "@/lib/ai/types";
 
 /** Error thrown when the workspace has no available AI credit source. */
 export class AiQuotaExceededError extends Error {
@@ -26,7 +31,7 @@ async function completeWithProvider(input: {
   messages: AiChatRequest["messages"];
   temperature?: number;
   maxTokens?: number;
-}): Promise<string> {
+}): Promise<{ content: string; usage: AiTokenUsage | null }> {
   if (input.provider.kind === "anthropic") {
     return chatCompletionsAnthropic(input);
   }
@@ -40,6 +45,32 @@ function estimateTokens(messages: AiChatRequest["messages"]): number {
     0,
   );
   return Math.ceil(chars / 4);
+}
+
+/**
+ * Sanity-clamp provider-reported usage before it touches billing. A broken
+ * upstream or a hostile self-hosted gateway could report absurd token counts
+ * and drain the workspace credit balance; anything beyond 10× the chars/4
+ * estimate (floor 1k tokens) is distrusted and replaced by the estimate.
+ */
+export function sanitizeReportedUsage(
+  usage: AiTokenUsage | null,
+  estimateTokensTotal: number,
+): AiTokenUsage {
+  const fallback = {
+    inputTokens: Math.ceil(estimateTokensTotal * 0.3),
+    outputTokens: Math.ceil(estimateTokensTotal * 0.7),
+  };
+  if (!usage) return fallback;
+  const input = Number.isFinite(usage.inputTokens)
+    ? Math.max(0, Math.floor(usage.inputTokens))
+    : 0;
+  const output = Number.isFinite(usage.outputTokens)
+    ? Math.max(0, Math.floor(usage.outputTokens))
+    : 0;
+  const cap = Math.max(1_000, Math.ceil(estimateTokensTotal * 10));
+  if (input + output > cap) return fallback;
+  return { inputTokens: input, outputTokens: output };
 }
 
 import type { AiTier } from "@prisma/client";
@@ -152,7 +183,7 @@ async function meterAndComplete(input: {
   // A failed attempt throws out of completeWithProvider WITHOUT recording
   // usage — the reservation stays open and is settled (or released) by the
   // caller after the loop, so no attempt double-charges.
-  const content = await completeWithProvider({
+  const completion = await completeWithProvider({
     provider,
     model,
     messages: request.messages,
@@ -167,20 +198,24 @@ async function meterAndComplete(input: {
     // reservation against the real cost using the shared requestId.
     try {
       const { recordAiUsage } = await import("@/lib/ai/billing");
-      const estimate = estimateTokens(request.messages) + content.length / 4;
+      // F4: prefer real provider-reported tokens, sanity-clamped against the
+      // chars/4 estimate so a broken/hostile gateway cannot drain credits;
+      // fall back to the estimate when the provider omitted its usage block.
+      const estimate = estimateTokens(request.messages) + completion.content.length / 4;
+      const tokens = sanitizeReportedUsage(completion.usage, estimate);
       await recordAiUsage({
         workspaceId,
         source,
         model,
-        inputTokens: Math.ceil(estimate * 0.3),
-        outputTokens: Math.ceil(estimate * 0.7),
+        inputTokens: tokens.inputTokens,
+        outputTokens: tokens.outputTokens,
         providerId: provider.id,
         latencyMs,
         refType: request.refType ?? null,
         refId: request.refId ?? null,
         requestId: funding.requestId,
-        // Providers here don't return a usage object yet, so tokens are estimated.
-        reported: false,
+        // reported=true only when tokens came from the provider itself.
+        reported: completion.usage !== null,
       });
       settlement.debited = true;
     } catch (error) {
@@ -188,7 +223,7 @@ async function meterAndComplete(input: {
     }
   }
 
-  return content;
+  return completion.content;
 }
 
 function modelAttemptsForProvider(

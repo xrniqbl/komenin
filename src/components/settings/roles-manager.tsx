@@ -110,6 +110,11 @@ export function RolesManager({
             </div>
           </div>
           <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              A custom role replaces the member&apos;s base system permissions with
+              exactly the permissions selected here — it does not add to them. Only
+              grant what the member needs.
+            </p>
             {Array.from(GROUPED_PERMS.entries()).map(([group, perms]) => (
               <Card key={group} className="bg-muted/20 py-0 shadow-none">
                 <CardContent className="p-3">

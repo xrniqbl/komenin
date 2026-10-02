@@ -11,8 +11,14 @@ vi.mock("@/lib/db", () => {
         const idMatch = !where.id || id === where.id;
         const consumedMatch =
           where.consumedAt === null ? t.consumedAt == null : true;
-        if (emailMatch && idMatch && consumedMatch) {
-          tokens.set(id, { ...t, ...data });
+        // Mirror Prisma: attempts: { lt: N } only matches rows below the cap.
+        const attemptsCond = (where.attempts ?? {}) as { lt?: number };
+        const attemptsMatch =
+          attemptsCond.lt === undefined || (t.attempts as number) < attemptsCond.lt;
+        if (emailMatch && idMatch && consumedMatch && attemptsMatch) {
+          const inc = (data.attempts as { increment?: number } | undefined)?.increment ?? 0;
+          const { attempts: _ignored, ...rest } = data as Record<string, unknown>;
+          tokens.set(id, { ...t, ...rest, attempts: (t.attempts as number) + inc });
           count += 1;
         }
       }

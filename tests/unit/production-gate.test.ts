@@ -43,6 +43,13 @@ function setBaseEnv(overrides: Record<string, string | undefined> = {}) {
   setEnv("MIDTRANS_CLIENT_KEY", overrides.MIDTRANS_CLIENT_KEY);
   vi.stubEnv("APP_URL", overrides.APP_URL ?? "https://app.example.com");
   vi.stubEnv("AUTH_URL", overrides.AUTH_URL ?? "https://app.example.com");
+  // New required production secrets (gate errors without them). Pinned here so
+  // the hermetic tests reflect a sane production configuration.
+  vi.stubEnv("OAUTH_STATE_SECRET", "oauth-state-secret-16xx");
+  vi.stubEnv("SSO_TICKET_SECRET", "sso-ticket-secret-16xx");
+  vi.stubEnv("API_KEY_PEPPER", "api-key-pepper-16xx");
+  vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://upstash.example/upstash");
+  vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "upstash-token");
 }
 
 afterEach(() => {

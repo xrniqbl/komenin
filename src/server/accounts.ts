@@ -595,3 +595,59 @@ export async function rotateAccountIp(accountId: string, reason = "manual_rotate
   revalidatePath("/app/sessions");
   return { oldIp, newIp };
 }
+
+/**
+ * Disconnect (soft-delete) a social account: deactivate active sessions and
+ * proxy assignments, deactivate vault connector credentials, and mark the row
+ * deletedAt so it disappears from every list while history stays intact.
+ * Idempotent — an already-deleted account resolves to not-found.
+ */
+export async function deleteAccount(accountId: string) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertWorkspacePermission(workspace, "accounts.manage");
+
+  const account = await db.socialAccount.findFirst({
+    where: { id: accountId, workspaceId: workspace.id, deletedAt: null },
+    select: { id: true, platform: true, username: true },
+  });
+  if (!account) throw new Error("Account not found");
+
+  await db.$transaction(async (tx) => {
+    await tx.socialAccount.update({
+      where: { id: account.id },
+      data: {
+        deletedAt: new Date(),
+        // "archived" (not "limited"): the account is disconnected, not under a
+        // temporary platform restriction — keeps status dashboards honest.
+        status: "archived",
+      },
+    });
+    await tx.accountSession.updateMany({
+      where: { socialAccountId: account.id, isActive: true },
+      data: { isActive: false },
+    });
+    await tx.proxyAssignment.updateMany({
+      where: { socialAccountId: account.id, isActive: true },
+      data: { isActive: false },
+    });
+    await tx.connectorCredential.updateMany({
+      where: { socialAccountId: account.id, isActive: true },
+      data: { isActive: false },
+    });
+  });
+
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "social_account.disconnected",
+    resourceType: "social_account",
+    resourceId: account.id,
+    metadata: { platform: account.platform, username: account.username },
+  });
+
+  revalidatePath("/app/accounts");
+  revalidatePath(`/app/accounts/${account.id}`);
+  revalidatePath("/app/sessions");
+  revalidatePath("/app/settings/publisher");
+  return { ok: true as const };
+}

@@ -14,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
-import { can } from "@/lib/rbac";
+import { canWithCustom } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { createInvite } from "@/server/invites";
 import { requireActiveWorkspace } from "@/server/workspace-access";
@@ -33,7 +33,7 @@ export default async function TeamSettingsPage({
     orderBy: { createdAt: "asc" },
   });
 
-  const canInvite = can(workspace.role, "members.manage");
+  const canInvite = canWithCustom(workspace.role, workspace.customPermissions, "members.manage");
 
   async function inviteMember(formData: FormData) {
     "use server";

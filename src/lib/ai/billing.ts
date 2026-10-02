@@ -801,6 +801,103 @@ export async function refundAiOrder(
   return { reversed };
 }
 
+/**
+ * Reverse a PROPORTIONAL part of an order's AI credits on a partial refund
+ * (F4). The fraction is the refunded IDR amount over the order total. PAYG
+ * grants are clawed back first (only the still-unspent portion, capped at the
+ * proportional share); subscription credits are not retroactively clawed — the
+ * subscription stays active but a proportional overage note is recorded in the
+ * ledger metadata via refId so operators can reconcile.
+ *
+ * Idempotency is per refund EVENT, not per order: the operationId carries the
+ * Midtrans transaction id (or the refunded amount as a fallback discriminator),
+ * so staged partial refunds each claw back their own proportional share while
+ * a redelivery of the same event stays a no-op. A partial event arriving after
+ * a full refund/chargeback is skipped entirely — the grant was already
+ * reversed, so any further clawback would double-count.
+ */
+export async function refundAiOrderPartial(
+  tx: Tx,
+  input: {
+    workspaceId: string;
+    orderId: string;
+    /** Refunded amount in IDR (Midtrans gross_amount for this event). */
+    refundAmountIdr: number;
+    /** Original order total in IDR. */
+    orderTotalIdr: number;
+    /** Midtrans transaction id for this refund event, when available. */
+    transactionId?: string | null;
+    now: Date;
+  },
+): Promise<{ reversed: boolean; creditsRefunded: bigint }> {
+  // A full refund/chargeback already reversed the grant — nothing left to do.
+  const fullRefund = await tx.aiCreditLedger.findUnique({
+    where: { operationId: `order:${input.orderId}:refund` },
+  });
+  if (fullRefund) return { reversed: false, creditsRefunded: 0n };
+
+  const discriminator =
+    input.transactionId?.trim() || `amount-${input.refundAmountIdr}`;
+  const refundOpId = `order:${input.orderId}:partial-refund:${discriminator}`;
+  const existing = await tx.aiCreditLedger.findFirst({
+    where: { operationId: refundOpId },
+  });
+  if (existing) return { reversed: false, creditsRefunded: 0n };
+
+  if (input.orderTotalIdr <= 0 || input.refundAmountIdr <= 0) {
+    return { reversed: false, creditsRefunded: 0n };
+  }
+  const grant = await tx.aiCreditLedger.findUnique({
+    where: { operationId: `order:${input.orderId}:grant` },
+  });
+  if (!grant) return { reversed: false, creditsRefunded: 0n };
+
+  // Proportional share of the order's credits, floored; at least 1 credit when
+  // any positive fraction is refunded so rounding never zeroes out refunds.
+  const fraction = Math.min(1, input.refundAmountIdr / input.orderTotalIdr);
+  const rawProportional =
+    (grant.credits * BigInt(Math.round(fraction * 1_000_000))) / 1_000_000n;
+  const proportionalCredits =
+    rawProportional > 0n ? rawProportional : grant.credits > 0n ? 1n : 0n;
+  if (proportionalCredits <= 0n) return { reversed: false, creditsRefunded: 0n };
+
+  // Claw back at most the still-unspent portion of the grant (FIFO allocation).
+  const unspent = await computeUnspentGrantPortion(tx, input.workspaceId, grant);
+  const clawback = proportionalCredits < unspent ? proportionalCredits : unspent;
+  if (clawback <= 0n) {
+    // Record the processed marker even with nothing recoverable (idempotency).
+    await tx.aiCreditLedger.create({
+      data: {
+        workspaceId: input.workspaceId,
+        operationId: refundOpId,
+        kind: "refund",
+        credits: 0n,
+        refType: "order",
+        refId: input.orderId,
+        sourceOrderId: input.orderId,
+      },
+    });
+    return { reversed: true, creditsRefunded: 0n };
+  }
+
+  await tx.aiCreditLedger.create({
+    data: {
+      workspaceId: input.workspaceId,
+      operationId: refundOpId,
+      kind: "refund",
+      credits: -clawback,
+      refType: "order",
+      refId: input.orderId,
+      sourceOrderId: input.orderId,
+    },
+  });
+  await applyPaygBalanceDelta(tx, {
+    workspaceId: input.workspaceId,
+    credits: -clawback,
+  });
+  return { reversed: true, creditsRefunded: clawback };
+}
+
 function isUniqueViolation(error: unknown): boolean {
   return (
     typeof error === "object" &&

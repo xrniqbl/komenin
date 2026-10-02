@@ -4,7 +4,10 @@ import {
   runConnectorAction,
   type ConnectorActionInput,
 } from "@/lib/connectors";
-import { runThreadsNative } from "@/lib/connectors/official/native";
+import {
+  runInstagramNative,
+  runThreadsNative,
+} from "@/lib/connectors/official/native";
 
 describe("connector router", () => {
   afterEach(() => {
@@ -128,5 +131,53 @@ describe("connector router", () => {
 
     expect(result.ok).toBe(false);
     expect(result.message).toMatch(/targetPostExternalId/i);
+  });
+
+  it("uses the platform externalId (not the internal UUID) for ig_hashtag_search", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runInstagramNative({
+      action: "discoverPosts",
+      runtimeMode: "live",
+      policy: "prefer_official",
+      target: {
+        platform: "instagram",
+        username: "brand",
+        accountId: "internal-uuid-123",
+        externalId: "17841400000000000",
+      },
+      payload: { query: "#skincare", limit: 3 },
+      webhook: null,
+      official: { provider: "instagram", accessToken: "tok_123" },
+    });
+
+    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    // Meta requires the Instagram Business Account id here; the internal
+    // SocialAccount UUID would make every call fail with a 400.
+    expect(calledUrl).toContain("user_id=17841400000000000");
+    expect(calledUrl).not.toContain("internal-uuid-123");
+  });
+
+  it("fails discovery early when no platform externalId is available", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runInstagramNative({
+      action: "discoverPosts",
+      runtimeMode: "live",
+      policy: "prefer_official",
+      target: { platform: "instagram", username: "brand", accountId: "uuid-1" },
+      payload: { query: "#skincare", limit: 3 },
+      webhook: null,
+      official: { provider: "instagram", accessToken: "tok_123" },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/external/i);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

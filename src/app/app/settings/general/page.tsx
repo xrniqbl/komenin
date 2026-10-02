@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { db } from "@/lib/db";
-import { can } from "@/lib/rbac";
+import { canWithCustom } from "@/lib/rbac";
 import { updateWorkspaceSettings } from "@/server/workspaces";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 
@@ -23,7 +23,7 @@ export default async function GeneralSettingsPage() {
     },
   });
 
-  const canManage = can(workspace.role, "settings.manage");
+  const canManage = canWithCustom(workspace.role, workspace.customPermissions, "settings.manage");
 
   async function saveScheduling(formData: FormData) {
     "use server";

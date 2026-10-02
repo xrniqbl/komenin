@@ -9,6 +9,9 @@ import { writeAuditLog } from "@/server/audit";
 
 export async function listApiKeys() {
   const { workspace } = await requireActiveWorkspace();
+  // Key metadata (names, prefixes, scopes) is visible to members who manage
+  // integrations; creation/revocation stays behind settings.manage.
+  assertWorkspacePermission(workspace, "settings.manage");
   // Never return hashedKey to the client — it is a password-equivalent verifier.
   return db.apiKey.findMany({
     where: { workspaceId: workspace.id },

@@ -1,5 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
+import { isProductionRuntime } from "@/lib/security";
+
 export type OAuthProvider = "instagram" | "threads" | "tiktok";
 
 export type OAuthStatePayload = {
@@ -11,8 +13,17 @@ export type OAuthStatePayload = {
 };
 
 function stateSecret(): string {
+  // Dedicated secret in production — falling back to AUTH_SECRET during a
+  // rotation would invalidate every in-flight OAuth handshake, so the fallback
+  // is dev-only and production boot fails loudly via requireStateSecret().
+  const dedicated = process.env.OAUTH_STATE_SECRET?.trim();
+  if (dedicated) return dedicated;
+  if (isProductionRuntime()) {
+    throw new Error(
+      "OAUTH_STATE_SECRET is required in production (no AUTH_SECRET fallback)",
+    );
+  }
   return (
-    process.env.OAUTH_STATE_SECRET?.trim() ||
     process.env.AUTH_SECRET?.trim() ||
     process.env.ENCRYPTION_KEY?.trim() ||
     ""

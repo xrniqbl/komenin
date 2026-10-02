@@ -2,6 +2,29 @@
   ConnectorActionInput,
   ConnectorResult,
 } from "@/lib/connectors/types";
+import {
+  assertSafeOutboundUrl,
+  safeOutboundFetch,
+  UnsafeUrlError,
+} from "@/lib/url-safety";
+
+/** Guard for workspace/env-controlled Graph base URLs (SSRF). */
+function resolveOfficialBase(raw: string | undefined | null, fallback: string): {
+  base: string;
+} | { error: string } {
+  const candidate = raw?.replace(/\/$/, "") || fallback;
+  try {
+    const url = assertSafeOutboundUrl(candidate);
+    return { base: url.toString().replace(/\/$/, "") };
+  } catch (error) {
+    return {
+      error:
+        error instanceof UnsafeUrlError
+          ? `Official API base blocked: ${error.message}`
+          : "Official API base URL is not allowed",
+    };
+  }
+}
 
 async function graphFetch(input: {
   url: string;
@@ -9,7 +32,7 @@ async function graphFetch(input: {
   method?: string;
   body?: unknown;
 }) {
-  const response = await fetch(input.url, {
+  const response = await safeOutboundFetch(input.url, {
     method: input.method || "GET",
     headers: {
       authorization: `Bearer ${input.token}`,
@@ -37,12 +60,22 @@ export async function runInstagramNative(
     input.official?.apiBaseUrl?.replace(/\/$/, "") ||
     process.env.INSTAGRAM_GRAPH_BASE_URL?.replace(/\/$/, "") ||
     "https://graph.facebook.com/v21.0";
+  const resolvedBase = resolveOfficialBase(input.official?.apiBaseUrl, base);
+  if ("error" in resolvedBase) {
+    return {
+      ok: false,
+      mode: "live",
+      connector: "official",
+      message: resolvedBase.error,
+    };
+  }
+  const safeBase = resolvedBase.base;
 
   try {
     switch (input.action) {
       case "healthProbe": {
         const { response, payload } = await graphFetch({
-          url: `${base}/me?fields=id,username`,
+          url: `${safeBase}/me?fields=id,username`,
           token,
         });
         if (!response.ok) {
@@ -88,7 +121,7 @@ export async function runInstagramNative(
         }
 
         const createRes = await graphFetch({
-          url: `${base}/me/media`,
+          url: `${safeBase}/me/media`,
           token,
           method: "POST",
           body: { image_url: publish.mediaUrl, caption, access_token: token },
@@ -116,7 +149,7 @@ export async function runInstagramNative(
         }
 
         const publishRes = await graphFetch({
-          url: `${base}/me/media_publish`,
+          url: `${safeBase}/me/media_publish`,
           token,
           method: "POST",
           body: { creation_id: creationId, access_token: token },
@@ -155,7 +188,7 @@ export async function runInstagramNative(
           };
         }
         const { response, payload } = await graphFetch({
-          url: `${base}/${payloadIn.targetPostExternalId}/comments`,
+          url: `${safeBase}/${payloadIn.targetPostExternalId}/comments`,
           token,
           method: "POST",
           body: { message: payloadIn.body },
@@ -180,12 +213,92 @@ export async function runInstagramNative(
       }
       case "discoverPosts": {
         const query = (input.payload as { query: string }).query;
-        // Hashtag search requires business discovery permissions; return actionable fail for fallback.
+        const limit = (input.payload as { limit?: number }).limit ?? 3;
+        // Instagram hashtag discovery: resolve the hashtag id, then fetch its
+        // recent media. Requires instagram_basic + business discovery perms —
+        // a permission failure surfaces as a normal failed result so the
+        // router can fall back to the webhook bridge.
+        const tag = query.replace(/^#/, "").trim();
+        if (!tag) {
+          return {
+            ok: false,
+            mode: "live",
+            connector: "official",
+            message: "Instagram discovery requires a non-empty hashtag query",
+          };
+        }
+        // Meta requires the Instagram Business Account id (the platform-side
+        // id stored in SocialAccount.externalId) for user_id — the internal
+        // SocialAccount UUID would make every hashtag call fail with a 400.
+        const igUserId = input.target.externalId;
+        if (!igUserId) {
+          return {
+            ok: false,
+            mode: "live",
+            connector: "official",
+            message:
+              "Instagram discovery requires the account's platform externalId (SocialAccount.externalId) on the connector target",
+          };
+        }
+        const searchRes = await graphFetch({
+          url: `${safeBase}/ig_hashtag_search?user_id=${encodeURIComponent(
+            igUserId,
+          )}&q=${encodeURIComponent(tag)}`,
+          token,
+        });
+        if (!searchRes.response.ok) {
+          return {
+            ok: false,
+            mode: "live",
+            connector: "official",
+            message:
+              searchRes.payload.error?.message ||
+              `Instagram hashtag search failed (${searchRes.response.status})`,
+            details: searchRes.payload,
+          };
+        }
+        const hashtagId = (searchRes.payload.data as Array<{ id?: string }> | undefined)?.[0]?.id;
+        if (!hashtagId) {
+          return {
+            ok: false,
+            mode: "live",
+            connector: "official",
+            message: `Instagram hashtag "${tag}" returned no id`,
+            details: searchRes.payload,
+          };
+        }
+        const topRes = await graphFetch({
+          url: `${safeBase}/${hashtagId}/top_media?user_id=${encodeURIComponent(
+            igUserId,
+          )}&fields=id,caption,permalink,username,media_product_type&limit=${limit}`,
+          token,
+        });
+        if (!topRes.response.ok) {
+          return {
+            ok: false,
+            mode: "live",
+            connector: "official",
+            message:
+              topRes.payload.error?.message ||
+              `Instagram top media failed (${topRes.response.status})`,
+            details: topRes.payload,
+          };
+        }
+        const media = ((topRes.payload.data as Array<Record<string, unknown>>) || []).filter(
+          (m) => typeof m.id === "string",
+        );
         return {
-          ok: false,
+          ok: true,
           mode: "live",
           connector: "official",
-          message: `Instagram native discover for "${query}" needs hashtag permissions; use webhook fallback`,
+          message: `Instagram discovered ${media.length} posts for #${tag}`,
+          posts: media.map((m) => ({
+            externalId: String(m.id),
+            authorHandle: String(m.username || "unknown"),
+            content: String(m.caption || "").slice(0, 500),
+            url: String(m.permalink || ""),
+            platform: "instagram",
+          })),
         };
       }
       default:
@@ -218,17 +331,27 @@ export async function runThreadsNative(
       message: "Threads access token missing",
     };
   }
-  const base =
+  const threadsBase =
     input.official?.apiBaseUrl?.replace(/\/$/, "") ||
     process.env.THREADS_API_BASE_URL?.replace(/\/$/, "") ||
     "https://graph.threads.net/v1.0";
+  const resolvedThreads = resolveOfficialBase(input.official?.apiBaseUrl, threadsBase);
+  if ("error" in resolvedThreads) {
+    return {
+      ok: false,
+      mode: "live",
+      connector: "official",
+      message: resolvedThreads.error,
+    };
+  }
+  const threadsSafe = resolvedThreads.base;
 
   try {
     if (input.action === "healthProbe") {
-      const response = await fetch(`${base}/me?fields=id,username`, {
-        headers: { authorization: `Bearer ${token}` },
+      const { response, payload } = await graphFetch({
+        url: `${threadsSafe}/me?fields=id,username`,
+        token,
       });
-      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         return {
           ok: false,
@@ -248,15 +371,13 @@ export async function runThreadsNative(
 
     if (input.action === "publishPost") {
       const text = (input.payload as { body: string }).body;
-      const create = await fetch(`${base}/me/threads`, {
+      const { response: createRes, payload: created } = await graphFetch({
+        url: `${threadsSafe}/me/threads`,
+        token,
         method: "POST",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ media_type: "TEXT", text }),
+        body: { media_type: "TEXT", text },
       });
-      const created = await create.json().catch(() => ({}));
+      const create = { ok: createRes.ok };
       if (!create.ok) {
         return {
           ok: false,
@@ -266,15 +387,13 @@ export async function runThreadsNative(
           details: created,
         };
       }
-      const publish = await fetch(`${base}/me/threads_publish`, {
+      const { response: publishRes, payload: published } = await graphFetch({
+        url: `${threadsSafe}/me/threads_publish`,
+        token,
         method: "POST",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ creation_id: created.id }),
+        body: { creation_id: created.id },
       });
-      const published = await publish.json().catch(() => ({}));
+      const publish = { ok: publishRes.ok };
       if (!publish.ok) {
         return {
           ok: false,
@@ -308,19 +427,17 @@ export async function runThreadsNative(
       }
       // A Threads reply is a TEXT thread created with reply_to_id, then published
       // via the same two-step create → publish flow used for a normal post.
-      const create = await fetch(`${base}/me/threads`, {
+      const { response: replyCreateRes, payload: created } = await graphFetch({
+        url: `${threadsSafe}/me/threads`,
+        token,
         method: "POST",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
+        body: {
           media_type: "TEXT",
           text: payloadIn.body,
           reply_to_id: payloadIn.targetPostExternalId,
-        }),
+        },
       });
-      const created = await create.json().catch(() => ({}));
+      const create = { ok: replyCreateRes.ok };
       if (!create.ok) {
         return {
           ok: false,
@@ -330,15 +447,13 @@ export async function runThreadsNative(
           details: created,
         };
       }
-      const publish = await fetch(`${base}/me/threads_publish`, {
+      const { response: replyPublishRes, payload: published } = await graphFetch({
+        url: `${threadsSafe}/me/threads_publish`,
+        token,
         method: "POST",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ creation_id: created.id }),
+        body: { creation_id: created.id },
       });
-      const published = await publish.json().catch(() => ({}));
+      const publish = { ok: replyPublishRes.ok };
       if (!publish.ok) {
         return {
           ok: false,
@@ -385,17 +500,27 @@ export async function runTikTokNative(
       message: "TikTok access token missing",
     };
   }
-  const base =
+  const tiktokBase =
     input.official?.apiBaseUrl?.replace(/\/$/, "") ||
     process.env.TIKTOK_API_BASE_URL?.replace(/\/$/, "") ||
     "https://open.tiktokapis.com";
+  const resolvedTiktok = resolveOfficialBase(input.official?.apiBaseUrl, tiktokBase);
+  if ("error" in resolvedTiktok) {
+    return {
+      ok: false,
+      mode: "live",
+      connector: "official",
+      message: resolvedTiktok.error,
+    };
+  }
+  const tiktokSafe = resolvedTiktok.base;
 
   try {
     if (input.action === "healthProbe") {
-      const response = await fetch(`${base}/v2/user/info/?fields=open_id,display_name`, {
-        headers: { authorization: `Bearer ${token}` },
+      const { response, payload } = await graphFetch({
+        url: `${tiktokSafe}/v2/user/info/?fields=open_id,display_name`,
+        token,
       });
-      const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         return {
           ok: false,
@@ -410,6 +535,54 @@ export async function runTikTokNative(
         connector: "official",
         healthy: true,
         message: "TikTok token ok",
+        details: payload,
+      };
+    }
+
+    if (input.action === "sendComment") {
+      const payloadIn = input.payload as {
+        body: string;
+        targetPostExternalId?: string | null;
+      };
+      if (!payloadIn.targetPostExternalId) {
+        return {
+          ok: false,
+          mode: "live",
+          connector: "official",
+          message: "TikTok sendComment requires targetPostExternalId",
+        };
+      }
+      // TikTok Content Posting API comment reply: the reply_list endpoint on
+      // the发表 API (v2). The comment id for a video comment is addressed via
+      // the /v2/comment/list/create/ manage endpoint.
+      const { response, payload } = await graphFetch({
+        url: `${tiktokSafe}/v2/comment/create/`,
+        token,
+        method: "POST",
+        body: {
+          video_id: payloadIn.targetPostExternalId,
+          text: payloadIn.body,
+        },
+      });
+      // TikTok returns 200 with an error block on business failures
+      // (error.code !== "ok"), so the body must be inspected, not just the status.
+      const tiktokError = payload?.error;
+      if (!response.ok || (tiktokError?.code && tiktokError.code !== "ok")) {
+        return {
+          ok: false,
+          mode: "live",
+          connector: "official",
+          message:
+            tiktokError?.message || `TikTok comment failed (${response.status})`,
+          details: payload,
+        };
+      }
+      return {
+        ok: true,
+        mode: "live",
+        connector: "official",
+        externalId: payload?.data?.comment_id || payload?.data?.id,
+        message: "TikTok comment accepted",
         details: payload,
       };
     }

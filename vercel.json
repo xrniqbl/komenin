@@ -10,6 +10,10 @@
       "schedule": "*/2 * * * *"
     },
     {
+      "path": "/api/worker/cron?job=mention.process",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/worker/cron?job=content.publish",
       "schedule": "*/2 * * * *"
     },

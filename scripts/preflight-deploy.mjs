@@ -136,13 +136,13 @@ const CHECKS = [
         : "looks like a sandbox key (expected \"Mid-client-...\" in production)",
   },
 
-  // --- Durable rate limiting (weak per-instance memory without it) ---
+  // --- Durable rate limiting (fail-closed auth denies traffic on limiter outage) ---
   {
     name: "UPSTASH_REDIS_REST_URL",
-    required: strict,
-    note: "durable rate limit; without it the limiter is per-instance memory",
+    required: true,
+    note: "durable rate limit; fail-closed auth surfaces deny traffic without it",
   },
-  { name: "UPSTASH_REDIS_REST_TOKEN", required: strict },
+  { name: "UPSTASH_REDIS_REST_TOKEN", required: true },
 
   // --- Social bridge (production gate fails closed on self-URL) ---
   {
@@ -187,11 +187,24 @@ const CHECKS = [
   { name: "KOMENIN_AI_MODELS_PRO", required: false },
   { name: "KOMENIN_AI_MODELS_PRO_MAX", required: false },
 
-  // --- API key hashing pepper (optional but strongly recommended) ---
+  // --- API key hashing pepper (required — bare sha256 without it) ---
   {
     name: "API_KEY_PEPPER",
-    required: strict,
-    note: "HMAC pepper for hashed API keys; without it hashes are bare sha256",
+    required: true,
+    note: "HMAC pepper for hashed API keys",
+    validate: (v) => (v.length >= 16 ? true : "must be ≥16 chars"),
+  },
+  // --- OAuth/SSO MAC secrets (no AUTH_SECRET fallback in production) ---
+  {
+    name: "OAUTH_STATE_SECRET",
+    required: true,
+    note: "HMAC for OAuth state; production refuses AUTH_SECRET fallback",
+    validate: (v) => (v.length >= 16 ? true : "must be ≥16 chars"),
+  },
+  {
+    name: "SSO_TICKET_SECRET",
+    required: true,
+    note: "HMAC for SSO tickets; production refuses AUTH_SECRET fallback",
     validate: (v) => (v.length >= 16 ? true : "must be ≥16 chars"),
   },
 

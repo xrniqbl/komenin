@@ -27,6 +27,8 @@ export type RateLimitResult = {
   remaining: number;
   resetAt: number;
   backend: RateLimitBackend;
+  /** True when the durable backend was unreachable (fail-closed denial or memory fallback). */
+  degraded?: boolean;
 };
 
 function upstashConfig(): { url: string; token: string } | null {
@@ -130,16 +132,14 @@ async function consumeUpstash(
 
 /**
  * Consume one rate-limit token for `input.key`. Prefers the durable Upstash
- * backend; on Upstash outage every caller degrades to the in-memory bucket so
- * a Redis failure never takes the endpoint (notably login) down.
+ * backend. On Upstash outage the behavior depends on `failClosed`:
  *
- * `failClosed` now controls how loudly that degradation is flagged rather than
- * whether it happens: an auth-critical surface (login, OTP, TOTP verify)
- * escalates to error-level logging so an operator pages on it, while a normal
- * endpoint logs a warning. Fully failing closed (denying all traffic during a
- * Redis outage) was reverted: it turned a limiter outage into a full login
- * outage — worse for availability than the brute-force window the memory
- * fallback re-opens.
+ * - failClosed: true (auth-critical surfaces — login, OTP, TOTP verify):
+ *   deny traffic with a degraded result so a Redis outage never degrades into
+ *   an unprotected brute-force window. Callers return 429/503 with a generic
+ *   message (never revealing limiter internals).
+ * - failClosed unset/false: degrade to the in-memory bucket with a warning,
+ *   preserving availability for non-critical endpoints.
  */
 export async function consumeRateLimit(input: {
   key: string;
@@ -154,15 +154,33 @@ export async function consumeRateLimit(input: {
     } catch (error) {
       if (input.failClosed) {
         console.error(
-          "[rate-limit] durable limiter unavailable — auth surface degraded to per-instance memory. Check UPSTASH_REDIS_REST_URL reachability.",
+          "[rate-limit] durable limiter unavailable — denying auth traffic (fail-closed). Check UPSTASH_REDIS_REST_URL reachability.",
           error,
         );
-      } else {
-        console.warn("[rate-limit] upstash backend failed, using memory", error);
+        return {
+          ok: false,
+          limit: input.limit,
+          remaining: 0,
+          resetAt: Date.now() + Math.min(input.windowMs, 60_000),
+          backend: "upstash",
+          degraded: true,
+        };
       }
+      console.warn("[rate-limit] upstash backend failed, using memory", error);
     }
+  } else if (input.failClosed) {
+    // No durable backend configured at all: auth surfaces get real protection
+    // only from the per-instance bucket. Flag loud but still allow memory
+    // accounting so local dev works; preflight --strict requires Upstash so
+    // production without it fails the deploy gate.
+    console.error(
+      "[rate-limit] failClosed requested but no durable limiter configured (UPSTASH_REDIS_REST_URL/TOKEN missing) — using per-instance memory. Configure Upstash for production.",
+    );
   }
-  return consumeRateLimitMemory(input);
+  const memory = consumeRateLimitMemory(input);
+  return input.failClosed && !config
+    ? { ...memory, degraded: true }
+    : memory;
 }
 
 function isPrivateOrLocalIp(ip: string): boolean {
