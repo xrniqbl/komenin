@@ -186,7 +186,7 @@ export function CheckoutClient({
                 value={voucherCode}
                 onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
                 className="flex-1"
-                placeholder="AETHER10"
+                placeholder="KOMENIN10"
               />
               <Button type="button" variant="outline" onClick={validateVoucher}>Apply</Button>
             </div>

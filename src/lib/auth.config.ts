@@ -19,7 +19,12 @@ export const authConfig = {
   // JWT keeps middleware off Prisma/edge runtime.
   // PrismaAdapter still persists users/accounts in the Node auth instance.
   session: { strategy: "jwt" },
-  trustHost: true,
+  // Never trust the Host header on a deployed box: a misconfigured proxy
+  // would turn trustHost into host-header poisoning / OAuth redirect abuse.
+  // Local dev keeps `true` so http://localhost:3000 and 127.0.0.1 both work
+  // without setting AUTH_URL; every deployed env must set AUTH_URL == APP_URL
+  // (enforced by the production gate + preflight) and runs with `false`.
+  trustHost: process.env.NODE_ENV !== "production" && !process.env.VERCEL_ENV,
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) {

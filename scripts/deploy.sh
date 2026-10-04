@@ -1,6 +1,6 @@
 #!/bin/bash
 # ===========================================
-# Aether Production Deployment Script
+# Komenin Production Deployment Script
 # ===========================================
 # Usage: ./scripts/deploy.sh [production|staging]
 #
@@ -19,7 +19,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 ENVIRONMENT="${1:-staging}"
-PROJECT_NAME="aether"
+PROJECT_NAME="komenin"
 DEPLOY_DIR="/opt/${PROJECT_NAME}"
 BACKUP_DIR="${DEPLOY_DIR}/backups"
 LOG_FILE="${DEPLOY_DIR}/deploy.log"
@@ -51,7 +51,7 @@ trap cleanup EXIT
 usage() {
     echo "Usage: $0 [production|staging]"
     echo ""
-    echo "Deploy Aether application:"
+    echo "Deploy Komenin application:"
     echo "  production  - Deploy to production environment (requires confirmation)"
     echo "  staging     - Deploy to staging environment"
     exit 1

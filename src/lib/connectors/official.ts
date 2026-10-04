@@ -12,6 +12,7 @@ import {
   safeOutboundFetch,
   UnsafeUrlError,
 } from "@/lib/url-safety";
+import { isAllowedOfficialApiBaseUrl } from "@/lib/connectors/official-base";
 
 /**
  * Official adapters are capability-gated.
@@ -52,12 +53,18 @@ export async function runOfficialConnector(
   }
 
   try {
-    // SSRF guard: a workspace-controlled apiBaseUrl must pass the same
-    // resolved-DNS policy as AI providers. assertSafeOutboundUrl is checked
-    // again here (defense in depth) because this value crosses a trust
-    // boundary from DB/env into an outbound fetch.
+    // SSRF guard: a workspace-controlled apiBaseUrl must pass the pinned
+    // provider allowlist (same as native.ts) plus the resolved-DNS policy
+    // used for AI providers. assertSafeOutboundUrl is checked again here
+    // (defense in depth) because this value crosses a trust boundary from
+    // DB/env into an outbound fetch — and carries the bearer token with it.
     let validatedBase: string;
     try {
+      if (!isAllowedOfficialApiBaseUrl(apiBase)) {
+        throw new UnsafeUrlError(
+          "API base URL hostname must be from an approved provider domain",
+        );
+      }
       validatedBase = assertSafeOutboundUrl(apiBase).toString().replace(/\/$/, "");
     } catch (error) {
       return {

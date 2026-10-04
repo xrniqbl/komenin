@@ -7,7 +7,7 @@ export default async function StatusPage() {
     {
       name: "Deployment region",
       ok: true,
-      detail: process.env.AETHER_REGION || process.env.VERCEL_REGION || "ap-southeast-1",
+      detail: process.env.KOMENIN_REGION || process.env.VERCEL_REGION || "ap-southeast-1",
     },
     { name: "Web app", ok: true, detail: "Next.js process" },
     { name: "Database", ok: Boolean(process.env.DATABASE_URL), detail: "DATABASE_URL" },
@@ -24,10 +24,12 @@ export default async function StatusPage() {
         process.env.SIMULATOR_MODE === "false"
           ? Boolean(process.env.SOCIAL_PUBLISH_WEBHOOK_URL || process.env.SOCIAL_OFFICIAL_API_TOKEN)
           : true,
+      // Never name the internal runtime mode on a public page — in prod this
+      // branch shows the connector requirement; in dev it stays generic.
       detail:
         process.env.SIMULATOR_MODE === "false"
           ? "webhook or official token required"
-          : "simulator mode",
+          : "managed session worker",
     },
   ];
 

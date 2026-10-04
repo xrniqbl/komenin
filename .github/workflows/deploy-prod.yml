@@ -76,11 +76,11 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            cd /opt/aether
+            cd /opt/komenin
             IMAGE="${{ steps.image.outputs.tag }}"
 
             # Private GHCR image: the server needs its own login (a PAT with
-            # read:packages stored once in /opt/aether/.ghcr-token).
+            # read:packages stored once in /opt/komenin/.ghcr-token).
             if [ -f .ghcr-token ]; then
               echo "${{ secrets.GHCR_USERNAME }}" | sudo docker login ghcr.io \
                 --username "$(cat .ghcr-username 2>/dev/null || echo '${{ secrets.GHCR_USERNAME }}')" \
@@ -95,9 +95,9 @@ jobs:
               echo "$PREV" > .previous-image
             fi
 
-            # Compose runs from the pinned image (see AETHER_IMAGE in
+            # Compose runs from the pinned image (see KOMENIN_IMAGE in
             # .env.docker) — never a local rebuild of stale source.
-            echo "AETHER_IMAGE=$IMAGE" > .deploy-image.env
+            echo "KOMENIN_IMAGE=$IMAGE" > .deploy-image.env
             sudo docker compose --env-file .env.docker --env-file .deploy-image.env up -d --no-build app
             sudo docker image prune -f
 

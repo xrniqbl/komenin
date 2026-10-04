@@ -19,46 +19,54 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
 
+  // Malformed JSON can never become valid on retry — acknowledge with 400
+  // so Midtrans does not retry it for hours (500 triggers retries).
+  let rawPayload: unknown;
   try {
-    const payload = (await request.json()) as {
-      order_id?: string;
-      status_code?: string;
-      gross_amount?: string;
-      signature_key?: string;
-      transaction_status?: string;
-      transaction_id?: string;
-      payment_type?: string;
-    };
+    rawPayload = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const payload = rawPayload as {
+    order_id?: string;
+    status_code?: string;
+    gross_amount?: string;
+    signature_key?: string;
+    transaction_status?: string;
+    transaction_id?: string;
+    payment_type?: string;
+  };
 
-    if (!payload.order_id) {
-      return NextResponse.json({ error: "order_id required" }, { status: 400 });
-    }
+  if (!payload.order_id) {
+    return NextResponse.json({ error: "order_id required" }, { status: 400 });
+  }
 
-    const config = getMidtransConfig();
-    if (!config.serverKey) {
-      return NextResponse.json(
-        { error: "Midtrans server key is not configured" },
-        { status: 503 },
-      );
-    }
-    if (isProductionRuntime() && !config.isProduction) {
-      return NextResponse.json(
-        { error: "MIDTRANS_IS_PRODUCTION must be true in production runtime" },
-        { status: 503 },
-      );
-    }
+  const config = getMidtransConfig();
+  if (!config.serverKey) {
+    return NextResponse.json(
+      { error: "Midtrans server key is not configured" },
+      { status: 503 },
+    );
+  }
+  if (isProductionRuntime() && !config.isProduction) {
+    return NextResponse.json(
+      { error: "MIDTRANS_IS_PRODUCTION must be true in production runtime" },
+      { status: 503 },
+    );
+  }
 
-    const signatureValid = verifyMidtransSignature({
-      orderId: String(payload.order_id),
-      statusCode: String(payload.status_code || ""),
-      grossAmount: String(payload.gross_amount || ""),
-      signatureKey: String(payload.signature_key || ""),
-      serverKey: config.serverKey,
-    });
-    if (!signatureValid) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-    }
+  const signatureValid = verifyMidtransSignature({
+    orderId: String(payload.order_id),
+    statusCode: String(payload.status_code || ""),
+    grossAmount: String(payload.gross_amount || ""),
+    signatureKey: String(payload.signature_key || ""),
+    serverKey: config.serverKey,
+  });
+  if (!signatureValid) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
 
+  try {
     const result = await applyPaidOrder(String(payload.order_id), {
       transactionId: payload.transaction_id,
       paymentType: payload.payment_type,

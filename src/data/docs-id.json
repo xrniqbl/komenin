@@ -84,10 +84,6 @@
           "title": "Billing & Midtrans"
         },
         {
-          "href": "/docs/tutorial/komenin-ai",
-          "title": "Komenin AI (Kredit & Tier)"
-        },
-        {
           "href": "/docs/tutorial/sso",
           "title": "SSO / SAML"
         },
@@ -181,12 +177,12 @@
     "introduction": {
       "slug": "introduction",
       "title": "Pendahuluan",
-      "description": "Komenin adalah control plane operasi sosial enterprise untuk Instagram, Threads, dan TikTok.",
+      "description": "Komenin is an enterprise operasi sosial control plane for Instagram, Threads, and TikTok.",
       "sections": [
         {
           "id": "what-is-komenin",
-          "title": "Apa itu Komenin?",
-          "body": "Komenin adalah satu workspace untuk operasi engagement sosial. Alih-alih berpindah antar aplikasi native hanya untuk meninjau komentar, menyetujui draf, merotasi sesi, atau mempublikasikan konten, operator mengelola semuanya dari satu control plane yang dapat diaudit dan ber-guardrail."
+          "title": "What is Komenin?",
+          "body": "Komenin is a single workspace for engagement sosial operations. Instead of jumping between native apps just to review comments, approve drafts, rotate sesi, or publish content, operators manage everything from one control plane with auditability and guardrails."
         },
         {
           "id": "what-you-can-do",
@@ -211,7 +207,7 @@
         },
         {
           "id": "two-ways",
-          "title": "Dua cara memakai Komenin",
+          "title": "Two ways to use Komenin",
           "body": "Ikuti Tutorial untuk mengoperasikan semuanya dari dashboard, atau gunakan Referensi API untuk memicu worker, menerima webhook publish, dan mengintegrasikan notifikasi billing ke stack Anda sendiri."
         }
       ]
@@ -240,7 +236,7 @@
           "id": "first-path",
           "title": "First operator path",
           "bullets": [
-            "buka /signup and autentikasi dengan Google — atau pakai Email OTP: masukkan email, lalu kode 6 digit yang dikirim via Brevo.",
+            "buka /signup (or /login) and authenticate with Google — or use Email OTP: enter Anda email, lalu the 6-digit code sent via Brevo.",
             "buat a workspace in /onboarding.",
             "Add a proxy and social akun under sesi Routing.",
             "buat a comment kampanye + listener.",
@@ -400,7 +396,7 @@
         {
           "id": "create",
           "title": "buat a kampanye",
-          "body": "Define platform, mode (default approval_required), delays, daily limits, agent, and linked akun. Attach listener for keyword/competitor discovery."
+          "body": "Define platform, mode (default approval_required), delays, daily limits, agent, and linked akun. Attach listener for keyword/competitor discovery. Batas aman anti-spam per platform ditegakkan otomatis: Instagram 12 komentar/jam, 50/hari (jeda 3 mnt); Threads 10/jam, 40/hari (jeda 4 mnt); TikTok 8/jam, 30/hari (jeda 5 mnt). kampanye yang melebihi batas ditolak saat dibuat — lihat /app/rate-limits."
         },
         {
           "id": "pipeline",
@@ -409,7 +405,8 @@
             "listener.poll discovers target posts",
             "comment.generate creates drafts + pending persetujuan",
             "operators edit/approve/reject",
-            "comment.send executes due actions through konektor router"
+            "comment.send executes due actions through konektor router (hourly pace + min-interval defer, daily cap fail-closed)",
+            "429/action-blocked responses quarantine the akun to limited with an operator notification"
           ]
         },
         {
@@ -579,8 +576,8 @@
         },
         {
           "id": "ai-addons",
-          "title": "Add-on Komenin AI",
-          "body": "Selain plan sosial, checkout juga menjual SKU Komenin AI: 6 tier langganan (Starter/Pro/Pro Max, bulanan atau 12 bulan) dan 3 paket kredit PAYG. Order AI yang lunas mengaktifkan kuota langganan atau memberikan kredit secara otomatis lewat webhook Midtrans yang sama. Lihat halaman Komenin AI untuk detailnya."
+          "title": "Komenin AI add-ons",
+          "body": "Besides social plans, checkout also sells Komenin AI SKUs: 6 subscription tiers (Starter/Pro/Pro Max, bulanan or 12-month) and 3 PAYG credit packs. Paid AI orders activate a subscription quota or grant credits automatically via the same Midtrans webhook. See the Komenin AI page for details."
         },
         {
           "id": "simulation",
@@ -596,6 +593,58 @@
             "Complete Midtrans Snap (or local simulation without keys).",
             "Confirm subscription status in /app/pengaturan/billing.",
             "Verify bulanan send/publish limits updated for the workspace."
+          ]
+        }
+      ]
+    },
+    "komenin-ai": {
+      "slug": "komenin-ai",
+      "title": "Komenin AI (Credits & Tiers)",
+      "description": "Use AI without Anda own API key — subscriptions, PAYG credits, and BYOK.",
+      "sections": [
+        {
+          "id": "overview",
+          "title": "How it works",
+          "body": "Every workspace can use AI three ways, in priority order: (1) bring Anda own API key (BYOK, always free), (2) a Komenin AI bulanan subscription with a credit quota, or (3) pay-as-Anda-go (PAYG) prepaid credits. 1 credit = 1 token (input + output), counted from the model's usage report."
+        },
+        {
+          "id": "tiers",
+          "title": "Subscription tiers",
+          "bullets": [
+            "AI Starter — Rp50.000/bln · 1.000.000 kredit/bln · model ekonomis",
+            "AI Pro — Rp150.000/bln · 5.000.000 kredit/bln · model standar + priority queue",
+            "AI Pro Max — Rp250.000/bln · 25.000.000 kredit/bln · semua model premium + auto-lanjut PAYG",
+            "Komitmen 12 bulan: diskon 10% per bulan pada semua tier"
+          ]
+        },
+        {
+          "id": "payg",
+          "title": "Pay-as-Anda-go credits",
+          "bullets": [
+            "PAYG-S — Rp50.000 · 750.000 kredit",
+            "PAYG-M — Rp150.000 · 2.500.000 kredit (bonus 5%)",
+            "PAYG-L — Rp500.000 · 9.000.000 kredit (bonus 15%)",
+            "Kredit berlaku 12 bulan selama akun aktif, dipakai setelah kuota langganan habis"
+          ]
+        },
+        {
+          "id": "quota",
+          "title": "When the quota runs out",
+          "body": "Starter and Pro stop (fail-closed) until the next month or Anda buy PAYG credits — in-progress comment/content work is paused and Anda get a notification. Pro Max automatically continues on Anda PAYG balance (Anda can disable this in pengaturan → AI). Workspaces are also notified at 80% and 100% of the bulanan quota."
+        },
+        {
+          "id": "byok",
+          "title": "Bring Anda own key (BYOK)",
+          "body": "BYOK stays free forever. Add Anda OpenAI/Anthropic/9Router key in pengaturan → AI and enable 'prefer my own key' — AI calls lalu use Anda provider and never touch Komenin credits. Anda keys are encrypted at rest."
+        },
+        {
+          "id": "manage",
+          "title": "Manage & monitor",
+          "steps": [
+            "buka pengaturan → AI to see Anda tier, bulanan quota meter, and PAYG balance.",
+            "Toggle 'prefer my own key' (BYOK) or Pro Max 'auto-fallback to PAYG'.",
+            "Buy a subscription or PAYG pack from the checkout grid (Midtrans).",
+            "Track usage per source and top models on the Analytics page."
           ]
         }
       ]
@@ -1042,8 +1091,8 @@
       "sections": [
         {
           "id": "what-is-komenin",
-          "title": "Apa itu Komenin?",
-          "body": "Komenin adalah control plane operasi sosial enterprise untuk Instagram, Threads, dan TikTok. It centralizes akun, persetujuan, automation, AI drafting, billing, and auditability."
+          "title": "What is Komenin?",
+          "body": "Komenin is an enterprise operasi sosial control plane for Instagram, Threads, and TikTok. It centralizes akun, persetujuan, automation, AI drafting, billing, and auditability."
         },
         {
           "id": "simulator-vs-live",
@@ -1096,81 +1145,95 @@
           ]
         }
       ]
-    },
-    "komenin-ai": {
-      "slug": "komenin-ai",
-      "title": "Komenin AI (Kredit & Tier)",
-      "description": "Pakai AI tanpa API key sendiri — langganan, kredit PAYG, dan BYOK.",
-      "sections": [
-        {
-          "id": "overview",
-          "title": "Cara kerja",
-          "body": "Setiap workspace bisa memakai AI dengan tiga cara, sesuai prioritas: (1) bawa API key sendiri (BYOK, selalu gratis), (2) langganan Komenin AI bulanan dengan kuota kredit, atau (3) kredit prabayar pay-as-you-go (PAYG). 1 kredit = 1 token (input + output), dihitung dari laporan usage model."
-        },
-        {
-          "id": "tiers",
-          "title": "Tier langganan",
-          "bullets": [
-            "AI Starter — Rp50.000/bln · 1.000.000 kredit/bln · model ekonomis",
-            "AI Pro — Rp150.000/bln · 5.000.000 kredit/bln · model standar + antrian prioritas",
-            "AI Pro Max — Rp250.000/bln · 25.000.000 kredit/bln · semua model premium + auto-lanjut PAYG",
-            "Komitmen 12 bulan: diskon 10% per bulan pada semua tier"
-          ]
-        },
-        {
-          "id": "payg",
-          "title": "Kredit pay-as-you-go",
-          "bullets": [
-            "PAYG-S — Rp50.000 · 750.000 kredit",
-            "PAYG-M — Rp150.000 · 2.500.000 kredit (bonus 5%)",
-            "PAYG-L — Rp500.000 · 9.000.000 kredit (bonus 15%)",
-            "Kredit berlaku 12 bulan selama akun aktif, dipakai setelah kuota langganan habis"
-          ]
-        },
-        {
-          "id": "quota",
-          "title": "Saat kuota habis",
-          "body": "Starter dan Pro berhenti (fail-closed) sampai bulan berikutnya atau Anda membeli kredit PAYG — pekerjaan komentar/konten yang sedang berjalan dijeda dan Anda mendapat notifikasi. Pro Max otomatis lanjut ke saldo PAYG (bisa dimatikan di Settings → AI). Workspace juga diberi tahu saat 80% dan 100% kuota bulanan."
-        },
-        {
-          "id": "byok",
-          "title": "Bawa key sendiri (BYOK)",
-          "body": "BYOK tetap gratis selamanya. Tambahkan key OpenAI/Anthropic/9Router Anda di Settings → AI dan aktifkan 'utamakan API key sendiri' — panggilan AI lalu memakai provider Anda dan tidak pernah memotong kredit Komenin. Key Anda terenkripsi saat disimpan."
-        },
-        {
-          "id": "manage",
-          "title": "Kelola & pantau",
-          "steps": [
-            "Buka Settings → AI untuk melihat tier, meter kuota bulanan, dan saldo PAYG.",
-            "Aktifkan 'utamakan API key sendiri' (BYOK) atau 'lanjut otomatis ke PAYG' (Pro Max).",
-            "Beli langganan atau paket PAYG dari grid checkout (Midtrans).",
-            "Pantau pemakaian per sumber dan model teratas di halaman Analytics."
-          ]
-        }
-      ]
     }
   },
   "apiPages": {
     "index": {
       "slug": "index",
       "title": "Referensi API",
-      "description": "HTTP endpoints for worker, billing, and konektor callbacks.",
+      "description": "HTTP endpoints for worker, billing, konektor callbacks, and workspace API keys.",
       "sections": [
         {
           "id": "auth",
           "title": "Authentication",
-          "body": "Browser sesi auth protects app routes/server actions. worker and some webhook endpoints use bearer secrets/tokens."
+          "body": "Browser sesi auth protects app routes/server actions. Workspace integrations use kmn_ API keys. worker and some webhook endpoints use bearer secrets/tokens."
         },
         {
           "id": "groups",
           "title": "Endpoint groups",
           "bullets": [
+            "Public API v1 (API keys)",
             "worker run API",
             "Midtrans Snap + notification",
             "voucher validation",
             "Publish webhook receiver",
-            "SSO SAML bootstrap/ACS"
+            "SSO SAML bootstrap/ACS",
+            "Contact form POST /api/contact"
           ]
+        }
+      ]
+    },
+    "public-v1": {
+      "slug": "public-v1",
+      "title": "Public API v1",
+      "description": "Workspace-scoped REST endpoints authenticated with kmn_ API keys from pengaturan → API keys.",
+      "sections": [
+        {
+          "id": "auth",
+          "title": "Authentication",
+          "body": "buat a key under /app/pengaturan/api-keys. Send it as x-api-key or Authorization: Bearer kmn_.... Write routes require the public_api_write feature flag (on by default) plus kampanye:write scope.",
+          "code": "curl https://your-app/api/v1/campaigns \\\n  -H \"Authorization: Bearer kmn_...\""
+        },
+        {
+          "id": "scopes",
+          "title": "Scopes",
+          "bullets": [
+            "kampanye:read / kampanye:write",
+            "akun:read",
+            "listener:read / listener:write (listener also accept kampanye:read/write)",
+            "leads:read / leads:write",
+            "activity:read",
+            "analytics:read",
+            "competitors:read",
+            "templates:read"
+          ]
+        },
+        {
+          "id": "list-campaigns",
+          "title": "GET /api/v1/kampanye",
+          "body": "List kampanye for the API key workspace."
+        },
+        {
+          "id": "create-campaign",
+          "title": "POST /api/v1/kampanye",
+          "body": "buat a kampanye. opsional listenerQuery creates a keyword listener. opsional socialAccountIds must belong to the workspace.",
+          "code": "{\n  \"name\": \"IG keyword pilot\",\n  \"platform\": \"instagram\",\n  \"mode\": \"approval_required\",\n  \"goal\": \"Helpful product replies\",\n  \"listenerQuery\": \"social ops automation\",\n  \"clientId\": \"optional_client_profile_id\",\n  \"dailyLimit\": 30\n}"
+        },
+        {
+          "id": "listeners",
+          "title": "GET/POST /api/v1/listener",
+          "body": "List or buat keyword/competitor/trend listener. POST requires kampanye:write.",
+          "code": "{\n  \"platform\": \"instagram\",\n  \"type\": \"keyword\",\n  \"query\": \"ai agent\",\n  \"campaignId\": \"optional_campaign_id\"\n}"
+        },
+        {
+          "id": "leads",
+          "title": "GET/POST /api/v1/leads",
+          "body": "List or buat engagement leads. Query params for GET: status, clientId, q. Requires lead_capture feature flag. POST uses leads:write and fires outbound lead.captured with structured CRM fields on generic webhook.",
+          "code": "{\n  \"handle\": \"prospect_ig\",\n  \"platform\": \"instagram\",\n  \"intent\": \"Asked for pricing\",\n  \"contactEmail\": \"ops@brand.com\",\n  \"clientId\": \"optional_client_id\",\n  \"source\": \"api\"\n}"
+        },
+        {
+          "id": "read-others",
+          "title": "Other read endpoints",
+          "bullets": [
+            "GET /api/v1/akun",
+            "GET /api/v1/activity",
+            "GET /api/v1/analytics"
+          ]
+        },
+        {
+          "id": "outbound-webhooks",
+          "title": "Outbound workspace webhook",
+          "body": "Configure Slack/Discord/generic endpoints under pengaturan → webhook. Events include persetujuan.new, lead.captured (extra: handle/email/client/kampanye/status), akun.degraded, akun.reauth_required, akun.proxy_rotated, comment.gagal, usage.warning."
         }
       ]
     },
@@ -1236,19 +1299,19 @@
           "id": "snap",
           "title": "POST /api/billing/midtrans/snap",
           "body": "Creates a workspace order and returns Snap token/redirect URL.",
-          "code": "// request\n{\n  \"planCode\": \"growth_6m\",\n  \"voucherCode\": \"AETHER10\"\n}\n\n// response\n{\n  \"orderId\": \"clx...\",\n  \"orderCode\": \"AETH-1710000000-123\",\n  \"token\": \"snap-token-or-sim-token\",\n  \"redirectUrl\": \"https://app.sandbox.midtrans.com/snap/v2/vtweb/...\",\n  \"totalIdr\": 2154600,\n  \"discountIdr\": 239400,\n  \"subtotalIdr\": 2394000,\n  \"clientKey\": \"SB-Mid-client-xxx\",\n  \"isSimulation\": false\n}"
+          "code": "// request\n{\n  \"planCode\": \"growth_6m\",\n  \"voucherCode\": \"KOMENIN10\"\n}\n\n// response\n{\n  \"orderId\": \"clx...\",\n  \"orderCode\": \"KMN-1710000000-123\",\n  \"token\": \"snap-token-or-sim-token\",\n  \"redirectUrl\": \"https://app.sandbox.midtrans.com/snap/v2/vtweb/...\",\n  \"totalIdr\": 2154600,\n  \"discountIdr\": 239400,\n  \"subtotalIdr\": 2394000,\n  \"clientKey\": \"SB-Mid-client-xxx\",\n  \"isSimulation\": false\n}"
         },
         {
           "id": "notification",
           "title": "POST /api/billing/midtrans/notification",
           "body": "Midtrans server-to-server notification. Signature is verified when MIDTRANS_SERVER_KEY is set.",
-          "code": "// request\n{\n  \"order_id\": \"AETH-1710000000-123\",\n  \"status_code\": \"200\",\n  \"gross_amount\": \"2154600.00\",\n  \"signature_key\": \"<sha512>\",\n  \"transaction_status\": \"settlement\",\n  \"transaction_id\": \"midtrans-trx-id\",\n  \"payment_type\": \"qris\"\n}\n\n// response\n{\n  \"ok\": true,\n  \"result\": {\n    \"ok\": true,\n    \"orderId\": \"clx...\",\n    \"subscriptionId\": \"clx...\"\n  }\n}"
+          "code": "// request\n{\n  \"order_id\": \"KMN-1710000000-123\",\n  \"status_code\": \"200\",\n  \"gross_amount\": \"2154600.00\",\n  \"signature_key\": \"<sha512>\",\n  \"transaction_status\": \"settlement\",\n  \"transaction_id\": \"midtrans-trx-id\",\n  \"payment_type\": \"qris\"\n}\n\n// response\n{\n  \"ok\": true,\n  \"result\": {\n    \"ok\": true,\n    \"orderId\": \"clx...\",\n    \"subscriptionId\": \"clx...\"\n  }\n}"
         },
         {
           "id": "voucher",
           "title": "POST /api/billing/voucher/validate",
           "body": "Validates a voucher for the selected plan before checkout.",
-          "code": "// request\n{ \"code\": \"AETHER10\", \"planCode\": \"growth_6m\" }\n\n// response\n{\n  \"voucherId\": \"clx...\",\n  \"code\": \"AETHER10\",\n  \"type\": \"percent\",\n  \"value\": 10,\n  \"discountIdr\": 239400,\n  \"totalIdr\": 2154600\n}"
+          "code": "// request\n{ \"code\": \"KOMENIN10\", \"planCode\": \"growth_6m\" }\n\n// response\n{\n  \"voucherId\": \"clx...\",\n  \"code\": \"KOMENIN10\",\n  \"type\": \"percent\",\n  \"value\": 10,\n  \"discountIdr\": 239400,\n  \"totalIdr\": 2154600\n}"
         }
       ]
     },
@@ -1261,7 +1324,7 @@
           "id": "endpoint",
           "title": "POST /api/publish/webhook",
           "body": "Accepts publish payloads from Komenin mode live. opsional bearer token via SOCIAL_PUBLISH_WEBHOOK_TOKEN.",
-          "code": "curl -X POST http://localhost:3000/api/publish/webhook   -H \"Authorization: Bearer $SOCIAL_PUBLISH_WEBHOOK_TOKEN\"   -H \"Content-Type: application/json\"   -d '{\n    \"platform\": \"instagram\",\n    \"username\": \"brand\",\n    \"body\": \"We just shipped a safer approvals flow.\",\n    \"hashtags\": [\"aether\", \"socialops\"]\n  }'"
+          "code": "curl -X POST http://localhost:3000/api/publish/webhook   -H \"Authorization: Bearer $SOCIAL_PUBLISH_WEBHOOK_TOKEN\"   -H \"Content-Type: application/json\"   -d '{\n    \"platform\": \"instagram\",\n    \"username\": \"brand\",\n    \"body\": \"We just shipped a safer approvals flow.\",\n    \"hashtags\": [\"komenin\", \"socialops\"]\n  }'"
         },
         {
           "id": "response",

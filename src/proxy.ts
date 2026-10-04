@@ -1,8 +1,17 @@
 import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 import { authConfig } from "@/lib/auth.config";
 import { splitLocalePath } from "@/lib/i18n/paths";
+import { extractClientIp } from "@/lib/rate-limit";
+import {
+  EDGE_API_THROTTLE,
+  consumeEdgeThrottle,
+  isScannerProbe,
+  isThrottledApiPath,
+  logScannerProbe,
+} from "@/lib/scanner-guard";
 
 // Edge-compatible auth wrapper (no Prisma adapter).
 const { auth } = NextAuth(authConfig);
@@ -53,51 +62,42 @@ function buildCSP(nonce: string, isProduction: boolean, includeMidtrans: boolean
   return directives.join("; ");
 }
 
-export default auth((req) => {
-  const { pathname } = req.nextUrl;
-
-  // Payload size guard (defence in depth — platforms also cap body size)
-  const contentLength = parseInt(req.headers.get("content-length") || "0", 10);
-  if (contentLength > MAX_PAYLOAD_SIZE) {
-    return NextResponse.json(
-      {
-        error: "Payload too large",
-        details: `Maximum allowed size is ${MAX_PAYLOAD_SIZE / 1024 / 1024}MB`,
-      },
-      { status: 413 },
-    );
-  }
-
-  // Path-based locale: /id/<public path> serves the same single-copy route
-  // tree with the Indonesian locale flagged for SEO metadata + rendering.
-  const { locale: pathLocale, path: unprefixedPath } = splitLocalePath(pathname);
-  const effectivePath = pathLocale === "id" ? unprefixedPath : pathname;
-
-  const isLoggedIn = !!req.auth;
-  const isProtected =
+function isProtectedPath(effectivePath: string): boolean {
+  return (
     effectivePath === "/app" ||
     effectivePath.startsWith("/app/") ||
     effectivePath === "/admin" ||
     effectivePath.startsWith("/admin/") ||
     effectivePath === "/invite" ||
     effectivePath.startsWith("/invite/") ||
-    effectivePath === "/onboarding";
-  const isAuthPage =
+    effectivePath === "/onboarding"
+  );
+}
+
+function isAuthPagePath(effectivePath: string): boolean {
+  return (
     effectivePath === "/login" ||
     effectivePath.startsWith("/login/") ||
     effectivePath === "/signup" ||
-    effectivePath.startsWith("/signup/");
+    effectivePath.startsWith("/signup/")
+  );
+}
 
-  if (isProtected && !isLoggedIn) {
-    const url = new URL("/login", req.nextUrl.origin);
-    url.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(url);
-  }
+function isPrivateAreaPath(effectivePath: string): boolean {
+  return isProtectedPath(effectivePath);
+}
 
-  if (isAuthPage && isLoggedIn) {
-    return NextResponse.redirect(new URL("/app", req.nextUrl.origin));
-  }
-
+/**
+ * Shared response finalizer: locale rewrite + per-request CSP headers.
+ * Used by both the anonymous fast path (no session cookie) and the
+ * authenticated path below so public pages share one behavior.
+ */
+function finalizeResponse(
+  req: NextRequest,
+  pathLocale: "en" | "id",
+  unprefixedPath: string,
+  effectivePath: string,
+): NextResponse {
   const isProduction = process.env.NODE_ENV === "production";
   const cspNonce = generateCSPNonce();
   const isCheckoutRoute = effectivePath.startsWith("/app/checkout");
@@ -121,36 +121,163 @@ export default auth((req) => {
   const securityHeaders: Record<string, string> = {};
   if (isProduction) {
     securityHeaders["Content-Security-Policy"] = buildCSP(cspNonce, true, isCheckoutRoute);
+  } else {
+    // Staging/preview get the same policy in report-only mode: violations are
+    // observable without breaking the app, so prod CSP never ships untested.
+    securityHeaders["Content-Security-Policy-Report-Only"] = buildCSP(
+      cspNonce,
+      false,
+      isCheckoutRoute,
+    );
   }
 
   // Authenticated areas must never be cached by intermediaries — a cached
   // page would serve one user's CSP nonce to another (breaking CSP or
   // leaking it) and expose private dashboards.
-  const isPrivateArea =
-    effectivePath === "/app" ||
-    effectivePath.startsWith("/app/") ||
-    effectivePath === "/admin" ||
-    effectivePath.startsWith("/admin/") ||
-    effectivePath === "/invite" ||
-    effectivePath.startsWith("/invite/") ||
-    effectivePath.startsWith("/onboarding");
-  if (isPrivateArea) {
+  if (isPrivateAreaPath(effectivePath)) {
     securityHeaders["Cache-Control"] = "private, no-store";
     securityHeaders["X-Robots-Tag"] = "noindex, nofollow";
   }
 
-  const response = pathLocale === "id"
-    ? NextResponse.rewrite(new URL(unprefixedPath, req.nextUrl.origin), {
-        request: { headers: requestHeaders },
-      })
-    : NextResponse.next({ request: { headers: requestHeaders } });
+  const response =
+    pathLocale === "id"
+      ? NextResponse.rewrite(new URL(unprefixedPath, req.nextUrl.origin), {
+          request: { headers: requestHeaders },
+        })
+      : NextResponse.next({ request: { headers: requestHeaders } });
 
   for (const [key, value] of Object.entries(securityHeaders)) {
     response.headers.set(key, value);
   }
 
   return response;
+}
+
+function payloadTooLarge(req: NextRequest): NextResponse | null {
+  const contentLength = parseInt(req.headers.get("content-length") || "0", 10);
+  if (contentLength > MAX_PAYLOAD_SIZE) {
+    return NextResponse.json(
+      {
+        error: "Payload too large",
+        details: `Maximum allowed size is ${MAX_PAYLOAD_SIZE / 1024 / 1024}MB`,
+      },
+      { status: 413 },
+    );
+  }
+  return null;
+}
+
+// Auth.js session cookie names (see @auth/core defaultCookies):
+// `authjs.session-token` locally, `__Secure-authjs.session-token` on HTTPS,
+// plus `.0`, `.1`, … chunks when the JWT is large.
+function hasSessionCookie(req: NextRequest): boolean {
+  try {
+    return req.cookies.getAll().some((cookie) => cookie.name.includes("authjs.session-token"));
+  } catch {
+    // Fail closed: fall through to full verification when cookies unreadable.
+    return true;
+  }
+}
+
+const authenticatedHandler = auth((req) => {
+  const { pathname } = req.nextUrl;
+
+  const tooLarge = payloadTooLarge(req);
+  if (tooLarge) return tooLarge;
+
+  // Path-based locale: /id/<public path> serves the same single-copy route
+  // tree with the Indonesian locale flagged for SEO metadata + rendering.
+  const { locale: pathLocale, path: unprefixedPath } = splitLocalePath(pathname);
+  const effectivePath = pathLocale === "id" ? unprefixedPath : pathname;
+
+  const isLoggedIn = !!req.auth;
+
+  if (isProtectedPath(effectivePath) && !isLoggedIn) {
+    const url = new URL("/login", req.nextUrl.origin);
+    url.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  if (isAuthPagePath(effectivePath) && isLoggedIn) {
+    return NextResponse.redirect(new URL("/app", req.nextUrl.origin));
+  }
+
+  return finalizeResponse(req, pathLocale, unprefixedPath, effectivePath);
 });
+
+// extractClientIp is Edge-safe (header parsing only, no Node imports), but
+// guard anyway so one malformed header can never take the proxy path down.
+function safeEdgeClientIp(req: NextRequest): string {
+  try {
+    return extractClientIp(req);
+  } catch {
+    return "unknown";
+  }
+}
+
+export default async function proxy(req: NextRequest) {
+  const { pathname, search } = req.nextUrl;
+
+  // 1. Scanner trap: automated probes for leaked files, admin consoles, and
+  // injection payloads get a bare 404 — never a 403/500 that confirms the
+  // path exists. Logged for alerting; legitimate browsers never hit these.
+  if (isScannerProbe(pathname, search)) {
+    logScannerProbe({
+      pathname,
+      search,
+      ip: safeEdgeClientIp(req),
+      userAgent: req.headers.get("user-agent"),
+    });
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // 2. Edge throttle for /api/* (worker/cron/health excluded): a cheap
+  // per-instance fixed window that 429s floods before they reach handlers.
+  // Durable Upstash enforcement still lives inside the route handlers.
+  if (isThrottledApiPath(pathname)) {
+    const verdict = consumeEdgeThrottle(safeEdgeClientIp(req));
+    if (!verdict.allowed) {
+      const retryAfter = Math.max(
+        1,
+        Math.ceil((verdict.resetAt - Date.now()) / 1000),
+      );
+      return NextResponse.json(
+        { error: "Too many requests" },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.min(retryAfter, 60)),
+            "X-RateLimit-Limit": String(EDGE_API_THROTTLE.limit),
+            "X-RateLimit-Remaining": "0",
+          },
+        },
+      );
+    }
+  }
+  // Fast path for anonymous traffic (the common case on public marketing,
+  // docs, and pricing pages): without a session cookie there is no JWT to
+  // verify, so skip the Auth.js session lookup entirely and save 20–100ms
+  // of TTFB on the pages where LCP matters most.
+  if (!hasSessionCookie(req)) {
+    const tooLarge = payloadTooLarge(req);
+    if (tooLarge) return tooLarge;
+
+    const { locale: pathLocale, path: unprefixedPath } = splitLocalePath(pathname);
+    const effectivePath = pathLocale === "id" ? unprefixedPath : pathname;
+
+    // Anonymous users hitting protected routes still bounce to /login.
+    // (Anonymous users on /login|/signup render directly — no redirect needed.)
+    if (isProtectedPath(effectivePath)) {
+      const url = new URL("/login", req.nextUrl.origin);
+      url.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(url);
+    }
+
+    return finalizeResponse(req, pathLocale, unprefixedPath, effectivePath);
+  }
+
+  return (authenticatedHandler as (req: NextRequest) => Promise<Response>)(req);
+}
 
 export const config = {
   matcher: [
@@ -158,8 +285,13 @@ export const config = {
      * Match all request paths except:
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
+     * - favicon / icons / brand art / PWA manifest (static assets)
+     * - robots.txt, sitemap.xml, llms.txt (crawler files)
+     *
+     * NOTE: /security.txt and /.well-known/security.txt intentionally STAY
+     * matched so the scanner trap + edge throttle in proxy() still run;
+     * isScannerProbe() returns false for them so they serve normally.
      */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|favicon.svg|apple-touch-icon.png|brand/|manifest.webmanifest|robots.txt|sitemap.xml|llms.txt).*)",
   ],
 };

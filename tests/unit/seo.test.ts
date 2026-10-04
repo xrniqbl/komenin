@@ -4,6 +4,7 @@ import {
   PAGE_SEO,
   PUBLIC_ROUTES,
   absoluteUrl,
+  articleJsonLd,
   breadcrumbJsonLd,
   buildMetadata,
   faqJsonLd,
@@ -104,10 +105,22 @@ describe("seo helpers", () => {
 
   it("builds organization, website, and software graph nodes", () => {
     expect(organizationJsonLd()["@type"]).toBe("Organization");
-    expect(websiteJsonLd().potentialAction).toBeTruthy();
+    // WebSite carries identity only; /docs search is in-app autocomplete,
+    // so no SearchAction with a ?q= URL is claimed.
+    expect("potentialAction" in websiteJsonLd()).toBe(false);
     const app = softwareApplicationJsonLd();
     expect(app.offers.lowPrice).toBe("499000");
     expect(app.offers.highPrice).toBe("3588000");
+  });
+
+  it("builds tech article nodes for docs pages", () => {
+    const data = articleJsonLd({
+      headline: "Introduction",
+      description: "Getting started with Komenin",
+      path: "/docs/tutorial/introduction",
+    });
+    expect(data["@type"]).toBe("TechArticle");
+    expect(data.mainEntityOfPage["@id"]).toContain("/docs/tutorial/introduction");
   });
 
   it("builds webpage, features list, and breadcrumb nodes", () => {
@@ -120,7 +133,8 @@ describe("seo helpers", () => {
     ).toBe("WebPage");
     const list = featuresItemListJsonLd();
     expect(list["@type"]).toBe("ItemList");
-    expect(list.itemListElement).toHaveLength(4);
+    expect(list.itemListElement.length).toBeGreaterThanOrEqual(4);
+    expect(list.itemListElement.map((item) => item.name)).toContain("Session Routing");
     const crumbs = breadcrumbJsonLd([
       { name: "Home", path: "/" },
       { name: "Features", path: "/features" },

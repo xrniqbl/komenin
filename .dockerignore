@@ -21,7 +21,7 @@ coverage
 # Paket deploy lama / arsip
 deploy-package
 *.zip
-aether-deploy.zip
+komenin-deploy.zip
 
 # Data lokal & log
 data

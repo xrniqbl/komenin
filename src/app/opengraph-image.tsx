@@ -1,7 +1,9 @@
 import { ImageResponse } from "next/og";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/seo";
 
-export const runtime = "edge";
+// Node.js runtime: the Edge Runtime is deprecated in Next 16 and warns on
+// every boot. ImageResponse renders identically on nodejs.
+export const runtime = "nodejs";
 export const alt = `${SITE_NAME} — ${SITE_TAGLINE}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -37,7 +39,7 @@ export default function OpenGraphImage() {
               fontWeight: 700,
             }}
           >
-            A
+            K
           </div>
           <div style={{ fontSize: 36, fontWeight: 600, letterSpacing: -0.5 }}>{SITE_NAME}</div>
         </div>

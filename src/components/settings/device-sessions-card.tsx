@@ -4,11 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { listLoginDevices, revokeLoginDevice, revokeOtherLoginDevices } from "@/server/login-sessions";
 import type { LoginDevice } from "@/server/login-sessions";
+import type { Messages } from "@/lib/i18n/messages";
 
-function shortDevice(userAgent: string | null): string {
-  if (!userAgent) return "Perangkat tidak diketahui";
+function shortDevice(userAgent: string | null, copy: Messages["auth"]): string {
+  if (!userAgent) return copy.devicesUnknown;
   const browser = /Edg\//.test(userAgent)
     ? "Edge"
     : /OPR\//.test(userAgent)
@@ -35,6 +37,8 @@ function shortDevice(userAgent: string | null): string {
 }
 
 export function DeviceSessionsCard() {
+  const { locale, t } = useLocale();
+  const copy = t.auth;
   const [devices, setDevices] = useState<LoginDevice[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +62,7 @@ export function DeviceSessionsCard() {
       await revokeLoginDevice(id);
       await load();
     } catch {
-      setError("Gagal mencabut perangkat.");
+      setError(copy.devicesRevokeFailed);
     } finally {
       setBusy(false);
     }
@@ -71,7 +75,7 @@ export function DeviceSessionsCard() {
       await revokeOtherLoginDevices();
       await load();
     } catch {
-      setError("Gagal mencabut sesi lain.");
+      setError(copy.devicesRevokeOthersFailed);
     } finally {
       setBusy(false);
     }
@@ -84,11 +88,8 @@ export function DeviceSessionsCard() {
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
           <div>
-            <CardTitle className="text-base">Perangkat login</CardTitle>
-            <CardDescription>
-              Sesi login yang masih aktif. Mencabut sebuah perangkat memaksanya login ulang
-              (berlaku dalam ±1 menit).
-            </CardDescription>
+            <CardTitle className="text-base">{copy.devicesTitle}</CardTitle>
+            <CardDescription>{copy.devicesDescription}</CardDescription>
           </div>
           {others > 0 ? (
             <Button
@@ -98,7 +99,7 @@ export function DeviceSessionsCard() {
               onClick={revokeOthers}
               disabled={busy}
             >
-              Keluar dari {others} perangkat lain
+              {copy.devicesRevokeOthers} ({others})
             </Button>
           ) : null}
         </div>
@@ -106,10 +107,10 @@ export function DeviceSessionsCard() {
       <CardContent className="space-y-3">
         {error ? <p className="text-xs text-destructive">{error}</p> : null}
         {devices === null ? (
-          <p className="text-sm text-muted-foreground">Memuat…</p>
+          <p className="text-sm text-muted-foreground">{copy.devicesLoading}</p>
         ) : devices.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Belum ada sesi tercatat — daftar terisi sejak fitur ini aktif.
+            {copy.devicesEmpty}
           </p>
         ) : (
           <ul className="divide-y">
@@ -117,14 +118,14 @@ export function DeviceSessionsCard() {
               <li key={device.id} className="flex items-center justify-between gap-3 py-2.5">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="font-medium">{shortDevice(device.userAgent)}</span>
-                    {device.current ? <Badge variant="default">Perangkat ini</Badge> : null}
+                    <span className="font-medium">{shortDevice(device.userAgent, copy)}</span>
+                    {device.current ? <Badge variant="default">{copy.devicesThisDevice}</Badge> : null}
                   </div>
                   <div className="truncate text-xs text-muted-foreground">
                     {device.ip ? `${device.ip} · ` : ""}
                     {device.provider ? `${device.provider} · ` : ""}
-                    terakhir aktif{" "}
-                    {device.lastSeenAt.toLocaleString("id-ID", {
+                    {copy.devicesLastActive}{" "}
+                    {device.lastSeenAt.toLocaleString(locale === "id" ? "id-ID" : "en-US", {
                       dateStyle: "medium",
                       timeStyle: "short",
                     })}
@@ -137,7 +138,7 @@ export function DeviceSessionsCard() {
                   onClick={() => revoke(device.id)}
                   disabled={busy}
                 >
-                  Cabut
+                  {copy.devicesRevoke}
                 </Button>
               </li>
             ))}

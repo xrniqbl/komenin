@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +17,8 @@ import {
 type Status = { enabled: boolean; pending: boolean } | null;
 
 export function TotpSettingsCard() {
+  const { t } = useLocale();
+  const copy = t.auth;
   const [status, setStatus] = useState<Status>(null);
   const [enrollment, setEnrollment] = useState<{ secret: string; otpauthUri: string } | null>(null);
   const [code, setCode] = useState("");
@@ -43,7 +46,7 @@ export function TotpSettingsCard() {
       setEnrollment(await startTotpEnrollment());
       await load();
     } catch {
-      setError("Gagal memulai pendaftaran 2FA.");
+      setError(copy.totpEnrollStartFailed);
     } finally {
       setBusy(false);
     }
@@ -56,16 +59,16 @@ export function TotpSettingsCard() {
     try {
       const result = await confirmTotpEnrollment(code);
       if (!result.ok) {
-        setError("Kode belum benar — pastikan jam perangkat akurat dan coba lagi.");
+        setError(copy.totpCodeClockHint);
         setBusy(false);
         return;
       }
       setEnrollment(null);
       setCode("");
-      setNotice("2FA aktif. Login berikutnya akan diminta kode autentikator.");
+      setNotice(copy.totpEnabledNotice);
       await load();
     } catch {
-      setError("Gagal mengaktifkan 2FA.");
+      setError(copy.totpEnableFailed);
     } finally {
       setBusy(false);
     }
@@ -78,15 +81,15 @@ export function TotpSettingsCard() {
     try {
       const result = await disableTotp(code);
       if (!result.ok) {
-        setError("Kode salah — 2FA tidak dinonaktifkan.");
+        setError(copy.totpDisableWrong);
         setBusy(false);
         return;
       }
       setCode("");
-      setNotice("2FA dinonaktifkan.");
+      setNotice(copy.totpDisabledNotice);
       await load();
     } catch {
-      setError("Gagal menonaktifkan 2FA.");
+      setError(copy.totpDisableFailed);
     } finally {
       setBusy(false);
     }
@@ -99,16 +102,15 @@ export function TotpSettingsCard() {
     <Card className="max-w-2xl">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <CardTitle className="text-base">Dua langkah (TOTP)</CardTitle>
+          <CardTitle className="text-base">{copy.securityTitle}</CardTitle>
           {status ? (
             <Badge variant={enabled ? "default" : "secondary"}>
-              {enabled ? "Aktif" : "Nonaktif"}
+              {enabled ? copy.securityActive : copy.securityInactive}
             </Badge>
           ) : null}
         </div>
         <CardDescription>
-          Kode kedua dari aplikasi autentikator (Google Authenticator, Authy, 1Password).
-          Berlaku untuk semua cara login, termasuk Google dan email OTP.
+          {copy.securityDescription}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -118,7 +120,7 @@ export function TotpSettingsCard() {
         {enabled ? (
           <form onSubmit={disable} className="flex flex-col gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="totp-disable-code">Kode saat ini untuk menonaktifkan</Label>
+              <Label htmlFor="totp-disable-code">{copy.totpDisableCodeLabel}</Label>
               <Input
                 id="totp-disable-code"
                 inputMode="numeric"
@@ -129,7 +131,7 @@ export function TotpSettingsCard() {
               />
             </div>
             <Button type="submit" variant="outline" disabled={busy || code.length !== 6}>
-              {busy ? "Memproses…" : "Nonaktifkan 2FA"}
+              {busy ? copy.totpProcessing : copy.totpDeactivate}
             </Button>
           </form>
         ) : showEnroll ? (
@@ -137,9 +139,9 @@ export function TotpSettingsCard() {
             {enrollment ? (
               <div className="space-y-2 text-sm">
                 <div>
-                  <Label>1. Tambahkan ke aplikasi autentikator</Label>
+                  <Label>{copy.totpStep1}</Label>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Scan URI berikut di aplikasi Anda, atau masukkan kunci manual:
+                    {copy.totpStep1Hint}
                   </p>
                 </div>
                 <code className="block break-all rounded-md bg-muted px-2 py-1.5 text-xs">
@@ -151,17 +153,17 @@ export function TotpSettingsCard() {
               </div>
             ) : (
               <div className="text-sm text-muted-foreground">
-                Pendaftaran sebelumnya belum dikonfirmasi. Mulai ulang untuk mendapat kunci baru.
+                {copy.totpPendingRestart}
               </div>
             )}
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" onClick={start} disabled={busy}>
-                {enrollment ? "Buat kunci baru" : "Mulai ulang pendaftaran"}
+                {enrollment ? copy.totpNewKey : copy.totpRestart}
               </Button>
             </div>
             <form onSubmit={confirm} className="flex flex-col gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="totp-confirm-code">2. Masukkan kode 6 digit</Label>
+                <Label htmlFor="totp-confirm-code">{copy.totpStep2}</Label>
                 <Input
                   id="totp-confirm-code"
                   inputMode="numeric"
@@ -172,13 +174,13 @@ export function TotpSettingsCard() {
                 />
               </div>
               <Button type="submit" disabled={busy || code.length !== 6}>
-                {busy ? "Memverifikasi…" : "Aktifkan 2FA"}
+                {busy ? copy.verifying : copy.totpActivate}
               </Button>
             </form>
           </div>
         ) : (
           <Button type="button" onClick={start} disabled={busy || status === null}>
-            {busy ? "Memproses…" : "Aktifkan 2FA"}
+            {busy ? copy.totpProcessing : copy.totpActivate}
           </Button>
         )}
       </CardContent>

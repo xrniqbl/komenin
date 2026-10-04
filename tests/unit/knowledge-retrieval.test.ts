@@ -11,7 +11,7 @@ describe("knowledge retrieval", () => {
   it("ranks relevant chunks higher", () => {
     const ranked = rankChunks("coupon promo diskon", [
       { id: "1", content: "Our office is in Jakarta" },
-      { id: "2", content: "Gunakan coupon AETHER10 untuk promo diskon" },
+      { id: "2", content: "Gunakan coupon KOMENIN10 untuk promo diskon" },
       { id: "3", content: "Support hours are 9 to 5" },
     ], 2);
     expect(ranked[0].id).toBe("2");

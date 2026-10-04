@@ -73,6 +73,15 @@ describe('Integration: Security & Validation', () => {
       expect(sanitized).not.toContain('<img');
       expect(sanitized).toContain('safe text');
     });
+
+    it('strips unquoted event handlers and dangerous schemes', () => {
+      expect(sanitizeHTML('<img src=x onerror=alert(1)>')).not.toContain('onerror');
+      expect(sanitizeHTML('<svg onload="alert(1)"><p>hi</p></svg>')).not.toContain('<svg');
+      expect(sanitizeHTML('<a href="javascript:alert(1)">click</a>')).not.toContain('javascript');
+      expect(sanitizeHTML('<a href="https://example.com" onclick="alert(1)">ok</a>')).toContain(
+        'href="https://example.com"',
+      );
+    });
   });
 
   describe('Rate Limiting', () => {

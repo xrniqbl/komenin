@@ -38,11 +38,15 @@ describe("SiteHeader", () => {
   it("renders desktop navigation links and language toggle", () => {
     renderHeader();
     expect(screen.getByRole("navigation", { name: "Primary" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Features" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Pricing" })).toBeInTheDocument();
+    // Features/Pricing are crawlable links to their indexable pages (they
+    // only scroll-to-section when already on the homepage).
+    expect(screen.getByRole("link", { name: "Features" })).toHaveAttribute("href", "/features");
+    expect(screen.getByRole("link", { name: "Pricing" })).toHaveAttribute("href", "/pricing");
     expect(screen.getByRole("link", { name: "Enterprise" })).toHaveAttribute("href", "/enterprise");
     expect(screen.getByRole("link", { name: "Security" })).toHaveAttribute("href", "/security");
     expect(screen.getByRole("link", { name: "Docs" })).toHaveAttribute("href", "/docs");
+    // Platform dropdown groups the newer marketing pages behind one trigger.
+    expect(screen.getByRole("button", { name: /platform/i })).toBeInTheDocument();
     expect(screen.getAllByRole("group", { name: "Language" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "EN" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "ID" }).length).toBeGreaterThan(0);
@@ -52,8 +56,10 @@ describe("SiteHeader", () => {
     const user = userEvent.setup();
     renderHeader();
     await user.click(screen.getAllByRole("button", { name: "ID" })[0]!);
-    expect(screen.getByRole("button", { name: "Fitur" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Harga" })).toBeInTheDocument();
+    // LocaleLink prefixes the /id locale path for routed links (Docs stays
+    // a plain /docs link in this header).
+    expect(screen.getByRole("link", { name: "Fitur" })).toHaveAttribute("href", "/id/features");
+    expect(screen.getByRole("link", { name: "Harga" })).toHaveAttribute("href", "/id/pricing");
     expect(screen.getByRole("link", { name: "Dokumentasi" })).toHaveAttribute("href", "/docs");
   });
 
@@ -63,9 +69,21 @@ describe("SiteHeader", () => {
     await user.click(screen.getByRole("button", { name: /open menu|buka menu/i }));
     const mobileNav = await screen.findByRole("navigation", { name: "Mobile" });
     expect(mobileNav).toBeInTheDocument();
-    expect(within(mobileNav).getByRole("button", { name: /pricing|harga/i })).toBeInTheDocument();
+    expect(within(mobileNav).getByRole("link", { name: /pricing|harga/i })).toHaveAttribute(
+      "href",
+      "/pricing",
+    );
     expect(
       within(mobileNav).getByRole("link", { name: /docs|dokumentasi/i }),
     ).toHaveAttribute("href", "/docs");
+    // New marketing pages are grouped in the mobile menu too.
+    expect(within(mobileNav).getByRole("link", { name: "Instagram" })).toHaveAttribute(
+      "href",
+      "/platform/instagram",
+    );
+    expect(within(mobileNav).getByRole("link", { name: /changelog/i })).toHaveAttribute(
+      "href",
+      "/changelog",
+    );
   });
 });

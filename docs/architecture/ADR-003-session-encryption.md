@@ -6,7 +6,7 @@
 
 ## Context
 
-Aether menyimpan sensitive data dari multiple social media platforms:
+Komenin menyimpan sensitive data dari multiple social media platforms:
 
 1. **OAuth tokens**: Access tokens, refresh tokens untuk Instagram, Threads, TikTok
 2. **Session blobs**: Encrypted session data untuk proxy routing

@@ -1,20 +1,20 @@
-# Aether Foundation Implementation Plan
+# Komenin Foundation Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Bootstrap Aether as a working Next.js + Untitled UI product with Google auth, Neon multi-tenant workspace model, marketing site, onboarding, and authenticated app shell.
+**Goal:** Bootstrap Komenin as a working Next.js + Untitled UI product with Google auth, Neon multi-tenant workspace model, marketing site, onboarding, and authenticated app shell.
 
 **Architecture:** Modular Next.js App Router monolith. Marketing routes are public. Auth uses Auth.js (NextAuth v5) with Google. Business data is workspace-scoped in Neon via Prisma. App shell under `/app` is membership-gated. Later module plans build Session Routing, Comment Engine, Agents, and Skills on this foundation.
 
 **Tech Stack:** Next.js App Router, TypeScript, Tailwind, Untitled UI, Auth.js + Google OAuth, Prisma, Neon Postgres, Zod, Vitest, Testing Library
 
-**Spec:** `docs/superpowers/specs/2026-07-14-aether-design.md`
+**Spec:** `docs/superpowers/specs/2026-07-14-komenin-design.md`
 
 **Scope note:** Full product has 4 automation subsystems. This plan delivers Phase 0-1 only (foundation + marketing + access). Follow-on plans:
-- `2026-07-14-aether-session-routing.md`
-- `2026-07-14-aether-comment-engine.md`
-- `2026-07-14-aether-agent-intelligence.md`
-- `2026-07-14-aether-skill-execution.md`
+- `2026-07-14-komenin-session-routing.md`
+- `2026-07-14-komenin-comment-engine.md`
+- `2026-07-14-komenin-agent-intelligence.md`
+- `2026-07-14-komenin-skill-execution.md`
 
 ---
 
@@ -722,7 +722,7 @@ npm run build
 
 ```powershell
 git add README.md
-git commit -m "docs: add local setup for neon google auth and aether foundation"
+git commit -m "docs: add local setup for neon google auth and komenin foundation"
 ```
 
 ---
@@ -758,7 +758,7 @@ git commit -m "docs: add local setup for neon google auth and aether foundation"
 
 ## Execution Handoff
 
-Plan complete and saved to `docs/superpowers/plans/2026-07-14-aether-foundation.md`.
+Plan complete and saved to `docs/superpowers/plans/2026-07-14-komenin-foundation.md`.
 
 **Two execution options:**
 

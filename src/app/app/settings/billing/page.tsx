@@ -4,9 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatIdr } from "@/lib/billing/catalog";
 import { getBillingOverview } from "@/server/billing";
+import { getWorkspaceAiBillingStatus } from "@/server/ai-providers";
 
 export default async function BillingSettingsPage() {
-  const overview = await getBillingOverview();
+  const [overview, aiStatus] = await Promise.all([
+    getBillingOverview(),
+    getWorkspaceAiBillingStatus(),
+  ]);
   const sub = overview.subscription;
 
   return (
@@ -21,7 +25,7 @@ export default async function BillingSettingsPage() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader>
             <CardDescription>Current plan</CardDescription>
@@ -50,6 +54,25 @@ export default async function BillingSettingsPage() {
             <Link href="/app/checkout" className="inline-flex text-sm text-primary hover:underline">
               Open checkout
             </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">AI credits</CardTitle>
+            <CardDescription>
+              Tier {aiStatus.tier} · subscription remaining{" "}
+              {new Intl.NumberFormat("id-ID").format(Number(aiStatus.remainingThisPeriod))} · PAYG{" "}
+              {new Intl.NumberFormat("id-ID").format(Number(aiStatus.paygBalance))}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" render={<Link href="/app/settings/ai" />} nativeButton={false}>
+              Manage AI billing
+            </Button>
+            <Button size="sm" variant="outline" render={<Link href="/app/analytics" />} nativeButton={false}>
+              View AI usage
+            </Button>
           </CardContent>
         </Card>
       </div>

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { assertSafeOutboundUrl } from '../url-safety';
+import { assertSafeOutboundUrlResolved } from '../url-safety';
 import type { BridgeAction } from './bridge-contract';
 export type { BridgeAction } from './bridge-contract';
 
@@ -43,11 +43,12 @@ export class BridgeClient {
       };
     }
     // SSRF guard: liveUrl is operator-configured (BRIDGE_LIVE_URL). Validate
-    // the URL shape synchronously and refuse redirects at request time so a
-    // compromised bridge cannot bounce the app's bearer token elsewhere.
+    // the URL shape AND its resolved DNS (private/metadata targets rejected),
+    // and refuse redirects at request time so a compromised bridge cannot
+    // bounce the app's bearer token elsewhere.
     let validatedBase: string;
     try {
-      validatedBase = assertSafeOutboundUrl(this.config.baseUrl).toString().replace(/\/$/, "");
+      validatedBase = (await assertSafeOutboundUrlResolved(this.config.baseUrl)).toString().replace(/\/$/, "");
     } catch {
       return {
         status: 500,

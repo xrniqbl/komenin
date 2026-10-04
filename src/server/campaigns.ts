@@ -13,6 +13,8 @@ export async function listCampaigns(input?: {
   status?: string;
   platform?: string;
   clientId?: string;
+  /** Hide completed campaigns from the default workspace view. */
+  hideCompleted?: boolean;
 }) {
   const { workspace } = await requireActiveWorkspace();
   const where: Record<string, unknown> & { workspaceId: string } = {
@@ -25,6 +27,7 @@ export async function listCampaigns(input?: {
     ];
   }
   if (input?.status) where.status = input.status as never;
+  else if (input?.hideCompleted) where.status = { not: "completed" };
   if (input?.platform) where.platform = input.platform as never;
   if (input?.clientId) where.clientId = input.clientId;
 
@@ -84,7 +87,35 @@ export async function createCampaign(input: {
     clientId = client.id;
   }
 
+  const { getPlatformGuardrail, validateCampaignPacing } = await import("@/lib/platform-rate-limits");
+  const delayFloor = getPlatformGuardrail(input.platform).comments.minIntervalSec;
+  const pacing = validateCampaignPacing({
+    platform: input.platform,
+    dailyLimit: input.dailyLimit,
+    minDelaySec: input.minDelaySec,
+    maxDelaySec: input.maxDelaySec,
+  });
+  if (pacing.errors.length > 0) throw new Error(pacing.errors.join("; "));
+
   const agent = await ensureDefaultAgent();
+
+  // H2: socialAccountIds are attacker-chosen UUIDs — resolve them against
+  // this workspace BEFORE the transaction so a member of workspace A can
+  // never link (or leak via listCampaigns include) workspace B's accounts.
+  let socialAccountIds: string[] = [];
+  if (input.socialAccountIds?.length) {
+    const uniqueIds = [...new Set(input.socialAccountIds.map((id) => id.trim()).filter(Boolean))];
+    if (uniqueIds.length > 0) {
+      const owned = await db.socialAccount.findMany({
+        where: { id: { in: uniqueIds }, workspaceId: workspace.id },
+        select: { id: true },
+      });
+      if (owned.length !== uniqueIds.length) {
+        throw new Error("Social account not found");
+      }
+      socialAccountIds = owned.map((a) => a.id);
+    }
+  }
 
   const campaign = await db.$transaction(async (tx) => {
     const created = await tx.campaign.create({
@@ -97,15 +128,15 @@ export async function createCampaign(input: {
         agentId: agent.id,
         clientId,
         goal: input.goal?.trim() || null,
-        dailyLimit: input.dailyLimit ?? 30,
-        minDelaySec: input.minDelaySec ?? 45,
-        maxDelaySec: input.maxDelaySec ?? 180,
+        dailyLimit: pacing.clampedDailyLimit,
+        minDelaySec: Math.max(input.minDelaySec ?? 180, delayFloor),
+        maxDelaySec: Math.max(input.maxDelaySec ?? 600, input.minDelaySec ?? 180, delayFloor),
       },
     });
 
-    if (input.socialAccountIds?.length) {
+    if (socialAccountIds.length) {
       await tx.campaignAccount.createMany({
-        data: input.socialAccountIds.map((socialAccountId) => ({
+        data: socialAccountIds.map((socialAccountId) => ({
           campaignId: created.id,
           socialAccountId,
         })),
@@ -189,4 +220,110 @@ export async function setCampaignClient(input: {
   revalidatePath(`/app/campaigns/${updated.id}`);
   revalidatePath("/app/clients");
   return updated;
+}
+
+export async function setCampaignStatus(input: {
+  campaignId: string;
+  status: "draft" | "active" | "paused" | "completed";
+}) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertWorkspacePermission(workspace, "campaigns.manage");
+
+  const campaign = await db.campaign.findFirst({
+    where: { id: input.campaignId, workspaceId: workspace.id },
+    select: { id: true, status: true, name: true },
+  });
+  if (!campaign) throw new Error("Campaign not found");
+
+  const updated = await db.campaign.update({
+    where: { id: campaign.id },
+    data: { status: input.status as never },
+  });
+
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "campaign.status_updated",
+    resourceType: "campaign",
+    resourceId: updated.id,
+    metadata: { from: campaign.status, to: input.status },
+  });
+
+  revalidatePath("/app/campaigns");
+  revalidatePath(`/app/campaigns/${updated.id}`);
+  return updated;
+}
+
+export async function duplicateCampaign(input: {
+  campaignId: string;
+  name?: string;
+}) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertWorkspacePermission(workspace, "campaigns.manage");
+
+  const source = await db.campaign.findFirst({
+    where: { id: input.campaignId, workspaceId: workspace.id },
+    include: { accounts: true, listeners: { take: 1 } },
+  });
+  if (!source) throw new Error("Campaign not found");
+
+  const agent = source.agentId
+    ? await db.agent.findFirst({
+        where: { id: source.agentId, workspaceId: workspace.id },
+        select: { id: true },
+      })
+    : null;
+
+  const baseName = input.name?.trim() || `${source.name} (copy)`;
+  const copy = await db.$transaction(async (tx) => {
+    const created = await tx.campaign.create({
+      data: {
+        workspaceId: workspace.id,
+        name: baseName.slice(0, 120),
+        platform: source.platform,
+        mode: source.mode,
+        status: "draft",
+        agentId: agent?.id || (await ensureDefaultAgent()).id,
+        clientId: source.clientId,
+        goal: source.goal,
+        dailyLimit: source.dailyLimit,
+        minDelaySec: source.minDelaySec,
+        maxDelaySec: source.maxDelaySec,
+      },
+    });
+    if (source.accounts.length > 0) {
+      await tx.campaignAccount.createMany({
+        data: source.accounts.map((a) => ({
+          campaignId: created.id,
+          socialAccountId: a.socialAccountId,
+        })),
+      });
+    }
+    const listener = source.listeners[0];
+    if (listener) {
+      await tx.listener.create({
+        data: {
+          workspaceId: workspace.id,
+          campaignId: created.id,
+          platform: source.platform,
+          type: listener.type,
+          query: listener.query,
+          isActive: false,
+        },
+      });
+    }
+    return created;
+  });
+
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "campaign.duplicated",
+    resourceType: "campaign",
+    resourceId: copy.id,
+    metadata: { sourceId: source.id, name: copy.name },
+  });
+
+  revalidatePath("/app/campaigns");
+  return copy;
 }

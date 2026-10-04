@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-echo "[entrypoint] Aether starting..."
+echo "[entrypoint] Komenin starting..."
 
 # Jalankan migrasi database (aman untuk dijalankan berulang). Kegagalan migrate
 # TIDAK boleh diabaikan: server yang start dengan schema lama akan melempar

@@ -1,8 +1,8 @@
-# Aether Live Webhook Bridge Design
+# Komenin Live Webhook Bridge Design
 
 **Date:** 2026-07-28  
 **Status:** Implemented — 2026-08-26 (plan `docs/superpowers/plans/2026-07-28-live-webhook-bridge.md`, all 5 tasks done)  
-**Product:** Aether (repo: lokarouter)  
+**  
 **Epic type:** Harden & complete existing live social delivery (not net-new product features)  
 **Decision locked:** Webhook-bridge end-to-end as the production live path; native platform APIs remain secondary/optional
 
@@ -10,7 +10,7 @@
 
 ## 1. Summary
 
-Make Aether’s **live** social path honest and operable by:
+Make Komenin's **live** social path honest and operable by:
 
 1. Formalizing a **versioned external bridge contract** for connector actions.
 2. Hardening the app’s webhook client so invalid or empty bridge responses cannot look like success.
@@ -66,7 +66,7 @@ Gaps this epic closes (status as of 2026-08-26 — **all closed**):
 ## 4. Architecture
 
 ```text
-Aether app (workers / server actions)
+Komenin app (workers / server actions)
   -> connector router (policy + runtime mode)
        -> webhook client (contract v1 request)
             -> EXTERNAL bridge URL (real or mock)
@@ -82,7 +82,7 @@ NOT a live bridge:
 
 | Component | Host | Role |
 |---|---|---|
-| Aether web + `/api/worker/*` | App deploy | Control plane + job entry |
+| Komenin web + `/api/worker/*` | App deploy | Control plane + job entry |
 | External / mock bridge | **Different origin** than `APP_URL` in production live | Performs or simulates platform I/O |
 | `/api/publish/webhook` | App | Dev delivery log; never production-live target |
 
@@ -95,10 +95,10 @@ Production-gate already errors if live webhook URL is same host as `APP_URL` and
 ### Transport
 
 - **Method:** `POST`
-- **URL:** single endpoint (`SOCIAL_PUBLISH_WEBHOOK_URL`); action discriminated by body `action` and header `x-aether-action`
+- **URL:** single endpoint (`SOCIAL_PUBLISH_WEBHOOK_URL`); action discriminated by body `action` and header `x-komenin-action`
 - **Auth:** `Authorization: Bearer <SOCIAL_PUBLISH_WEBHOOK_TOKEN>` (required when `SIMULATOR_MODE=false`)
 - **Content-Type:** `application/json`
-- **Contract header (request + response):** `x-aether-contract: v1`
+- **Contract header (request + response):** `x-komenin-contract: v1`
 - **Timeout:** use existing safe outbound fetch limits; no connector-level multi-retry in v1
 
 ### Common request envelope
@@ -183,7 +183,7 @@ Aliases accepted on success ids (existing): `externalId` | `externalPostId` | `i
 **Path (planned):** `src/lib/connectors/bridge-contract.ts` (name flexible in plan)
 
 - Types + parse/validate helpers for bridge responses per action.
-- Optional request helpers to attach `x-aether-contract: v1`.
+- Optional request helpers to attach `x-komenin-contract: v1`.
 - Pure functions, unit-tested; no I/O.
 
 ### 6.2 Webhook client hardening
@@ -193,7 +193,7 @@ Aliases accepted on success ids (existing): `externalId` | `externalPostId` | `i
 - After `safeOutboundFetch`, run contract validation before returning `ok: true`.
 - Preserve SSRF protections.
 - On validation failure: `ok: false`, `message` starts with clear prefix e.g. `Invalid bridge response`.
-- Send header `x-aether-contract: v1` on requests.
+- Send header `x-komenin-contract: v1` on requests.
 
 ### 6.3 Mock bridge (in-repo)
 
@@ -242,7 +242,7 @@ No change to “no invent in live” rules beyond ensuring webhook validation er
 
 1. Job or action calls `executeSocialAction` / `publishSocialPost`.
 2. Router selects webhook under live + prefer_webhook (or webhook_only).
-3. Client POSTs contract v1 body + Bearer + `x-aether-contract: v1`.
+3. Client POSTs contract v1 body + Bearer + `x-komenin-contract: v1`.
 4. Bridge returns 2xx + valid JSON.
 5. Client validates → `ConnectorResult.ok = true`.
 6. Worker persists posts / marks sent / stores `externalId`.

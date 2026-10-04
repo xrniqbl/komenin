@@ -1,5 +1,5 @@
 /**
- * Product smoke checks for critical Aether paths (no live network side effects).
+ * Product smoke checks for critical Komenin paths (no live network side effects).
  * Usage: npx tsx scripts/smoke-product.ts
  */
 import { existsSync, readFileSync } from "node:fs";

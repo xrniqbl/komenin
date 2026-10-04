@@ -24,6 +24,8 @@ export async function listContentCampaigns(input?: {
   q?: string;
   status?: string;
   platform?: string;
+  /** Hide completed campaigns from the default workspace view. */
+  hideCompleted?: boolean;
 }) {
   const { workspace } = await requireActiveWorkspace();
   const where: Record<string, unknown> & { workspaceId: string } = {
@@ -36,6 +38,7 @@ export async function listContentCampaigns(input?: {
     ];
   }
   if (input?.status) where.status = input.status as never;
+  else if (input?.hideCompleted) where.status = { not: "completed" };
   if (input?.platform) where.platform = input.platform as never;
 
   return db.contentCampaign.findMany({
@@ -296,11 +299,46 @@ export async function publishDueContentDrafts(limit = 30) {
   let published = 0;
   let failed = 0;
 
+  const paceLib = await import("@/lib/platform-rate-limits");
   for (const draft of due) {
     // Atomic claim so the worker cron and this manual trigger cannot publish
     // the same draft twice.
     const claimed = await claimContentDraft(draft.id);
     if (!claimed) continue;
+
+    // Publish pace guard: posts are heavier than comments — defer (not fail)
+    // when the account already hit its safe hourly window or min interval.
+    if (draft.socialAccountId) {
+      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const [pubsLastHour, lastPub] = await Promise.all([
+        db.contentDraft.count({
+          where: { socialAccountId: draft.socialAccountId, status: "published", publishedAt: { gte: hourAgo } },
+        }),
+        db.contentDraft.findFirst({
+          where: { socialAccountId: draft.socialAccountId, status: "published" },
+          orderBy: { publishedAt: "desc" },
+          select: { publishedAt: true },
+        }),
+      ]);
+      void dayAgo;
+      const platform = draft.contentCampaign?.platform;
+      if (!paceLib.checkHourlyPace({ platform, kind: "publishes", sentInLastHour: pubsLastHour }).ok) {
+        await db.contentDraft.update({
+          where: { id: draft.id },
+          data: { status: "scheduled", scheduledFor: new Date(Date.now() + 30 * 60 * 1000), resultMessage: "Publish pace deferred ~30m (batas aman per-jam)" },
+        });
+        continue;
+      }
+      const gap = paceLib.checkMinInterval({ platform, kind: "publishes", lastActionAt: lastPub?.publishedAt ?? null });
+      if (!gap.ok) {
+        await db.contentDraft.update({
+          where: { id: draft.id },
+          data: { status: "scheduled", scheduledFor: new Date(Date.now() + gap.waitSec * 1000), resultMessage: "Publish pace deferred (jeda aman antar posting)" },
+        });
+        continue;
+      }
+    }
 
     const result = await publishSocialPost({
       target: {
@@ -520,4 +558,78 @@ export async function bulkApproveContentDrafts(input: {
 
   revalidateContentPaths(campaign.id);
   return { approved: pending.length };
+}
+
+export async function setContentCampaignStatus(input: {
+  campaignId: string;
+  status: "draft" | "active" | "paused" | "completed";
+}) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertWorkspacePermission(workspace, "campaigns.manage");
+
+  const campaign = await db.contentCampaign.findFirst({
+    where: { id: input.campaignId, workspaceId: workspace.id },
+    select: { id: true, status: true },
+  });
+  if (!campaign) throw new Error("Content campaign not found");
+
+  const updated = await db.contentCampaign.update({
+    where: { id: campaign.id },
+    data: { status: input.status as never },
+  });
+
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "content_campaign.status_updated",
+    resourceType: "content_campaign",
+    resourceId: updated.id,
+    metadata: { from: campaign.status, to: input.status },
+  });
+
+  revalidateContentPaths(updated.id);
+  return updated;
+}
+
+export async function duplicateContentCampaign(input: {
+  campaignId: string;
+  name?: string;
+}) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertWorkspacePermission(workspace, "campaigns.manage");
+
+  const source = await db.contentCampaign.findFirst({
+    where: { id: input.campaignId, workspaceId: workspace.id },
+  });
+  if (!source) throw new Error("Content campaign not found");
+
+  const copy = await db.contentCampaign.create({
+    data: {
+      workspaceId: workspace.id,
+      name: (input.name?.trim() || `${source.name} (copy)`).slice(0, 120),
+      topic: source.topic,
+      platform: source.platform,
+      mode: source.mode,
+      status: "draft",
+      agentId: source.agentId,
+      socialAccountId: source.socialAccountId,
+      postCount: source.postCount,
+      intervalValue: source.intervalValue,
+      intervalUnit: source.intervalUnit,
+      startAt: new Date(),
+      notes: source.notes,
+    },
+  });
+
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "content_campaign.duplicated",
+    resourceType: "content_campaign",
+    resourceId: copy.id,
+    metadata: { sourceId: source.id, name: copy.name },
+  });
+
+  revalidateContentPaths(copy.id);
+  return copy;
 }

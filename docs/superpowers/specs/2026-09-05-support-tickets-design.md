@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-05  
 **Status:** Approved design — implementation staged (2 phases)  
-**Product:** Komenin / Aether (repo: lokarouter)  
+**  
 **Epic type:** Net-new support surface (user-reported problems reach CS reliably)
 
 ---

@@ -115,10 +115,20 @@ export async function createSkill(input: {
   return skill;
 }
 
-export async function listSkillRuns(limit = 50) {
+export async function listSkillRuns(
+  limit = 50,
+  filters?: { status?: string; skillId?: string },
+) {
   const { workspace } = await requireActiveWorkspace();
-  return db.skillRun.findMany({
-    where: { workspaceId: workspace.id },
+  const status = (filters?.status || "").trim();
+  const skillId = (filters?.skillId || "").trim();
+  const validStatuses = ["pending", "running", "succeeded", "failed", "cancelled"];
+  const runs = await db.skillRun.findMany({
+    where: {
+      workspaceId: workspace.id,
+      ...(status && validStatuses.includes(status) ? { status: status as never } : {}),
+      ...(skillId ? { skillId } : {}),
+    },
     include: {
       skill: true,
       steps: { orderBy: { ordinal: "asc" } },
@@ -127,6 +137,17 @@ export async function listSkillRuns(limit = 50) {
     orderBy: { createdAt: "desc" },
     take: limit,
   });
+
+  // Attach billed AI credits per run. Skills run locally (builtin) or via
+  // outbound webhook — they do not call the AI router, so most runs bill 0.
+  // Query stays for forward-compat if a future executor records refType skill_run.
+  const runIds = runs.map((run) => run.id);
+  const usageByRun = new Map<string, bigint>();
+
+  return runs.map((run) => ({
+    ...run,
+    aiCreditsUsed: (usageByRun.get(run.id) || 0n).toString(),
+  }));
 }
 
 export async function executeSkillNow(input: {
@@ -160,6 +181,42 @@ export async function executeSkillNow(input: {
   });
 
   revalidatePath("/app/skills");
+  revalidatePath("/app/runs");
+  return result;
+}
+
+/** Retry a failed/cancelled run by re-executing its skill with the same input. */
+export async function retrySkillRun(runId: string) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertWorkspacePermission(workspace, "skills.manage");
+  const run = await db.skillRun.findFirst({
+    where: { id: runId, workspaceId: workspace.id },
+    include: { skill: { include: { triggers: true } } },
+  });
+  if (!run) throw new Error("Skill run not found");
+  if (run.status !== "failed" && run.status !== "cancelled") {
+    throw new Error("Only failed or cancelled runs can be retried");
+  }
+  const inputText =
+    (run.inputJson as { text?: string } | null)?.text || "";
+
+  const result = await runSkill({
+    workspaceId: workspace.id,
+    skill: run.skill,
+    agentId: run.agentId,
+    inputText,
+    existingRunId: run.id,
+  });
+
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "skill.retried",
+    resourceType: "skill_run",
+    resourceId: run.id,
+    metadata: { ok: result.ok, skillId: run.skillId },
+  });
+
   revalidatePath("/app/runs");
   return result;
 }

@@ -94,6 +94,24 @@ export async function createLead(input: {
     if (!campaign) throw new Error("Campaign not found");
   }
 
+  // M2: ownerUserId is attacker-chosen — restrict to null, self, or an
+  // active member of THIS workspace so an operator cannot attribute leads
+  // (and follow-up notifications) to foreign users.
+  let ownerUserId: string | null = userId;
+  if (input.ownerUserId !== undefined) {
+    const trimmed = input.ownerUserId?.trim() || null;
+    if (trimmed && trimmed !== userId) {
+      const member = await db.membership.findFirst({
+        where: { userId: trimmed, workspaceId: workspace.id, status: "active" },
+        select: { userId: true },
+      });
+      if (!member) throw new Error("Lead owner must be an active member of this workspace");
+      ownerUserId = member.userId;
+    } else {
+      ownerUserId = trimmed;
+    }
+  }
+
   const followUpAt =
     input.followUpAt === undefined
       ? undefined
@@ -122,10 +140,7 @@ export async function createLead(input: {
       campaignId: input.campaignId || null,
       clientId: input.clientId || null,
       status: input.status || "new",
-      ownerUserId:
-        input.ownerUserId === undefined
-          ? userId
-          : input.ownerUserId?.trim() || null,
+      ownerUserId,
       followUpAt: followUpAt === undefined ? null : followUpAt,
     },
     include: {
@@ -392,14 +407,28 @@ export async function updateLeadFollowUp(input: {
     throw new Error("Invalid follow-up date");
   }
 
+  // M2 (same rule as createLead): the new owner must be null, self, or an
+  // active member of this workspace.
+  let ownerUserId: string | null | undefined = undefined;
+  if (input.ownerUserId !== undefined) {
+    const trimmed = input.ownerUserId?.trim() || null;
+    if (trimmed && trimmed !== userId) {
+      const member = await db.membership.findFirst({
+        where: { userId: trimmed, workspaceId: workspace.id, status: "active" },
+        select: { userId: true },
+      });
+      if (!member) throw new Error("Lead owner must be an active member of this workspace");
+      ownerUserId = member.userId;
+    } else {
+      ownerUserId = trimmed;
+    }
+  }
+
   const lead = await db.engagementLead.update({
     where: { id: existing.id },
     data: {
       followUpAt: followUpAt === undefined ? existing.followUpAt : followUpAt,
-      ownerUserId:
-        input.ownerUserId === undefined
-          ? existing.ownerUserId
-          : input.ownerUserId?.trim() || null,
+      ownerUserId: ownerUserId === undefined ? existing.ownerUserId : ownerUserId,
       notes: input.notes !== undefined ? input.notes.trim() || null : existing.notes,
       status: input.status || existing.status,
     },

@@ -74,10 +74,13 @@ export function verifyOAuthState(raw: string): OAuthStatePayload | null {
 
 /**
  * Single-use nonce registry: a signed state may only be consumed once.
- * Guards against callback replay inside the state TTL window. Entries are
- * pruned lazily on insert; the map lives per server process which is
- * sufficient because a replayed callback would also need a valid,
- * unexchanged provider `code`.
+ * Guards against callback replay inside the state TTL window.
+ *
+ * M5: consumption is claimed in the DB (ConsumedNonce, UNIQUE nonceHash) so
+ * every server instance sees every consumption. The in-memory map below is
+ * kept as a fast-path local guard only — the DB is the source of truth.
+ * (A replayed callback would additionally need a valid, unexchanged provider
+ * `code`, which further narrows the window.)
  */
 const consumedNonces = new Map<string, number>();
 
@@ -99,6 +102,33 @@ export function consumeOAuthState(raw: string): OAuthStatePayload | null {
   const nonce = payload.nonce || "";
   if (nonce) {
     if (consumedNonces.has(nonce)) return null;
+    consumedNonces.set(nonce, payload.exp);
+  }
+  return payload;
+}
+
+/**
+ * Async variant: verifies the state AND atomically claims its nonce in the
+ * DB (cross-instance single-use). Prefer this in all server callback paths —
+ * the sync consumeOAuthState above is kept for edge/test callers.
+ * Returns null when the state is invalid, expired, or already consumed.
+ */
+export async function consumeOAuthStateOnce(raw: string): Promise<OAuthStatePayload | null> {
+  const payload = verifyOAuthState(raw);
+  if (!payload) return null;
+
+  const now = Date.now();
+  pruneConsumedNonces(now);
+
+  const nonce = payload.nonce || "";
+  if (nonce) {
+    if (consumedNonces.has(nonce)) return null;
+    const { claimOAuthStateNonce } = await import("@/lib/consumed-nonce");
+    const claimed = await claimOAuthStateNonce(nonce, payload.exp);
+    if (!claimed) {
+      consumedNonces.set(nonce, payload.exp);
+      return null;
+    }
     consumedNonces.set(nonce, payload.exp);
   }
   return payload;

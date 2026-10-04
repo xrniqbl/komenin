@@ -18,7 +18,9 @@ const devNonce = generateNonce();
 const contentSecurityPolicy = isProd
   ? // Production: will be set dynamically in middleware
     ""
-  : // Development: use static nonce for simplicity
+  : // Development: use static nonce for simplicity. CSP nonce sources REQUIRE
+    // the `nonce-` prefix ('nonce-xxx'); without it the browser ignores the
+    // source and the nonce never matches — dev would silently run unprotected.
     [
       "default-src 'self'",
       "base-uri 'self'",
@@ -27,8 +29,8 @@ const contentSecurityPolicy = isProd
       "form-action 'self'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https://fonts.gstatic.com",
-      `script-src 'self' '${devNonce}'`,
-      `style-src 'self' '${devNonce}' https://fonts.googleapis.com`,
+      `script-src 'self' 'nonce-${devNonce}'`,
+      `style-src 'self' 'nonce-${devNonce}' https://fonts.googleapis.com`,
       "connect-src 'self' https: wss:",
       "worker-src 'self' blob:",
       "manifest-src 'self'",
@@ -37,8 +39,17 @@ const contentSecurityPolicy = isProd
 /** @type {import("next").NextConfig} */
 const nextConfig = {
   output: "standalone",
+  compress: true,
+  poweredByHeader: false,
+  reactStrictMode: true,
   turbopack: {
     root: __dirname,
+  },
+  images: {
+    formats: ["image/avif", "image/webp"],
+  },
+  experimental: {
+    optimizePackageImports: ["lucide-react", "@base-ui/react"],
   },
   async headers() {
     /** @type {{ key: string, value: string }[]} */
@@ -79,6 +90,27 @@ const nextConfig = {
         headers: [
           { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" },
           { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      // Long-lived immutable cache for versioned brand art + PWA icons.
+      // OG images (/opengraph-image, /twitter-image) stay dynamic — Next
+      // serves those route images with its own short-lived caching.
+      {
+        source: "/brand/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        source: "/favicon.svg",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400" },
+        ],
+      },
+      {
+        source: "/apple-touch-icon.png",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400" },
         ],
       },
     ];

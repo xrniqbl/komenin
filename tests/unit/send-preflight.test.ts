@@ -26,7 +26,10 @@ describe("runSendPreflight", () => {
       },
     });
     expect(result.ok).toBe(false);
-    expect(result.reasons.join(" ")).toMatch(/quota/i);
+    // Bilingual guardrail message: English "daily quota reached (50/50)" token
+    // plus Indonesian detail — match either language so the test does not pin
+    // a single copy string.
+    expect(result.reasons.join(" ")).toMatch(/quota|kuota|batas/i);
   });
 
   it("blocks duplicate recent bodies", () => {

@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusPill } from "@/components/session-routing/status-pill";
 import { platformLabel } from "@/lib/session-routing";
+import { CampaignRowActions } from "@/components/campaigns/campaign-row-actions";
 import { getCampaign, setCampaignClient } from "@/server/campaigns";
 import { listClients } from "@/server/clients";
 import { generateDraftsForCampaign } from "@/server/comment-pipeline";
@@ -37,7 +38,12 @@ export default async function CampaignDetailPage({
         description={`${platformLabel(campaign.platform)} · ${campaign.mode}${
           campaign.client ? ` · ${campaign.client.name}` : ""
         }`}
-        action={<Link href="/app/campaigns" className="text-sm text-primary">Back</Link>}
+        action={
+          <div className="flex items-center gap-2">
+            <CampaignRowActions campaignId={campaign.id} status={campaign.status} />
+            <Link href="/app/campaigns" className="text-sm text-primary">Back</Link>
+          </div>
+        }
       />
 
       <div className="grid gap-4 md:grid-cols-3">

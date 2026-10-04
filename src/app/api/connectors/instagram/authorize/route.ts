@@ -5,6 +5,7 @@ import {
   instagramOAuthCallbackUrl,
   isInstagramOAuthConfigured,
 } from "@/lib/oauth-state";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 
 export const runtime = "nodejs";
@@ -32,6 +33,11 @@ export async function GET(request: Request) {
   }
 
   const { workspace } = await requireActiveWorkspace();
+  // L3: reject viewers/operators up front — the callback re-checks
+  // settings.manage, but failing early avoids minting signed states for
+  // users who can never complete the flow (state-flooding / social
+  // engineering surface).
+  assertWorkspacePermission(workspace, "settings.manage");
   const { searchParams } = new URL(request.url);
   const socialAccountId = searchParams.get("accountId");
 

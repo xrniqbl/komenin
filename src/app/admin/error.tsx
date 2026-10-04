@@ -18,15 +18,15 @@ export default function AdminError({
   return (
     <Card className="max-w-xl border-destructive/40">
       <CardHeader>
-        <CardTitle className="text-base">Terjadi kesalahan di panel admin</CardTitle>
+        <CardTitle className="text-base">Something went wrong in the admin panel</CardTitle>
         <CardDescription>
-          Query ini gagal dijalankan. Coba lagi; jika berulang, periksa log server
+          This query failed to run. Try again; if it persists, check the server logs
           {error.digest ? ` (digest ${error.digest})` : ""}.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Button type="button" onClick={reset}>
-          Coba lagi
+          Try again
         </Button>
       </CardContent>
     </Card>

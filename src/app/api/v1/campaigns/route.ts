@@ -16,7 +16,10 @@ const createSchema = z.object({
   name: z.string().trim().min(1).max(120),
   platform: z.enum(["instagram", "threads", "tiktok"]),
   mode: z.enum(["approval_required", "auto"]).optional(),
-  status: z.enum(["draft", "active", "paused", "completed", "failed"]).optional(),
+  // L2: API-created campaigns always start in a non-terminal state. Accepting
+  // `completed`/`failed` from an integration key would let one key forge the
+  // terminal status of shared-workspace campaigns.
+  status: z.enum(["draft", "active", "paused"]).optional(),
   agentId: z.string().trim().max(64).optional(),
   clientId: z.string().trim().max(64).optional(),
   dailyLimit: z.number().int().min(1).max(500).optional(),
@@ -106,6 +109,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const { getPlatformGuardrail, validateCampaignPacing } = await import("@/lib/platform-rate-limits");
+  const delayFloor = getPlatformGuardrail(input.platform).comments.minIntervalSec;
+  const pacing = validateCampaignPacing({
+    platform: input.platform,
+    dailyLimit: input.dailyLimit,
+    minDelaySec: input.minDelaySec,
+    maxDelaySec: input.maxDelaySec,
+  });
+  if (pacing.errors.length > 0) {
+    return NextResponse.json({ error: pacing.errors.join("; ") }, { status: 400 });
+  }
+
   const campaign = await db.campaign.create({
     data: {
       workspaceId: auth.workspaceId,
@@ -115,9 +130,9 @@ export async function POST(req: NextRequest) {
       status: input.status ?? "draft",
       agentId: input.agentId,
       clientId: input.clientId,
-      dailyLimit: input.dailyLimit ?? 30,
-      minDelaySec: input.minDelaySec ?? 45,
-      maxDelaySec: input.maxDelaySec ?? 180,
+      dailyLimit: pacing.clampedDailyLimit,
+      minDelaySec: Math.max(input.minDelaySec ?? 180, delayFloor),
+      maxDelaySec: Math.max(input.maxDelaySec ?? 600, input.minDelaySec ?? 180, delayFloor),
       goal: input.goal,
     },
   });

@@ -31,6 +31,9 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Preflight self-test (gate logic, not real secrets)
+        run: node scripts/preflight-deploy.mjs --self-test
+
       - name: Build application
         run: npm run build
         env:

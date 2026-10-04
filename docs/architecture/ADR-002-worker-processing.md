@@ -6,7 +6,7 @@
 
 ## Context
 
-Aether memiliki berbagai jenis background jobs yang perlu dijalankan secara async:
+Komenin memiliki berbagai jenis background jobs yang perlu dijalankan secara async:
 
 1. **Time-sensitive jobs**: Health checks setiap 5 minutes, session polling
 2. **Batch jobs**: Usage rollup, billing expire, data cleanup

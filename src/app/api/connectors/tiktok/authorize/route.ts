@@ -5,6 +5,7 @@ import {
   isTikTokOAuthConfigured,
   oauthCallbackUrl,
 } from "@/lib/oauth-state";
+import { assertWorkspacePermission } from "@/lib/rbac";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 
 export const runtime = "nodejs";
@@ -31,6 +32,9 @@ export async function GET(request: Request) {
   }
 
   const { workspace } = await requireActiveWorkspace();
+  // L3: reject early — the callback re-checks settings.manage, but failing
+  // here avoids minting signed states for users who can never complete it.
+  assertWorkspacePermission(workspace, "settings.manage");
   const { searchParams } = new URL(request.url);
   const socialAccountId = searchParams.get("accountId");
 

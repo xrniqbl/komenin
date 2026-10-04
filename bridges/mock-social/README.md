@@ -1,6 +1,6 @@
 # Mock social bridge
 
-Contract v1 stand-in for Aether live connectors. **Not** the same as
+Contract v1 stand-in for Komenin live connectors. **Not** the same as
 `POST /api/publish/webhook` (in-app delivery log).
 
 ## Run
@@ -12,7 +12,7 @@ MOCK_BRIDGE_TOKEN=dev-bridge-token-please-change npm run bridge:mock
 
 Listens on `http://127.0.0.1:8787/bridge`.
 
-## Point Aether at it (local)
+## Point Komenin at it (local)
 
 ```env
 SIMULATOR_MODE=false

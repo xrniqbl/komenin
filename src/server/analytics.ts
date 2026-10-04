@@ -24,6 +24,10 @@ export async function getAnalyticsSummary(rangeDays = 30) {
     skillRuns,
     deliveries,
     usage,
+    sendsByPlatform,
+    publishesByPlatform,
+    newLeads,
+    wonLeads,
   ] = await Promise.all([
     db.commentAction.count({
       where: {
@@ -78,6 +82,70 @@ export async function getAnalyticsSummary(rangeDays = 30) {
       where: { workspaceId: workspace.id },
       orderBy: { createdAt: "desc" },
     }),
+    // Per-platform send mix from account-facing actions in range.
+    ...[["sends"], ["publishes"]].map(() => Promise.resolve(null)),
+  ]);
+
+  const platformPair = await Promise.all([
+    db.commentAction.groupBy({
+      by: ["status"],
+      where: {
+        workspaceId: workspace.id,
+        status: "sent",
+        createdAt: { gte: since },
+        targetPost: { platform: "instagram" },
+      },
+      _count: { _all: true },
+    }).catch(() => []),
+    db.commentAction.groupBy({
+      by: ["status"],
+      where: {
+        workspaceId: workspace.id,
+        status: "sent",
+        createdAt: { gte: since },
+        targetPost: { platform: "threads" },
+      },
+      _count: { _all: true },
+    }).catch(() => []),
+  ]).catch(() => [[], []] as const);
+
+  const [sendsByPlatformRows, publishesByPlatformRows, leadsNew, leadsWon] = await Promise.all([
+    db.commentAction
+      .findMany({
+        where: { workspaceId: workspace.id, status: "sent", createdAt: { gte: since } },
+        select: { targetPost: { select: { platform: true } } },
+        take: 500,
+      })
+      .then((rows) => {
+        const counts = new Map<string, number>();
+        for (const row of rows) {
+          const platform = row.targetPost?.platform || "unknown";
+          counts.set(platform, (counts.get(platform) || 0) + 1);
+        }
+        return Array.from(counts.entries()).map(([platform, count]) => ({ platform, count }));
+      })
+      .catch(() => [] as Array<{ platform: string; count: number }>),
+    db.contentDraft
+      .findMany({
+        where: { workspaceId: workspace.id, status: "published", publishedAt: { gte: since } },
+        select: { contentCampaign: { select: { platform: true } } },
+        take: 500,
+      })
+      .then((rows) => {
+        const counts = new Map<string, number>();
+        for (const row of rows) {
+          const platform = row.contentCampaign?.platform || "unknown";
+          counts.set(platform, (counts.get(platform) || 0) + 1);
+        }
+        return Array.from(counts.entries()).map(([platform, count]) => ({ platform, count }));
+      })
+      .catch(() => [] as Array<{ platform: string; count: number }>),
+    db.engagementLead.count({
+      where: { workspaceId: workspace.id, createdAt: { gte: since } },
+    }),
+    db.engagementLead.count({
+      where: { workspaceId: workspace.id, status: "won", updatedAt: { gte: since } },
+    }),
   ]);
 
   return {
@@ -94,6 +162,10 @@ export async function getAnalyticsSummary(rangeDays = 30) {
       kind: row.kind,
       count: row._count._all,
     })),
+    sendsByPlatform: sendsByPlatformRows,
+    publishesByPlatform: publishesByPlatformRows,
+    leadsNew,
+    leadsWon,
     usage,
     limits: {
       monthlySendLimit: workspace.monthlySendLimit,
@@ -230,6 +302,96 @@ export async function getClientAgencyReport(rangeDays = 30) {
     },
     rows,
   };
+}
+
+function csvCell(value: string | number | null | undefined): string {
+  const raw = value == null ? "" : String(value);
+  if (/[",\n\r]/.test(raw)) return `"${raw.replace(/"/g, '""')}"`;
+  return raw;
+}
+
+function csvFilename(prefix: string): string {
+  return `komenin-${prefix}-${new Date().toISOString().slice(0, 10)}.csv`;
+}
+
+/** Export comment sends (up to 500 rows) for the analytics CSV buttons. */
+export async function exportCommentSendsCsv(rangeDays = 30) {
+  const { workspace } = await requireActiveWorkspace();
+  const { assertWorkspacePermission } = await import("@/lib/rbac");
+  assertWorkspacePermission(workspace, "analytics.view");
+  const days = Math.min(Math.max(Math.floor(rangeDays) || 30, 1), 365);
+  const since = daysAgo(days);
+
+  const rows = await db.commentAction.findMany({
+    where: { workspaceId: workspace.id, createdAt: { gte: since } },
+    include: {
+      targetPost: { select: { platform: true, authorHandle: true } },
+      socialAccount: { select: { username: true } },
+      campaign: { select: { name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+  });
+
+  const header = ["id", "status", "platform", "author", "account", "campaign", "scheduledFor", "executedAt", "createdAt"];
+  const lines = [
+    header.join(","),
+    ...rows.map((row) =>
+      [
+        row.id,
+        row.status,
+        row.targetPost?.platform,
+        row.targetPost ? `@${row.targetPost.authorHandle}` : "",
+        row.socialAccount ? `@${row.socialAccount.username}` : "",
+        row.campaign?.name,
+        row.scheduledFor?.toISOString() || "",
+        row.executedAt?.toISOString() || "",
+        row.createdAt.toISOString(),
+      ]
+        .map(csvCell)
+        .join(","),
+    ),
+  ];
+  return { filename: csvFilename("comment-sends"), csv: lines.join("\n"), count: rows.length };
+}
+
+/** Export published auto posts (up to 500 rows) for the analytics CSV buttons. */
+export async function exportPublishesCsv(rangeDays = 30) {
+  const { workspace } = await requireActiveWorkspace();
+  const { assertWorkspacePermission } = await import("@/lib/rbac");
+  assertWorkspacePermission(workspace, "analytics.view");
+  const days = Math.min(Math.max(Math.floor(rangeDays) || 30, 1), 365);
+  const since = daysAgo(days);
+
+  const rows = await db.contentDraft.findMany({
+    where: { workspaceId: workspace.id, status: "published", publishedAt: { gte: since } },
+    include: {
+      contentCampaign: { select: { name: true, platform: true } },
+      socialAccount: { select: { username: true } },
+    },
+    orderBy: { publishedAt: "desc" },
+    take: 500,
+  });
+
+  const header = ["id", "campaign", "platform", "account", "sequence", "title", "scheduledFor", "publishedAt"];
+  const lines = [
+    header.join(","),
+    ...rows.map((row) =>
+      [
+        row.id,
+        row.contentCampaign?.name,
+        row.contentCampaign?.platform,
+        row.socialAccount ? `@${row.socialAccount.username}` : "",
+        row.sequence,
+        row.title,
+        row.scheduledFor?.toISOString() || "",
+        row.publishedAt?.toISOString() || "",
+      ]
+        .map(csvCell)
+        .join(","),
+    ),
+  ];
+  return { filename: csvFilename("publishes"), csv: lines.join("\n"), count: rows.length };
 }
 
 /**

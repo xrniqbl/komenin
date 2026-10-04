@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FilterBar } from "@/components/app/filter-bar";
 import { PageHeader } from "@/components/app/page-header";
+import { CampaignRowActions } from "@/components/campaigns/campaign-row-actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -37,13 +38,16 @@ const PLATFORM_OPTIONS = [
 export default async function CampaignsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; platform?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; platform?: string; showArchived?: string }>;
 }) {
   const params = await searchParams;
   const campaigns = await listCampaigns({
     q: params.q,
     status: params.status,
     platform: params.platform,
+    // Completed campaigns live behind an explicit toggle so the default
+    // view stays focused on active work.
+    hideCompleted: !params.status && params.showArchived !== "1",
   });
 
   return (
@@ -58,7 +62,7 @@ export default async function CampaignsPage({
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-col gap-3">
         <FilterBar
           placeholder="Search campaigns..."
           statusOptions={STATUS_OPTIONS}
@@ -67,6 +71,19 @@ export default async function CampaignsPage({
           defaultStatus={params.status || ""}
           defaultPlatform={params.platform || ""}
         />
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{params.showArchived === "1" ? "Showing archived campaigns." : "Archived campaigns are hidden."}</span>
+          <Link
+            href={
+              params.showArchived === "1"
+                ? "/app/campaigns"
+                : "/app/campaigns?showArchived=1"
+            }
+            className="font-medium text-primary hover:underline"
+          >
+            {params.showArchived === "1" ? "Hide archived" : "Show archived"}
+          </Link>
+        </div>
       </div>
 
       <Card className="gap-0 overflow-hidden py-0">
@@ -82,6 +99,9 @@ export default async function CampaignsPage({
                 <TableHead>Status</TableHead>
                 <TableHead>Mode</TableHead>
                 <TableHead>Volume</TableHead>
+                <TableHead className="w-12">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -106,6 +126,11 @@ export default async function CampaignsPage({
                   <TableCell className="text-xs text-muted-foreground">{campaign.mode}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {campaign._count.targetPosts} posts · {campaign._count.approvals} approvals
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-end">
+                      <CampaignRowActions campaignId={campaign.id} status={campaign.status} />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

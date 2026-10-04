@@ -39,21 +39,21 @@ const exact = {
   "Billing Webhooks": "Webhook Billing",
   "Publish Webhook": "Webhook Publish",
   Overview: "Ringkasan",
-  "What is Aether?": "Apa itu Aether?",
+  "What is Komenin?": "Apa itu Komenin?",
   "What you can do": "Yang bisa Anda lakukan",
   "Who is it for?": "Untuk siapa?",
-  "Two ways to use Aether": "Dua cara memakai Aether",
+  "Two ways to use Komenin": "Dua cara memakai Komenin",
   Prerequisites: "Prasyarat",
 };
 
 const phrasePairs = [
   [
-    "Aether is an enterprise social operations control plane for Instagram, Threads, and TikTok.",
-    "Aether adalah control plane operasi sosial enterprise untuk Instagram, Threads, dan TikTok.",
+    "Komenin is an enterprise social operations control plane for Instagram, Threads, and TikTok.",
+    "Komenin adalah control plane operasi sosial enterprise untuk Instagram, Threads, dan TikTok.",
   ],
   [
-    "Aether is a single workspace for social engagement operations. Instead of jumping between native apps just to review comments, approve drafts, rotate sessions, or publish content, operators manage everything from one control plane with auditability and guardrails.",
-    "Aether adalah satu workspace untuk operasi engagement sosial. Alih-alih berpindah antar aplikasi native hanya untuk meninjau komentar, menyetujui draf, merotasi sesi, atau mempublikasikan konten, operator mengelola semuanya dari satu control plane yang dapat diaudit dan ber-guardrail.",
+    "Komenin is a single workspace for social engagement operations. Instead of jumping between native apps just to review comments, approve drafts, rotate sessions, or publish content, operators manage everything from one control plane with auditability and guardrails.",
+    "Komenin adalah satu workspace untuk operasi engagement sosial. Alih-alih berpindah antar aplikasi native hanya untuk meninjau komentar, menyetujui draf, merotasi sesi, atau mempublikasikan konten, operator mengelola semuanya dari satu control plane yang dapat diaudit dan ber-guardrail.",
   ],
   [
     "See accounts, sessions, campaigns, approvals, and activity in one place.",

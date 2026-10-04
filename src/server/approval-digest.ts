@@ -218,13 +218,17 @@ export async function sendDailyApprovalDigest(now = new Date()): Promise<{
   let errors = 0;
 
   for (const target of targets) {
-    // Once-per-day marker keyed to the workspace + UTC day. The unique
+    // Once-per-day marker keyed to workspace + UTC day + kind. The unique
     // constraint on the marker makes the cron overlap-safe.
     try {
       const marker = await db.$transaction(async (tx) => {
         const existing = await tx.digestMarker.findUnique({
           where: {
-            workspaceId_dayKey: { workspaceId: target.workspaceId, dayKey },
+            workspaceId_dayKey_kind: {
+              workspaceId: target.workspaceId,
+              dayKey,
+              kind: "approval_digest",
+            },
           },
           select: { id: true },
         });

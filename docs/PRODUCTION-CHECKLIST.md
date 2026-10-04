@@ -1,4 +1,4 @@
-# Aether production go-live checklist
+# Komenin production go-live checklist
 
 Use this before promoting a deploy out of simulator / foundation mode.
 
@@ -27,11 +27,14 @@ These fail closed via `evaluateProductionGate()` when `NODE_ENV=production`
 | `CRON_SECRET` | set for Vercel Cron (`Authorization: Bearer`) |
 | `SOCIAL_PUBLISH_WEBHOOK_TOKEN` | set when simulator is off |
 | `SOCIAL_PUBLISH_WEBHOOK_URL` | **external** bridge (not `APP_URL/api/publish/webhook`) |
+| `AUTH_URL` | set, **equal to `APP_URL`** (Auth.js no longer trusts Host in prod) |
+| `SSO_ENFORCE_LOGIN` / `SAML_ALLOW_UNSIGNED` / `ALLOW_SECURITY_STUBS` | never `true` in prod (SAML ACS returns 501) |
+| `DIRECT_DATABASE_URL` | direct **non-pooler** endpoint, differs from `DATABASE_URL` |
 | Midtrans keys | required if `MIDTRANS_IS_PRODUCTION=true` |
 
 Also required by env schema:
 
-- `DATABASE_URL`
+- `DATABASE_URL` (Neon pooler URLs should carry `?connection_limit=5&pool_timeout=20`)
 - `DIRECT_DATABASE_URL` — the **direct (non-pooler)** Postgres endpoint, used by
   Prisma migrate. On Neon this is the host **without** `-pooler`. Running
   migrations through PgBouncer can strand the migration advisory lock on an idle
@@ -39,13 +42,15 @@ Also required by env schema:
 - `AUTH_SECRET` (min 16; use 32+)
 - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`
 - `APP_URL` (public HTTPS origin)
+- `AUTH_URL` (must equal `APP_URL` — enforced, not advisory)
+- `AUTH_TRUST_HOST=false` (never trust Host on a deployed box)
 - `ENCRYPTION_KEY` (64 hex chars)
 
-Recommended:
+Use `.env.production.example` as the fill-in template — `.env.example` keeps
+dev-only defaults (`SIMULATOR_MODE=true`, localhost webhook) on purpose.
 
-- `AUTH_URL` == `APP_URL`
-- `ALLOW_SECURITY_STUBS=false` (or unset)
-- `AETHER_REGION` set
+Recommended:
+- `KOMENIN_REGION` set
 
 ## 2. Database
 
@@ -345,7 +350,7 @@ Do **not** ship with:
 
 ## 12. Definition of “production ready”
 
-Aether is production-ready when all of the following are true:
+Komenin is production-ready when all of the following are true:
 
 - [ ] Production gate returns `ok: true`
 - [ ] Simulator mode is off and no simulator payloads appear in deliveries

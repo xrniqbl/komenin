@@ -4,6 +4,7 @@ import { FilterBar } from "@/components/app/filter-bar";
 import { PageHeader } from "@/components/app/page-header";
 import { ContentCalendar } from "@/components/content/content-calendar";
 import { ContentPageActions } from "@/components/content/content-page-actions";
+import { ContentCampaignRowActions } from "@/components/content/content-campaign-row-actions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,11 +27,16 @@ const PLATFORM_OPTIONS = [
 export default async function ContentCampaignsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; platform?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; platform?: string; showArchived?: string }>;
 }) {
   const params = await searchParams;
   const [campaigns, schedule] = await Promise.all([
-    listContentCampaigns({ q: params.q, status: params.status, platform: params.platform }),
+    listContentCampaigns({
+      q: params.q,
+      status: params.status,
+      platform: params.platform,
+      hideCompleted: !params.status && params.showArchived !== "1",
+    }),
     listContentSchedule(120),
   ]);
   const mode = getRuntimeModeLabel();
@@ -51,7 +57,7 @@ export default async function ContentCampaignsPage({
         }
       />
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-col gap-3">
         <FilterBar
           placeholder="Search content campaigns..."
           statusOptions={STATUS_OPTIONS}
@@ -60,6 +66,15 @@ export default async function ContentCampaignsPage({
           defaultStatus={params.status || ""}
           defaultPlatform={params.platform || ""}
         />
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{params.showArchived === "1" ? "Showing archived campaigns." : "Archived campaigns are hidden."}</span>
+          <Link
+            href={params.showArchived === "1" ? "/app/content" : "/app/content?showArchived=1"}
+            className="font-medium text-primary hover:underline"
+          >
+            {params.showArchived === "1" ? "Hide archived" : "Show archived"}
+          </Link>
+        </div>
       </div>
 
       <div className="mb-6 grid gap-4 lg:grid-cols-5">
@@ -78,16 +93,18 @@ export default async function ContentCampaignsPage({
           ) : (
             <div className="space-y-3">
               {campaigns.map((campaign) => (
-                <Link key={campaign.id} href={`/app/content/${campaign.id}`} className="block">
-                  <Card className="transition-colors hover:bg-accent/30">
-                    <CardContent className="p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <div className="text-base font-semibold">{campaign.name}</div>
-                      <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">{campaign.topic}</div>
+                <Card key={campaign.id} className="transition-colors hover:bg-accent/30">
+                  <CardContent className="p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <Link href={`/app/content/${campaign.id}`} className="block min-w-0 flex-1">
+                        <div className="text-base font-semibold hover:text-primary">{campaign.name}</div>
+                        <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">{campaign.topic}</div>
+                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{campaign.status}</Badge>
+                        <ContentCampaignRowActions campaignId={campaign.id} status={campaign.status} />
+                      </div>
                     </div>
-                    <Badge variant="secondary">{campaign.status}</Badge>
-                  </div>
                   <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
                     <span>{campaign.platform}</span>
                     <span>
@@ -103,7 +120,6 @@ export default async function ContentCampaignsPage({
                   </div>
                     </CardContent>
                   </Card>
-                </Link>
               ))}
               <Card>
                 <CardContent className="p-4 text-xs text-muted-foreground">

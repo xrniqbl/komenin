@@ -6,7 +6,7 @@
 
 ## Context
 
-Aether perlu mengintegrasikan dengan multiple social media platforms (Instagram, Threads, TikTok) yang masing-masing memiliki:
+Komenin perlu mengintegrasikan dengan multiple social media platforms (Instagram, Threads, TikTok) yang masing-masing memiliki:
 - API yang berbeda-beda
 - Rate limits yang ketat
 - OAuth flows yang kompleks

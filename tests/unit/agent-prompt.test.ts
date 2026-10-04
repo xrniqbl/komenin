@@ -15,14 +15,14 @@ describe("buildAgentSystemPrompt", () => {
       ctaStyle: "soft",
       maxSentences: 2,
       bannedTopics: ["judi"],
-      mustInclude: ["Aether"],
+      mustInclude: ["Komenin"],
     });
     expect(prompt).toContain("Base prompt");
     expect(prompt).toContain("Language: id");
     expect(prompt).toContain("Tone: casual");
     expect(prompt).toContain("Style: concise");
     expect(prompt).toContain("Never mention: judi");
-    expect(prompt).toContain("include: Aether");
+    expect(prompt).toContain("include: Komenin");
   });
 });
 

@@ -24,6 +24,7 @@ type Metrics = {
   avgPerDay: number;
   dailyBuckets: { date: string; count: number }[];
   topKeywords: { word: string; count: number }[];
+  spike?: { active: boolean; count48h: number; ratio: number };
 };
 
 export function CompetitorCard({
@@ -52,6 +53,11 @@ export function CompetitorCard({
             <Badge variant={profile.isActive ? "secondary" : "outline"} className="text-[10px]">
               {profile.isActive ? "active" : "inactive"}
             </Badge>
+            {metrics?.spike?.active ? (
+              <Badge variant="destructive" className="text-[10px]">
+                spike · {metrics.spike.count48h} in 48h ({metrics.spike.ratio}x)
+              </Badge>
+            ) : null}
           </div>
         </div>
         <ConfirmAction

@@ -133,8 +133,27 @@ export async function confirmTotpEnrollment(code: string): Promise<{ ok: boolean
     resourceType: "user",
     resourceId: session.user.id,
   });
+  // Privilege change: rotate every other device session so a stolen token
+  // cannot ride through 2FA enrollment. The current device (jti) keeps its
+  // session; the poll revokes the rest within ~60s.
+  await db.loginSession.updateMany({
+    where: { userId: session.user.id, revokedAt: null, jti: { not: session.currentJti ?? "__none__" } },
+    data: { revokedAt: new Date() },
+  });
+  // Server-side gate clearance (H1): stamp THIS device session so the jwt
+  // callback re-opens the gate from the DB row, not from a client value.
+  // The following unstable_update only forces a session refresh — the jwt
+  // callback ignores its payload and re-reads the stamp.
+  if (session.currentJti) {
+    await db.loginSession
+      .update({
+        where: { jti: session.currentJti },
+        data: { totpVerifiedAt: new Date() },
+      })
+      .catch(() => {});
+  }
   // Make sure an in-flight gate flag never sticks once 2FA is confirmed.
-  await unstable_update({ user: { totpGate: false } }).catch(() => {});
+  await unstable_update({}).catch(() => {});
   return { ok: true };
 }
 
@@ -168,7 +187,7 @@ export async function disableTotp(code: string): Promise<{ ok: boolean }> {
 
 /**
  * TOTP challenge used by /auth/totp-gate. Verifies possession of the second
- * factor and clears the gate flag on the session.
+ * factor and clears the gate server-side (H1: never from a client value).
  */
 export async function verifyTotpGate(code: string): Promise<{ ok: boolean }> {
   const session = await auth();
@@ -180,15 +199,35 @@ export async function verifyTotpGate(code: string): Promise<{ ok: boolean }> {
     select: { totpSecretEnc: true, totpEnabledAt: true },
   });
   if (!user?.totpEnabledAt || !user.totpSecretEnc) {
-    // 2FA was disabled mid-session — clear the gate instead of locking out.
-    await unstable_update({ user: { totpGate: false } }).catch(() => {});
+    // 2FA was disabled mid-session — stamp the device row so the gate opens
+    // from the DB (same path as a passed challenge) instead of locking out.
+    if (session.currentJti) {
+      await db.loginSession
+        .update({
+          where: { jti: session.currentJti },
+          data: { totpVerifiedAt: new Date() },
+        })
+        .catch(() => {});
+    }
+    await unstable_update({}).catch(() => {});
     return { ok: true };
   }
   if (!(await consumeTotpCode(session.user.id, user.totpSecretEnc, code))) {
     return { ok: false };
   }
 
-  await unstable_update({ user: { totpGate: false } }).catch(() => {});
+  // Stamp THIS device session; the jwt revocation poll re-opens the gate
+  // from this row on the next request. unstable_update only refreshes the
+  // session — its payload is ignored by the jwt callback.
+  if (session.currentJti) {
+    await db.loginSession
+      .update({
+        where: { jti: session.currentJti },
+        data: { totpVerifiedAt: new Date() },
+      })
+      .catch(() => {});
+  }
+  await unstable_update({}).catch(() => {});
   await writeAuditLog({
     actorUserId: session.user.id,
     action: "user.totp.challenge_passed",

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { LocaleLink } from "@/components/i18n/locale-link";
 import {
   Bot,
@@ -90,8 +89,8 @@ const KEY_FEATURES: Record<FeatureDetailKey, { icon: typeof Shield; title: strin
   ],
   commentEngine: [
     { icon: Workflow, title: "Approval-first", body: "Editable drafts, bulk approve/reject, audit trail." },
-    { icon: Clock, title: "Human-like pacing", body: "Random delay 45-180s configurable per campaign." },
-    { icon: Shield, title: "Rate limits", body: "Daily quota per account + monthly workspace caps." },
+    { icon: Clock, title: "Human-like pacing", body: "Platform-aware random delay (IG ≥3m, Threads ≥4m, TikTok ≥5m) configurable per campaign." },
+    { icon: Shield, title: "Rate limits", body: "Per-platform safe caps (IG 50/hari, Threads 40/hari, TikTok 30/hari) + hourly pace + monthly workspace caps." },
     { icon: Sparkles, title: "AI powered", body: "Gateway routed, fallback local, risk-scanner guarded." },
   ],
   agentIntelligence: [
@@ -115,6 +114,32 @@ function FeatureMock({ detailKey }: { detailKey: FeatureDetailKey }) {
   return <SkillExecutionMock />;
 }
 
+const RELATED_FEATURES: Record<
+  FeatureDetailKey,
+  Array<{ key: FeatureDetailKey; name: string; path: string; blurb: string }>
+> = {
+  sessionRouting: [
+    { key: "commentEngine", name: "Comment Engine", path: "/features/comment-engine", blurb: "Send paced, approval-gated comments over healthy sessions." },
+    { key: "agentIntelligence", name: "Agent Intelligence", path: "/features/agent-intelligence", blurb: "Draft contextual replies with guardrails." },
+    { key: "skillExecution", name: "Skill Execution", path: "/features/skill-execution", blurb: "Trigger automations from comment intent." },
+  ],
+  commentEngine: [
+    { key: "sessionRouting", name: "Session Routing", path: "/features/session-routing", blurb: "Keep accounts healthy behind proxy pools." },
+    { key: "agentIntelligence", name: "Agent Intelligence", path: "/features/agent-intelligence", blurb: "Generate drafts with knowledge + memory." },
+    { key: "skillExecution", name: "Skill Execution", path: "/features/skill-execution", blurb: "Run skills before a draft is sent." },
+  ],
+  agentIntelligence: [
+    { key: "commentEngine", name: "Comment Engine", path: "/features/comment-engine", blurb: "Deliver AI drafts with pacing + approval." },
+    { key: "skillExecution", name: "Skill Execution", path: "/features/skill-execution", blurb: "Enrich drafts with skill output." },
+    { key: "sessionRouting", name: "Session Routing", path: "/features/session-routing", blurb: "Operate every account safely at scale." },
+  ],
+  skillExecution: [
+    { key: "agentIntelligence", name: "Agent Intelligence", path: "/features/agent-intelligence", blurb: "Merge skill output into AI drafts." },
+    { key: "commentEngine", name: "Comment Engine", path: "/features/comment-engine", blurb: "Gate skill-triggered sends with approval." },
+    { key: "sessionRouting", name: "Session Routing", path: "/features/session-routing", blurb: "Run skills over healthy sessions." },
+  ],
+};
+
 export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }) {
   const { t } = useLocale();
   const copy = t.featureDetails[detailKey];
@@ -122,9 +147,30 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
   const stats = KEY_STATS[detailKey];
   const arch = KEY_ARCH[detailKey];
   const features = KEY_FEATURES[detailKey];
+  const related = RELATED_FEATURES[detailKey];
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 md:px-8">
+      {/* Breadcrumb (visible): Home › Features › this feature */}
+      <nav aria-label="Breadcrumb" className="pt-8 text-sm text-muted-foreground">
+        <ol className="flex flex-wrap items-center gap-1.5">
+          <li>
+            <LocaleLink href="/" className="hover:text-foreground hover:underline">
+              Home
+            </LocaleLink>
+          </li>
+          <li aria-hidden="true">›</li>
+          <li>
+            <LocaleLink href="/features" className="hover:text-foreground hover:underline">
+              Features
+            </LocaleLink>
+          </li>
+          <li aria-hidden="true">›</li>
+          <li aria-current="page" className="text-foreground">
+            {copy.title}
+          </li>
+        </ol>
+      </nav>
       {/* Hero */}
       <div className="grid gap-8 py-12 md:grid-cols-5 md:py-20">
         <div className="md:col-span-3">
@@ -258,6 +304,34 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
               </div>
             </div>
           </CardContent></Card>
+        </div>
+      </div>
+
+      {/* Related features: cross-link the /features/* cluster */}
+      <div className="border-t py-12">
+        <h2 className="text-2xl font-semibold tracking-tight">Related features</h2>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          Combine {copy.title} with the rest of the control plane.
+        </p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          {related.map((item) => (
+            <LocaleLink
+              key={item.path}
+              href={item.path}
+              className="group block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Card className="h-full transition-colors group-hover:border-foreground/20 group-hover:bg-muted/30">
+                <CardHeader className="p-5 pb-2">
+                  <CardTitle className="text-sm group-hover:underline group-hover:underline-offset-4">
+                    {item.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-5 pt-0 text-xs leading-relaxed text-muted-foreground">
+                  {item.blurb}
+                </CardContent>
+              </Card>
+            </LocaleLink>
+          ))}
         </div>
       </div>
 

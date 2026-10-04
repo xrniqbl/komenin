@@ -24,7 +24,7 @@ const DEFAULT_SKILLS = [
     triggers: ["coupon", "diskon", "promo", "kode"],
     configJson: {
       codes: [
-        { code: "AETHER10", detail: "10% off first month" },
+        { code: "KOMENIN10", detail: "10% off first month" },
         { code: "GROW20", detail: "20% off annual growth plan" },
       ],
     },

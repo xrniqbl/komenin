@@ -4,7 +4,7 @@ import { DocsArticle } from "@/components/docs/docs-article";
 import { JsonLd } from "@/components/seo/json-ld";
 import { getApiPage } from "@/data/docs";
 import { getRequestLocale } from "@/lib/i18n/request-locale";
-import { breadcrumbJsonLd, buildMetadata } from "@/lib/seo";
+import { breadcrumbJsonLd, articleJsonLd, buildMetadata } from "@/lib/seo";
 
 export function generateStaticParams() {
   return [{ slug: "worker" }, { slug: "billing" }, { slug: "publish-webhook" }];
@@ -41,12 +41,20 @@ export default async function DocsApiSlugPage({
   return (
     <>
       <JsonLd
-        data={breadcrumbJsonLd([
-          { name: "Home", path: "/" },
-          { name: "Docs", path: "/docs" },
-          { name: "API", path: "/docs/api" },
-          { name: page.title, path: href },
-        ])}
+        data={[
+          articleJsonLd({
+            headline: page.title,
+            description: page.description,
+            path: href,
+            locale,
+          }),
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "Docs", path: "/docs" },
+            { name: "API", path: "/docs/api" },
+            { name: page.title, path: href },
+          ]),
+        ]}
       />
       <DocsArticle page={page} href={href} />
     </>

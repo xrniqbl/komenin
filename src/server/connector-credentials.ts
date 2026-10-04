@@ -6,6 +6,7 @@ import { decryptSecret, encryptSecret } from "@/lib/encryption";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
+import { isAllowedOfficialApiBaseUrl } from "@/lib/connectors/official-base";
 import { assertSafeOutboundUrl, UnsafeUrlError } from "@/lib/url-safety";
 
 export type ConnectorProvider = "instagram" | "threads" | "tiktok" | string;
@@ -67,28 +68,6 @@ export async function listConnectorCredentials(provider?: string) {
     orderBy: { createdAt: "desc" },
   });
   return rows.map(toSummary);
-}
-
-const OFFICIAL_API_BASE_ALLOWLIST = [
-  "graph.facebook.com",
-  "graph.threads.net",
-  "graph.instagram.com",
-  "open.tiktokapis.com",
-  "open-api.tiktok.com",
-  "business-api.tiktok.com",
-] as const;
-
-/** Official API base hosts are pinned — no .local/.internal carve-outs. */
-export function isAllowedOfficialApiBaseUrl(raw: string): boolean {
-  let host = "";
-  try {
-    host = assertSafeOutboundUrl(raw).hostname.toLowerCase();
-  } catch {
-    return false;
-  }
-  return OFFICIAL_API_BASE_ALLOWLIST.some(
-    (allowed) => host === allowed || host.endsWith(`.${allowed}`),
-  );
 }
 
 async function upsertConnectorCredentialInternal(input: {

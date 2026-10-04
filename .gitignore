@@ -53,10 +53,10 @@ docs/superpowers/
 # docker env
 .env.docker
 
-aether-upload.tar.gz
+komenin-upload.tar.gz
 
 # deploy artifacts
 deploy-package/
-aether-deploy.zip
+komenin-deploy.zip
 zip-exclude.txt
 

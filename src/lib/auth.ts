@@ -7,7 +7,7 @@ import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "@/lib/auth.config";
 import { db } from "@/lib/db";
 import { verifyEmailOtp, normalizeEmail } from "@/lib/email-otp";
-import { consumeSsoTicket } from "@/lib/sso-ticket";
+import { consumeSsoTicketOnce } from "@/lib/sso-ticket";
 
 type DeviceMeta = { userAgent?: string; ip?: string };
 
@@ -46,8 +46,10 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         const ticket = String(credentials?.ticket || "");
         // Single-use: the nonce is consumed here (the actual session-minting
         // step), not in the /api/auth/sso/complete pre-check, which only
-        // verifies — otherwise the second internal verify would fail.
-        const payload = consumeSsoTicket(ticket);
+        // verifies — otherwise the second internal verify would fail. The
+        // claim is atomic in the DB (M5) so a sniffed ticket cannot mint a
+        // second session via another instance inside the TTL window.
+        const payload = await consumeSsoTicketOnce(ticket);
         if (!payload) return null;
         const user = await db.user.findUnique({ where: { id: payload.userId } });
         if (!user || user.email?.toLowerCase() !== payload.email.toLowerCase()) {
@@ -123,7 +125,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
     ...authConfig.callbacks,
     // Node-runtime jwt callback: authConfig's edge-safe jwt stays for the
     // proxy; this one adds TOTP gating, device tracking, and revocation.
-    async jwt({ token, user, account, trigger, session }) {
+    async jwt({ token, user, account, trigger }) {
       if (user?.id) {
         token.sub = user.id;
       }
@@ -189,9 +191,17 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         return token;
       }
 
-      if (trigger === "update" && session?.user && "totpGate" in session.user) {
-        // The TOTP challenge page clears the flag via unstable_update.
-        token.totpGate = Boolean(session.user.totpGate);
+      if (trigger === "update") {
+        // H1: the TOTP gate is NEVER cleared from a client-supplied session
+        // value. useSession().update() lets any logged-in browser send
+        // arbitrary `session.user` fields — previously `totpGate: false` from
+        // the client silently opened every gated guard without a 2FA code.
+        // Clearance now happens server-side only: verifyTotpGate /
+        // confirmTotpEnrollment stamp LoginSession.totpVerifiedAt, and the
+        // revocation poll below re-opens the gate unless that row says passed.
+        // Triggering a re-poll keeps the UX identical (one refresh after
+        // verify lands on the cleared state) without trusting the client.
+        token.rcAt = 0;
       }
 
       // Revocation + liveness checks — throttled to once per minute per token.
@@ -215,13 +225,18 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           try {
             const row = await db.loginSession.findUnique({
               where: { jti: token.jti },
-              select: { revokedAt: true },
+              select: { revokedAt: true, totpVerifiedAt: true },
             });
             if (!row || row.revokedAt) {
               token.revoked = true;
               delete token.sub;
               return token;
             }
+            // Server-side TOTP clearance: the gate stays ON unless this device
+            // session's row carries a totpVerifiedAt stamp (written by
+            // verifyTotpGate / confirmTotpEnrollment after a valid code).
+            // Client-supplied session values can never clear it (H1).
+            token.totpGate = row.totpVerifiedAt ? false : token.totpGate === true;
             // Platform suspension also ends existing sessions (same throttle).
             const user = await db.user.findUnique({
               where: { id: token.sub },

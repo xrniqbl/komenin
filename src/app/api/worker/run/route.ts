@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getEnv } from "@/lib/env";
 import { reportError } from "@/lib/error-reporting";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
-import { safeEqual } from "@/lib/security";
+import { isProductionRuntime, safeEqual } from "@/lib/security";
 import { runWorkerJob, type WorkerJobName, WORKER_JOBS } from "@/server/worker-jobs";
 import { writeAuditLog } from "@/server/audit";
 
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     return {
       ok: false as const,
       job,
-      message: error instanceof Error ? error.message : "Worker job crashed",
+      message: "Worker job failed",
       count: 0,
       details: null,
     };
@@ -75,6 +75,11 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  // The job catalogue is a recon aid. Hide it in production — operators use
+  // the contract in docs/integrators/worker-integration.md. POST runs jobs.
+  if (isProductionRuntime()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   const env = getEnv();
   if (!env.WORKER_SECRET) {
     return NextResponse.json(

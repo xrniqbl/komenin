@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { verifyTotpGate } from "@/server/totp";
 
 export function TotpGateForm() {
+  const { t } = useLocale();
+  const copy = t.auth;
   const router = useRouter();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -21,14 +24,14 @@ export function TotpGateForm() {
     try {
       const result = await verifyTotpGate(code);
       if (!result.ok) {
-        setError("Kode salah. Coba lagi.");
+        setError(copy.totpWrong);
         setBusy(false);
         return;
       }
       router.replace("/app");
       router.refresh();
     } catch {
-      setError("Verifikasi gagal. Coba lagi.");
+      setError(copy.totpVerifyFailed);
       setBusy(false);
     }
   }
@@ -36,15 +39,15 @@ export function TotpGateForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Verifikasi dua langkah</CardTitle>
+        <CardTitle className="text-base">{copy.totpTitle}</CardTitle>
         <CardDescription>
-          Masukkan kode 6 digit dari aplikasi autentikator Anda untuk melanjutkan.
+          {copy.totpDescription}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={verify} className="flex flex-col gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="totp-gate-code">Kode autentikator</Label>
+            <Label htmlFor="totp-gate-code">{copy.totpLabel}</Label>
             <Input
               id="totp-gate-code"
               inputMode="numeric"
@@ -57,7 +60,7 @@ export function TotpGateForm() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={busy || code.length !== 6}>
-            {busy ? "Memverifikasi…" : "Verifikasi"}
+            {busy ? copy.verifying : copy.totpVerify}
           </Button>
           {error ? <p className="text-xs text-destructive">{error}</p> : null}
         </form>

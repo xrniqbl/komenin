@@ -1,4 +1,4 @@
-# Aether Security Audit Report
+# Komenin Security Audit Report
 
 **Date**: 2026-08-24  
 **Version**: 1.0  
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-Aether has implemented solid security foundations with several strong practices already in place. However, there are areas requiring attention before production deployment:
+Komenin has implemented solid security foundations with several strong practices already in place. However, there are areas requiring attention before production deployment:
 
 ### ✅ Strengths (Already Implemented)
 
@@ -143,8 +143,8 @@ Ensure database backups are also encrypted:
 # In docker-compose.yml or deployment script
 pg_dump \
   --host=db \
-  --user=aether \
-  --dbname=aether \
+  --user=komenin \
+  --dbname=komenin \
   | gpg --cipher-algo=AES256 --encrypt --recipient backup@company.com > backup.sql.gpg
 ```
 
@@ -492,8 +492,8 @@ Content Security Policy restricts some origins but could be tighter.
 ```typescript
 // src/lib/cors-policy.ts
 const ALLOWED_ORIGINS = [
-  'https://aether.iniloka.id',
-  'https://app.aether.iniloka.id',
+  'https://komenin.id',
+  'https://app.komenin.id',
 ];
 
 export function isValidOrigin(origin: string): boolean {
@@ -693,7 +693,7 @@ UPDATE "ApiKey" SET isActive = false WHERE lastUsedAt < NOW() - INTERVAL '24 hou
 
 ## Conclusion
 
-Aether demonstrates strong security fundamentals with room for targeted improvements. By addressing the high-priority findings in Week 1 and implementing the remediation plan systematically, the platform will achieve enterprise-grade security posture suitable for production deployment handling sensitive social media credentials and user data.
+Komenin demonstrates strong security fundamentals with room for targeted improvements. By addressing the high-priority findings in Week 1 and implementing the remediation plan systematically, the platform will achieve enterprise-grade security posture suitable for production deployment handling sensitive social media credentials and user data.
 
 **Next Review**: Q4 2026 (after first quarter of production operation)
 

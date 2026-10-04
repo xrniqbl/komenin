@@ -35,12 +35,18 @@ export const PUBLIC_ROUTES = [
   { path: "/features/comment-engine", changeFrequency: "monthly" as const, priority: 0.8 },
   { path: "/features/agent-intelligence", changeFrequency: "monthly" as const, priority: 0.8 },
   { path: "/features/skill-execution", changeFrequency: "monthly" as const, priority: 0.8 },
+  { path: "/use-cases", changeFrequency: "monthly" as const, priority: 0.75 },
+  { path: "/platform/instagram", changeFrequency: "monthly" as const, priority: 0.75 },
+  { path: "/platform/tiktok", changeFrequency: "monthly" as const, priority: 0.75 },
+  { path: "/platform/threads", changeFrequency: "monthly" as const, priority: 0.75 },
+  { path: "/integrations", changeFrequency: "monthly" as const, priority: 0.7 },
+  { path: "/changelog", changeFrequency: "weekly" as const, priority: 0.6 },
   { path: "/pricing", changeFrequency: "weekly" as const, priority: 0.9 },
   { path: "/enterprise", changeFrequency: "monthly" as const, priority: 0.8 },
   { path: "/security", changeFrequency: "monthly" as const, priority: 0.8 },
   { path: "/about", changeFrequency: "monthly" as const, priority: 0.6 },
   { path: "/contact", changeFrequency: "monthly" as const, priority: 0.7 },
-  { path: "/status", changeFrequency: "daily" as const, priority: 0.5 },
+  { path: "/status", changeFrequency: "daily" as const, priority: 0.3 },
   { path: "/docs", changeFrequency: "weekly" as const, priority: 0.85 },
   { path: "/docs/api", changeFrequency: "weekly" as const, priority: 0.7 },
   { path: "/docs/tutorial/introduction", changeFrequency: "monthly" as const, priority: 0.7 },
@@ -226,11 +232,13 @@ export function organizationJsonLd() {
       },
     ],
     areaServed: ["ID", "SG", "Worldwide"],
-    sameAs: [] as string[],
   };
 }
 
 export function websiteJsonLd() {
+  // Docs ships an in-app autocomplete search (DocsSearch), not a ?q= URL query.
+  // A SearchAction claiming /docs?q= would fail Search Console validation, so
+  // the WebSite node carries identity only.
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -247,13 +255,47 @@ export function websiteJsonLd() {
         url: absoluteUrl("/brand/komenin-logo-512.png"),
       },
     },
-    potentialAction: {
-      "@type": "SearchAction",
-      target: {
-        "@type": "EntryPoint",
-        urlTemplate: `${absoluteUrl("/docs")}?q={search_term_string}`,
+  };
+}
+
+/**
+ * TechArticle node for docs tutorial/API pages. Headline + description come
+ * from the docs content entry; author/publisher keep the publisher graph.
+ */
+export function articleJsonLd(input: {
+  headline: string;
+  description: string;
+  path: string;
+  locale?: Locale;
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    headline: input.headline,
+    description: input.description,
+    url: absoluteUrl(withLocalePath(input.locale ?? "en", input.path)),
+    inLanguage: input.locale === "id" ? "id" : "en",
+    author: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: getSiteUrl(),
+    },
+    publisher: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      logo: {
+        "@type": "ImageObject",
+        url: absoluteUrl("/brand/komenin-logo-512.png"),
       },
-      "query-input": "required name=search_term_string",
+    },
+    isPartOf: {
+      "@type": "WebSite",
+      name: SITE_NAME,
+      url: getSiteUrl(),
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": absoluteUrl(withLocalePath(input.locale ?? "en", input.path)),
     },
   };
 }
@@ -320,6 +362,11 @@ export function featuresItemListJsonLd() {
     { name: "Comment Engine", path: "/features/comment-engine" },
     { name: "Agent Intelligence", path: "/features/agent-intelligence" },
     { name: "Skill Execution", path: "/features/skill-execution" },
+    { name: "Agencies", path: "/use-cases" },
+    { name: "Instagram", path: "/platform/instagram" },
+    { name: "TikTok", path: "/platform/tiktok" },
+    { name: "Threads", path: "/platform/threads" },
+    { name: "Integrations", path: "/integrations" },
   ] as const;
   return {
     "@context": "https://schema.org",
@@ -401,65 +448,66 @@ export function breadcrumbJsonLd(items: Array<{ name: string; path: string }>) {
 
 export const PAGE_SEO = {
   home: {
-    title: "Komenin — Platform Otomatisasi Komentar & Konten Sosial",
+    title: "Komenin — Enterprise Social Comment & Content Automation",
     description: SITE_DESCRIPTION,
     path: "/",
   },
   features: {
-    title: "Features | Komenin",
+    title: "Social Media Automation Features | Komenin",
     description:
-      "Session routing, comment engine, agent intelligence, and skill execution for governed social operations.",
+      "Automate Instagram comments, Threads replies, and TikTok publishing with session routing, AI drafts, approval queues, and full audit trails.",
     path: "/features",
   },
   sessionRouting: {
-    title: "Session Routing | Komenin Features",
+    title: "Session Routing & Proxy Pools | Komenin",
     description:
-      "Proxy pools, anti-detect sessions, and multi-tunnel account grids for Instagram, Threads, and TikTok.",
+      "Anti-detect sessions, residential proxy pools, and multi-tunnel account grids for safe Instagram, Threads, and TikTok automation.",
     path: "/features/session-routing",
   },
   commentEngine: {
-    title: "Comment Engine | Komenin Features",
+    title: "Auto Comment Engine for Instagram & TikTok | Komenin",
     description:
-      "Keyword listeners, AI drafts, human-like pacing, and approval queues for controlled engagement.",
+      "Keyword listeners, AI comment drafts, human-like pacing, and approval queues for controlled social media engagement.",
     path: "/features/comment-engine",
   },
   agentIntelligence: {
-    title: "Agent Intelligence | Komenin Features",
+    title: "AI Social Media Agent with Guardrails | Komenin",
     description:
-      "Personas, guardrails, knowledge retrieval, and memory for accurate social replies at scale.",
+      "AI personas, knowledge retrieval, memory, and guardrails for accurate auto replies on Instagram, Threads, and TikTok.",
     path: "/features/agent-intelligence",
   },
   skillExecution: {
-    title: "Skill Execution | Komenin Features",
+    title: "Skill Automation & Webhook Triggers | Komenin",
     description:
-      "Function calling with intent triggers and transparent chain-of-thought logs for operator trust.",
+      "Trigger skill automations from comment intent with webhook executors and transparent execution logs.",
     path: "/features/skill-execution",
   },
   pricing: {
-    title: "Pricing | Komenin",
+    title: "Sosmed Automation Pricing — 1, 6, 12 Month Plans | Komenin",
     description:
-      "Simple 1, 6, and 12 month plans for enterprise social operations. Longer commitments unlock lower monthly rates.",
+      "Simple 1, 6, and 12 month plans for Instagram, Threads, and TikTok automation. Longer commitments unlock lower monthly rates.",
     path: "/pricing",
   },
   enterprise: {
-    title: "Enterprise | Komenin",
+    title: "Enterprise Social Media Management | Komenin",
     description:
       "RBAC, SSO foundations, audit logs, usage controls, and admin tooling for enterprise social ops teams.",
     path: "/enterprise",
   },
   security: {
-    title: "Security | Komenin",
+    title: "Automation Security & Audit Trails | Komenin",
     description:
       "Encrypted session vaults, approval workflows, rate limits, and immutable audit trails by default.",
     path: "/security",
   },
   about: {
-    title: "About | Komenin",
-    description: "Komenin membantu tim dan agensi mengelola komentar, konten, dan akun sosial dari satu tempat.",
+    title: "About Komenin — Social Ops Control Plane",
+    description:
+      "Komenin helps teams and agencies manage Instagram, Threads, and TikTok comments, content, and accounts from one governed workspace.",
     path: "/about",
   },
   contact: {
-    title: "Contact | Komenin",
+    title: "Contact Sales for Sosmed Automation Demo | Komenin",
     description: "Talk to the Komenin team about pilots, enterprise rollout, or product questions.",
     path: "/contact",
   },
@@ -504,6 +552,42 @@ export const PAGE_SEO = {
     description: "Create a Komenin workspace and start approval-first social operations.",
     path: "/signup",
   },
+  useCases: {
+    title: "Komenin for Agencies — Multi-Brand Social Ops | Komenin",
+    description:
+      "Run every client brand from one governed workspace: per-client campaigns, leads pipelines, approval queues, and agency analytics.",
+    path: "/use-cases",
+  },
+  platformInstagram: {
+    title: "Instagram Comment & Auto Post Automation | Komenin",
+    description:
+      "Discover Instagram conversations, draft contextual comments with AI, approve in a mobile-friendly queue, and schedule auto posts.",
+    path: "/platform/instagram",
+  },
+  platformTiktok: {
+    title: "TikTok Publishing & Comment Automation | Komenin",
+    description:
+      "Schedule original TikTok posts from one topic and run approval-gated comment campaigns with strict pacing.",
+    path: "/platform/tiktok",
+  },
+  platformThreads: {
+    title: "Threads Reply Automation at Conversation Speed | Komenin",
+    description:
+      "Catch Threads mentions fast, generate contextual AI replies, and approve in seconds with enforced guardrails.",
+    path: "/platform/threads",
+  },
+  integrations: {
+    title: "Integrations — Publish Bridge, Webhooks & API | Komenin",
+    description:
+      "Connect Komenin to your stack: publish bridges, skill webhooks, outbound notifications, CSV exports, and the worker API.",
+    path: "/integrations",
+  },
+  changelog: {
+    title: "Changelog | Komenin",
+    description:
+      "What shipped lately in Komenin — automation depth, reporting, and governance updates.",
+    path: "/changelog",
+  },
   docsTutorial: {
     title: "Tutorials | Komenin Docs",
     description:
@@ -522,67 +606,68 @@ export type PageSeoEntry = {
 /** Indonesian translations for public page SEO. Falls back to EN per-key. */
 export const PAGE_SEO_ID: Record<keyof typeof PAGE_SEO, PageSeoEntry> = {
   home: {
-    title: "Komenin — Platform Otomatisasi Komentar & Konten Sosial",
+    title: "Komenin — Platform Otomatisasi Komentar & Bot Sosmed",
     description:
-      "Kelola komentar dan posting otomatis Instagram, Threads, dan TikTok dengan session routing, draf AI, kontrol persetujuan, dan jejak audit lengkap.",
+      "Otomatisasi sosial media: auto komentar Instagram, bot sosmed Threads, campaign sosial media, dan jadwal posting TikTok dengan draf AI, kontrol persetujuan, dan jejak audit lengkap.",
     path: "/",
   },
   features: {
-    title: "Fitur | Komenin",
+    title: "Fitur Otomatisasi Sosial Media | Komenin",
     description:
-      "Session routing, comment engine, agent intelligence, dan skill execution untuk operasi sosial yang terkendali.",
+      "Otomatisasi komentar Instagram, auto posting TikTok, bot sosmed Threads, dan campaign sosial media dengan kontrol persetujuan dan audit trail.",
     path: "/features",
   },
   sessionRouting: {
-    title: "Session Routing | Fitur Komenin",
+    title: "Session Routing & Proxy Anti-Detect | Komenin",
     description:
-      "Pool proxy, sesi anti-detect, dan grid akun multi-tunnel untuk Instagram, Threads, dan TikTok.",
+      "Pool proxy, sesi anti-detect, dan grid akun multi-tunnel untuk bot sosmed Instagram, Threads, dan TikTok yang aman.",
     path: "/features/session-routing",
   },
   commentEngine: {
-    title: "Comment Engine | Fitur Komenin",
+    title: "Bot Auto Komentar Instagram & TikTok | Komenin",
     description:
-      "Listener kata kunci, draf AI, pacing seperti manusia, dan antrean persetujuan untuk engagement yang terkontrol.",
+      "Listener kata kunci, draf AI, pacing seperti manusia, dan antrean persetujuan untuk campaign komentar otomatis yang terkontrol.",
     path: "/features/comment-engine",
   },
   agentIntelligence: {
-    title: "Agent Intelligence | Fitur Komenin",
+    title: "AI Agent Balasan Otomatis Sosmed | Komenin",
     description:
-      "Persona, guardrail, knowledge retrieval, dan memori untuk balasan sosial yang akurat dalam skala besar.",
+      "Persona AI, guardrail, knowledge retrieval, dan memori untuk balasan otomatis Instagram, Threads, dan TikTok dalam skala besar.",
     path: "/features/agent-intelligence",
   },
   skillExecution: {
-    title: "Skill Execution | Fitur Komenin",
+    title: "Skill Automation & Webhook Campaign | Komenin",
     description:
-      "Function calling dengan intent trigger dan log chain-of-thought yang transparan untuk kepercayaan operator.",
+      "Pemicu otomatisasi campaign sosial media dari intent komentar dengan webhook executor dan log eksekusi transparan.",
     path: "/features/skill-execution",
   },
   pricing: {
-    title: "Harga | Komenin",
+    title: "Harga Bot Sosmed & Otomatisasi — Paket 1, 6, 12 Bulan",
     description:
-      "Paket 1, 6, dan 12 bulan untuk operasi sosial. Komitmen lebih lama, tarif bulanan lebih hemat.",
+      "Paket otomatisasi sosial media 1, 6, dan 12 bulan untuk Instagram, Threads, dan TikTok. Komitmen lebih lama, tarif bulanan lebih hemat.",
     path: "/pricing",
   },
   enterprise: {
-    title: "Enterprise | Komenin",
+    title: "Enterprise Social Media Management Indonesia",
     description:
-      "RBAC, fondasi SSO, audit log, kontrol usage, dan tooling admin untuk tim enterprise social ops.",
+      "RBAC, fondasi SSO, audit log, kontrol usage, dan tooling admin untuk tim enterprise dan agensi sosial media.",
     path: "/enterprise",
   },
   security: {
-    title: "Keamanan | Komenin",
+    title: "Keamanan Otomatisasi & Audit Trail | Komenin",
     description:
-      "Vault sesi terenkripsi, alur persetujuan, rate limit, dan jejak audit permanen secara default.",
+      "Vault sesi terenkripsi, alur persetujuan, rate limit, dan jejak audit permanen untuk bot sosmed yang aman.",
     path: "/security",
   },
   about: {
-    title: "Tentang | Komenin",
-    description: "Komenin membantu tim dan agensi mengelola komentar, konten, dan akun sosial dari satu tempat.",
+    title: "Tentang Komenin — Platform Bot Sosmed Indonesia",
+    description:
+      "Komenin membantu tim dan agensi mengelola komentar otomatis, campaign sosial media, dan akun Instagram, Threads, dan TikTok dari satu tempat.",
     path: "/about",
   },
   contact: {
-    title: "Kontak | Komenin",
-    description: "Hubungi tim Komenin untuk pilot, enterprise rollout, atau pertanyaan produk.",
+    title: "Kontak & Demo Otomatisasi Sosmed | Komenin",
+    description: "Hubungi tim Komenin untuk demo bot sosmed, pilot campaign, enterprise rollout, atau pertanyaan produk.",
     path: "/contact",
   },
   status: {
@@ -625,6 +710,42 @@ export const PAGE_SEO_ID: Record<keyof typeof PAGE_SEO, PageSeoEntry> = {
     title: "Mulai Gratis | Komenin",
     description: "Buat workspace Komenin dan mulai operasi sosial dengan persetujuan di setiap langkah.",
     path: "/signup",
+  },
+  useCases: {
+    title: "Komenin untuk Agensi — Operasi Sosial Multi-Brand | Komenin",
+    description:
+      "Jalankan setiap brand klien dari satu workspace terkendali: campaign per klien, pipeline leads, antrean approval, dan analitik agensi.",
+    path: "/use-cases",
+  },
+  platformInstagram: {
+    title: "Otomatisasi Komentar & Auto Post Instagram | Komenin",
+    description:
+      "Temukan percakapan Instagram, buat komentar kontekstual dengan AI, setujui di antrean ramah-mobile, dan jadwalkan auto posting.",
+    path: "/platform/instagram",
+  },
+  platformTiktok: {
+    title: "Otomatisasi Publishing & Komentar TikTok | Komenin",
+    description:
+      "Jadwalkan postingan TikTok orisinal dari satu topik dan jalankan campaign komentar dengan gerbang persetujuan dan pacing ketat.",
+    path: "/platform/tiktok",
+  },
+  platformThreads: {
+    title: "Otomatisasi Balasan Threads Secepat Percakapan | Komenin",
+    description:
+      "Tangkap mention Threads dengan cepat, buat balasan AI kontekstual, dan setujui dalam hitungan detik dengan guardrail.",
+    path: "/platform/threads",
+  },
+  integrations: {
+    title: "Integrasi — Bridge Publish, Webhook & API | Komenin",
+    description:
+      "Hubungkan Komenin ke stack Anda: bridge publish, webhook skill, notifikasi outbound, export CSV, dan worker API.",
+    path: "/integrations",
+  },
+  changelog: {
+    title: "Changelog | Komenin",
+    description:
+      "Yang baru di Komenin — update kedalaman otomatisasi, pelaporan, dan governance.",
+    path: "/changelog",
   },
   docsTutorial: {
     title: "Tutorial | Dokumentasi Komenin",

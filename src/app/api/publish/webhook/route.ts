@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { recordPublishDelivery } from "@/lib/publish-delivery-store";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
-import { allowDevStubs, safeEqual } from "@/lib/security";
+import { allowDevStubs, isProductionRuntime, safeEqual } from "@/lib/security";
 
 export const runtime = "nodejs";
 
@@ -91,6 +91,12 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
+  // The usage doc is a recon aid (endpoint shape + auth scheme). Hide it in
+  // production — the bridge operator already has the contract in
+  // docs/BRIDGE-CONTRACT.md. POST behaviour is unchanged.
+  if (isProductionRuntime()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   const tokenConfigured = Boolean(process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN?.trim());
   return NextResponse.json({
     ok: true,

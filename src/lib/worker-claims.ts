@@ -85,6 +85,18 @@ export async function releaseMention(mentionId: string): Promise<void> {
 }
 
 /**
+ * Atomically claim a knowledge document for ingestion. Exactly one
+ * overlapping worker wins (pending -> processing); the loser skips the doc.
+ */
+export async function claimKnowledgeDocument(docId: string): Promise<boolean> {
+  const result = await db.knowledgeDocument.updateMany({
+    where: { id: docId, status: "pending" },
+    data: { status: "processing" },
+  });
+  return result.count === 1;
+}
+
+/**
  * Recover work stranded in a transient claim state when its run is stale.
  * A claim older than maxAgeMs means the worker died (timeout/redeploy), so
  * the row is released for the next tick instead of being stuck forever.
@@ -93,7 +105,7 @@ export async function releaseStaleClaims(
   maxAgeMs = 10 * 60 * 1000,
 ): Promise<number> {
   const cutoff = new Date(Date.now() - maxAgeMs);
-  const [comments, posts, drafts, campaigns, mentions] = await Promise.all([
+  const [comments, posts, drafts, campaigns, mentions, docs] = await Promise.all([
     db.commentAction.updateMany({
       where: { status: "sending", executedAt: null, updatedAt: { lt: cutoff } },
       data: { status: "scheduled" },
@@ -114,6 +126,12 @@ export async function releaseStaleClaims(
       where: { status: "generating", updatedAt: { lt: cutoff } },
       data: { status: "new" },
     }),
+    db.knowledgeDocument.updateMany({
+      where: { status: "processing", updatedAt: { lt: cutoff } },
+      data: { status: "pending" },
+    }),
   ]);
-  return comments.count + posts.count + drafts.count + campaigns.count + mentions.count;
+  return (
+    comments.count + posts.count + drafts.count + campaigns.count + mentions.count + docs.count
+  );
 }

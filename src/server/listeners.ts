@@ -33,13 +33,26 @@ export async function createListener(input: {
   const query = input.query.trim();
   if (!query) throw new Error("Listener query is required");
 
+  // M1: campaignId is attacker-chosen — a member of workspace A must not be
+  // able to link their listener to workspace B's campaign (pollListener /
+  // listListeners would then write targetPosts against a foreign campaign).
+  let campaignId: string | null = null;
+  if (input.campaignId?.trim()) {
+    const campaign = await db.campaign.findFirst({
+      where: { id: input.campaignId.trim(), workspaceId: workspace.id },
+      select: { id: true },
+    });
+    if (!campaign) throw new Error("Campaign not found");
+    campaignId = campaign.id;
+  }
+
   const listener = await db.listener.create({
     data: {
       workspaceId: workspace.id,
       platform: input.platform,
       type: input.type,
       query,
-      campaignId: input.campaignId || null,
+      campaignId,
       isActive: true,
     },
   });

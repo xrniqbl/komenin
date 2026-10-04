@@ -15,7 +15,7 @@ describe("billing commerce", () => {
   });
 
   it("verifies midtrans signature", () => {
-    const orderId = "AETH-1";
+    const orderId = "KMN-1";
     const statusCode = "200";
     const grossAmount = "499000.00";
     const serverKey = "SB-Mid-server-xxx";
@@ -36,7 +36,7 @@ describe("billing commerce", () => {
   it("rejects invalid midtrans signatures", () => {
     expect(
       verifyMidtransSignature({
-        orderId: "AETH-1",
+        orderId: "KMN-1",
         statusCode: "200",
         grossAmount: "499000.00",
         signatureKey: "deadbeef",

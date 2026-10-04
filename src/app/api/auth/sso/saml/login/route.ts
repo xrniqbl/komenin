@@ -24,11 +24,14 @@ export async function GET(request: Request) {
   try {
     url = assertSafeOutboundUrl(config.entryPoint);
   } catch (error) {
+    // Never reflect stored admin config (IdP URL / validation detail) to an
+    // unauthenticated caller — log full, return generic.
+    console.error("[sso-login] entry point validation failed", error);
     return NextResponse.json(
       {
         error:
           error instanceof UnsafeUrlError
-            ? `Configured IdP entry point is not allowed: ${error.message}`
+            ? "Configured IdP entry point is not allowed"
             : "Configured IdP entry point is invalid",
       },
       { status: 400 },

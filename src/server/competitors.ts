@@ -170,6 +170,14 @@ export async function getCompetitorMetrics(profileId: string) {
     .slice(0, 10)
     .map(([word, count]) => ({ word, count }));
 
+  // Spike signal: posts in the last 48h vs the 30d daily average.
+  // A "spike" means the competitor suddenly posts much more than usual.
+  const twoDaysAgo = new Date(now.getTime() - 2 * 86400000);
+  const count48h = allPosts.filter((p) => p.discoveredAt >= twoDaysAgo).length;
+  const baselineDaily = count30d > 0 ? count30d / 30 : 0;
+  const spikeRatio = baselineDaily > 0 ? count48h / 2 / baselineDaily : count48h > 0 ? count48h : 0;
+  const spike = spikeRatio >= 2 && count48h >= 3;
+
   return {
     profile,
     count7d,
@@ -178,6 +186,7 @@ export async function getCompetitorMetrics(profileId: string) {
     dailyBuckets,
     topKeywords,
     recentPosts: posts30d.slice(0, 5),
+    spike: { active: spike, count48h, ratio: Math.round(spikeRatio * 10) / 10 },
   };
 }
 

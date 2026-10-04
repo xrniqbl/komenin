@@ -1,5 +1,12 @@
 "use server";
 
+import { effectiveActionsToday } from "@/lib/account-quota";
+import {
+  describePlatformLimits,
+  effectiveDailyCommentCap,
+  getPlatformGuardrail,
+  PLATFORM_GUARDRAILS,
+} from "@/lib/platform-rate-limits";
 import { getQuotaPercent, getThresholdStatus } from "@/lib/quota";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
@@ -22,6 +29,8 @@ export async function listRateLimitStatus() {
         status: true,
         dailyQuota: true,
         actionsToday: true,
+        lastActionAt: true,
+        createdAt: true,
         healthScore: true,
       },
       orderBy: { username: "asc" },
@@ -44,14 +53,50 @@ export async function listRateLimitStatus() {
   const sendLimit = ws?.monthlySendLimit ?? 5000;
   const publishLimit = ws?.monthlyPublishLimit ?? 1000;
 
+  const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const hourlyCounts = await db.commentAction.groupBy({
+    by: ["socialAccountId"],
+    where: {
+      workspaceId: workspace.id,
+      status: "sent",
+      executedAt: { gte: hourAgo },
+    },
+    _count: { socialAccountId: true },
+  });
+  const hourlyByAccount = new Map(
+    hourlyCounts.map((row) => [row.socialAccountId, row._count.socialAccountId]),
+  );
+
   const accountStatuses = accounts.map((acc) => {
-    const pct = getQuotaPercent(acc.actionsToday, acc.dailyQuota);
-    const status = getThresholdStatus(acc.actionsToday, acc.dailyQuota);
+    // Effective cap = strictest of platform safe cap, new-account warming
+    // cap, and the operator quota — this is the number that actually
+    // protects the account from platform restriction.
+    const effectiveCap = effectiveDailyCommentCap({
+      platform: acc.platform,
+      accountCreatedAt: acc.createdAt,
+      customDailyQuota: acc.dailyQuota,
+    });
+    const effectiveUsed = effectiveActionsToday({
+      actionsToday: acc.actionsToday,
+      dailyQuota: acc.dailyQuota,
+      lastActionAt: acc.lastActionAt,
+    });
+    const guardrail = getPlatformGuardrail(acc.platform);
+    const sentInLastHour = hourlyByAccount.get(acc.id) ?? 0;
+    const hourlyThrottled = sentInLastHour >= guardrail.comments.safePerHour;
+    const pct = getQuotaPercent(effectiveUsed, effectiveCap);
+    const status = getThresholdStatus(effectiveUsed, effectiveCap);
     return {
       ...acc,
       pct,
       status,
-      throttled: acc.actionsToday >= acc.dailyQuota || acc.status === "limited",
+      effectiveCap,
+      effectiveUsed,
+      sentInLastHour,
+      hourlyCap: guardrail.comments.safePerHour,
+      hourlyThrottled,
+      limitSummary: describePlatformLimits(acc.platform),
+      throttled: effectiveUsed >= effectiveCap || hourlyThrottled || acc.status === "limited",
     };
   });
 
@@ -72,6 +117,17 @@ export async function listRateLimitStatus() {
     accounts: accountStatuses,
     throttledCount: accountStatuses.filter((a) => a.throttled).length,
     periodKey,
+    guardrails: Object.values(PLATFORM_GUARDRAILS).map((g) => ({
+      platform: g.platform,
+      label: g.label,
+      commentsPerHour: g.comments.safePerHour,
+      commentsPerDay: g.comments.safePerDay,
+      minIntervalMin: Math.round(g.comments.minIntervalSec / 60),
+      newAccountPerDay: g.comments.newAccountPerDay,
+      publishesPerDay: g.publishes.safePerDay,
+      summary: describePlatformLimits(g.platform),
+      notes: g.notes,
+    })),
   };
 }
 

@@ -42,7 +42,7 @@ describe("email module (Brevo)", () => {
 
   it("sendEmail posts to Brevo v3 with api-key header and sender object", async () => {
     vi.stubEnv("BREVO_API_KEY", "xkeysib-test");
-    vi.stubEnv("EMAIL_FROM", "Aether <noreply@brand.id>");
+    vi.stubEnv("EMAIL_FROM", "Komenin <noreply@brand.id>");
     const { sendEmail } = await import("@/lib/email");
 
     const fetchSpy = vi
@@ -66,7 +66,7 @@ describe("email module (Brevo)", () => {
     expect(headers["content-type"]).toBe("application/json");
 
     const body = JSON.parse(init.body as string);
-    expect(body.sender).toEqual({ email: "noreply@brand.id", name: "Aether" });
+    expect(body.sender).toEqual({ email: "noreply@brand.id", name: "Komenin" });
     expect(body.to).toEqual([{ email: "member@example.com" }]);
     expect(body.subject).toBe("You're invited");
     expect(body.htmlContent).toContain("Join us");
@@ -127,7 +127,7 @@ describe("email module (Brevo)", () => {
 
   it("sendInviteEmail builds an accept link with the invite token", async () => {
     vi.stubEnv("BREVO_API_KEY", "xkeysib-test");
-    vi.stubEnv("EMAIL_FROM", "Aether <noreply@brand.id>");
+    vi.stubEnv("EMAIL_FROM", "Komenin <noreply@brand.id>");
     vi.stubEnv("APP_URL", "https://app.example.com");
     const { sendInviteEmail } = await import("@/lib/email");
 

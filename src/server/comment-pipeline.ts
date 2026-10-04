@@ -4,16 +4,45 @@ import { revalidatePath } from "next/cache";
 import { dailyActionIncrementData } from "@/lib/account-quota";
 import { assertWorkspacePermission } from "@/lib/rbac";
 import { generateContextualCommentHybrid, pickDelaySeconds } from "@/lib/comment-engine";
+import { getPlatformGuardrail } from "@/lib/platform-rate-limits";
+
+/** Approval→send delay floored at the platform safe interval so a campaign
+ *  configured with a tiny delay cannot look like a spam burst. */
+function pacedDelay(campaign: { minDelaySec?: number | null; maxDelaySec?: number | null; platform?: string | null } | null | undefined): number {
+  const guardrail = getPlatformGuardrail(campaign?.platform);
+  return pickDelaySeconds(
+    Math.max(campaign?.minDelaySec ?? 180, guardrail.comments.minIntervalSec),
+    Math.max(campaign?.maxDelaySec ?? 600, campaign?.minDelaySec ?? 180, guardrail.comments.minIntervalSec),
+  );
+}
 import { db } from "@/lib/db";
 import { runWorkerJob } from "@/server/worker-jobs";
 import { claimTargetPost } from "@/lib/worker-claims";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
 
-export async function listInbox() {
+export async function listInbox(input?: {
+  status?: string;
+  platform?: string;
+  q?: string;
+  onlyDrafted?: boolean;
+  onlyUndrafted?: boolean;
+}) {
   const { workspace } = await requireActiveWorkspace();
+  const where: Record<string, unknown> & { workspaceId: string } = {
+    workspaceId: workspace.id,
+  };
+  if (input?.status) where.status = input.status as never;
+  if (input?.platform) where.platform = input.platform as never;
+  if (input?.q?.trim()) {
+    const q = input.q.trim();
+    where.OR = [
+      { authorHandle: { contains: q, mode: "insensitive" as const } },
+      { content: { contains: q, mode: "insensitive" as const } },
+    ];
+  }
   return db.targetPost.findMany({
-    where: { workspaceId: workspace.id },
+    where,
     include: {
       drafts: { orderBy: { createdAt: "desc" }, take: 1 },
       campaign: true,
@@ -206,10 +235,7 @@ export async function decideApproval(input: {
         "Cannot approve: campaign has no linked social account. Attach an account on the campaign first.",
       );
     }
-    const delay = pickDelaySeconds(
-      approval.campaign?.minDelaySec ?? 45,
-      approval.campaign?.maxDelaySec ?? 180,
-    );
+    const delay = pacedDelay(approval.campaign);
     const scheduledFor = new Date(Date.now() + delay * 1000);
 
     await db.$transaction(async (tx) => {
@@ -306,10 +332,7 @@ export async function bulkDecideApprovals(input: {
       rejected += 1;
     } else {
       const accountId = approval.campaign?.accounts[0]?.socialAccountId || null;
-      const delay = pickDelaySeconds(
-        approval.campaign?.minDelaySec ?? 45,
-        approval.campaign?.maxDelaySec ?? 180,
-      );
+      const delay = pacedDelay(approval.campaign);
       const scheduledFor = new Date(Date.now() + delay * 1000);
 
       await db.$transaction(async (tx) => {

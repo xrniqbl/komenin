@@ -9,7 +9,7 @@ export const dynamic = "force-static";
 
 export function GET() {
   return Response.json(
-    { ok: true, service: "aether", timestamp: new Date().toISOString() },
+    { ok: true, service: "komenin", timestamp: new Date().toISOString() },
     { headers: { "cache-control": "no-store" } },
   );
 }

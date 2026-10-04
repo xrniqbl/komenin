@@ -40,7 +40,9 @@ const NAV_GROUPS = [
       { label: "Templates", href: "/app/templates" },
       { label: "Listeners", href: "/app/listeners" },
       { label: "Inbox", href: "/app/inbox" },
+      { label: "Mentions", href: "/app/mentions" },
       { label: "Approvals", href: "/app/approvals" },
+      { label: "Leads", href: "/app/leads" },
       { label: "Activity", href: "/app/activity" },
     ],
   },
@@ -56,10 +58,12 @@ const NAV_GROUPS = [
   {
     label: "Workspace",
     items: [
+      { label: "Clients", href: "/app/clients" },
       { label: "Analytics", href: "/app/analytics" },
       { label: "Rate Limits", href: "/app/rate-limits" },
       { label: "Audit Logs", href: "/app/audit-logs" },
       { label: "Notifications", href: "/app/notifications" },
+      { label: "Support", href: "/app/support" },
       { label: "Settings", href: "/app/settings" },
     ],
   },

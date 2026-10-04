@@ -1,7 +1,7 @@
 ﻿# syntax=docker/dockerfile:1.7
 
 ##
-## Aether — production image (Next.js standalone + Prisma)
+## Komenin — production image (Next.js standalone + Prisma)
 ## Build context = repo root.
 ##
 

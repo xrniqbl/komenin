@@ -1,8 +1,8 @@
-# Aether Architecture Documentation
+# Komenin Architecture Documentation
 
 ## Overview
 
-This directory contains Architecture Decision Records (ADRs) for the Aether project.
+This directory contains Architecture Decision Records (ADRs) for the Komenin project.
 ADRs capture significant architectural decisions, their context, and rationale.
 
 ## Index of ADRs

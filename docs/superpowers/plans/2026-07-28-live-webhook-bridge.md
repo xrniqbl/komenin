@@ -4,7 +4,7 @@
 
 **Goal:** Finish the approved live social delivery path by shipping an in-repo mock social bridge, hardening webhook client tests, documenting the integrator contract, and aligning env/readiness so operators can run `SIMULATOR_MODE=false` against a real or mock bridge without false success.
 
-**Architecture:** Aether already posts connector actions to `SOCIAL_PUBLISH_WEBHOOK_URL` and validates 2xx JSON via `parseBridgeSuccessPayload`. This plan adds a separate Node mock bridge process (port 8787) that implements contract v1 for all five actions, pure handler unit tests, webhook client fail-closed tests with mocked fetch, npm scripts, and operator docs. No Next.js route may impersonate the live bridge.
+**Architecture:** Komenin already posts connector actions to `SOCIAL_PUBLISH_WEBHOOK_URL` and validates 2xx JSON via `parseBridgeSuccessPayload`. This plan adds a separate Node mock bridge process (port 8787) that implements contract v1 for all five actions, pure handler unit tests, webhook client fail-closed tests with mocked fetch, npm scripts, and operator docs. No Next.js route may impersonate the live bridge.
 
 **Tech Stack:** Next.js 16 App Router, TypeScript, Vitest, Node `http` + `tsx`, existing `safeOutboundFetch` / `url-safety`, connector router.
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Primary live path remains **external webhook bridge**; native Graph/TikTok completion is out of scope.
-- Contract version header: `x-aether-contract: v1` (request required; response recommended).
+- Contract version header: `x-komenin-contract: v1` (request required; response recommended).
 - Auth: `Authorization: Bearer <token>` required for mock and live.
 - Empty `discoverPosts` success creates **zero** `targetPost` rows (no invent in live — already enforced in workers).
 - Malformed posts in an array are **filtered**; non-array `posts` fails the call.
@@ -50,7 +50,7 @@
 |---|---|
 | `bridges/mock-social/handler.ts` | Pure request→response for 5 actions (no I/O) |
 | `bridges/mock-social/server.ts` | Node HTTP server: auth, JSON parse, call handler, headers |
-| `bridges/mock-social/README.md` | How to run and point Aether at the mock |
+| `bridges/mock-social/README.md` | How to run and point Komenin at the mock |
 | `tests/unit/mock-social-bridge.test.ts` | Handler contract fixtures |
 | `tests/unit/webhook-connector.test.ts` | `runWebhookConnector` with mocked `safeOutboundFetch` |
 | `package.json` | `bridge:mock` script |
@@ -203,7 +203,7 @@ function slug(input: string): string {
 
 export function handleMockBridgeRequest(req: MockBridgeRequest): MockBridgeResponse {
   const platform = (req.platform || "instagram").toLowerCase();
-  const headers = { "x-aether-contract": "v1" };
+  const headers = { "x-komenin-contract": "v1" };
 
   switch (req.action) {
     case "discoverPosts": {
@@ -346,7 +346,7 @@ function send(
   const payload = JSON.stringify(body);
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
-    "x-aether-contract": "v1",
+    "x-komenin-contract": "v1",
     ...(extraHeaders || {}),
   });
   res.end(payload);
@@ -388,7 +388,7 @@ async function main() {
         }
       }
 
-      const actionHeader = req.headers["x-aether-action"];
+      const actionHeader = req.headers["x-komenin-action"];
       if (!json.action && typeof actionHeader === "string") {
         json.action = actionHeader;
       }
@@ -424,7 +424,7 @@ Create `bridges/mock-social/README.md`:
 ```markdown
 # Mock social bridge
 
-Contract v1 stand-in for Aether live connectors. **Not** the same as
+Contract v1 stand-in for Komenin live connectors. **Not** the same as
 `POST /api/publish/webhook` (in-app delivery log).
 
 ## Run
@@ -436,7 +436,7 @@ MOCK_BRIDGE_TOKEN=dev-bridge-token-please-change npm run bridge:mock
 
 Listens on `http://127.0.0.1:8787/bridge`.
 
-## Point Aether at it (local)
+## Point Komenin at it (local)
 
 ```env
 SIMULATOR_MODE=false
@@ -489,8 +489,8 @@ Terminal B:
 curl -sS -X POST http://127.0.0.1:8787/bridge \
   -H "authorization: Bearer dev-bridge-token-please-change" \
   -H "content-type: application/json" \
-  -H "x-aether-action: discoverPosts" \
-  -H "x-aether-contract: v1" \
+  -H "x-komenin-action: discoverPosts" \
+  -H "x-komenin-contract: v1" \
   -d "{\"action\":\"discoverPosts\",\"platform\":\"instagram\",\"query\":\"kopi\",\"limit\":2}"
 ```
 
@@ -552,7 +552,7 @@ function baseInput(over: Partial<ConnectorActionInput> = {}): ConnectorActionInp
       authorHandle: "user",
     },
     webhook: {
-      url: "https://bridge.example/hooks/aether",
+      url: "https://bridge.example/hooks/komenin",
       token: "super-secret-token",
     },
     official: null,
@@ -579,7 +579,7 @@ describe("runWebhookConnector", () => {
     expect(result.externalId).toBe("c_1");
     expect(result.connector).toBe("webhook");
     const init = fetchMock.mock.calls[0][1] as { headers: Record<string, string> };
-    expect(init.headers["x-aether-contract"]).toBe("v1");
+    expect(init.headers["x-komenin-contract"]).toBe("v1");
     expect(init.headers.authorization).toBe("Bearer super-secret-token");
   });
 
@@ -685,7 +685,7 @@ Required sections (keep under ~200 lines):
 | `POST /api/publish/webhook` | In-app delivery log only; blocked as live target by production-gate when host matches `APP_URL` |
 | External / mock bridge | Real or simulated platform I/O; set as `SOCIAL_PUBLISH_WEBHOOK_URL` |
 
-3. **Transport** — `POST`, `Authorization: Bearer`, `content-type: application/json`, `x-aether-action`, `x-aether-contract: v1`
+3. **Transport** — `POST`, `Authorization: Bearer`, `content-type: application/json`, `x-komenin-action`, `x-komenin-contract: v1`
 4. **Actions** — table of request fields for all five actions (from spec §5)
 5. **Success / error JSON** examples
 6. **Empty discover** = HTTP 2xx + `posts: []` → app creates zero rows
@@ -792,7 +792,7 @@ Do **not** implement in this plan:
 | Spec requirement | Plan task |
 |---|---|
 | Contract module + parse rules | Already shipped; Task 3 locks client behavior |
-| Webhook client fail-closed + `x-aether-contract` | Shipped + Task 3 |
+| Webhook client fail-closed + `x-komenin-contract` | Shipped + Task 3 |
 | Mock bridge 5 actions, token, separate port | Tasks 1–2 |
 | Mock README + env wiring | Task 2 |
 | Integrator docs + checklist | Task 4 |

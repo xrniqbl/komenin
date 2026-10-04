@@ -5,7 +5,7 @@
 import { execSync } from "node:child_process";
 import { existsSync, rmSync } from "node:fs";
 
-const OUT = "aether-upload.tar.gz";
+const OUT = "komenin-upload.tar.gz";
 
 const include = [
   "Dockerfile",

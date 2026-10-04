@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { LocaleLink } from "@/components/i18n/locale-link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -25,6 +24,7 @@ export function SiteFooter() {
         { kind: "section", id: "features", label: t.footer.features },
         { kind: "section", id: "pricing", label: t.footer.pricing },
         { kind: "route", href: "/security", label: t.footer.security },
+        { kind: "route", href: "/integrations", label: t.footer.integrations },
         { kind: "route", href: "/docs", label: t.footer.docs },
       ],
     },
@@ -34,6 +34,16 @@ export function SiteFooter() {
         { kind: "route", href: "/about", label: t.footer.about },
         { kind: "route", href: "/contact", label: t.footer.contact },
         { kind: "route", href: "/enterprise", label: t.footer.enterprise },
+        { kind: "route", href: "/use-cases", label: t.footer.useCases },
+        { kind: "route", href: "/changelog", label: t.footer.changelog },
+      ],
+    },
+    {
+      title: "Platform",
+      links: [
+        { kind: "route", href: "/platform/instagram", label: "Instagram" },
+        { kind: "route", href: "/platform/tiktok", label: "TikTok" },
+        { kind: "route", href: "/platform/threads", label: "Threads" },
       ],
     },
     {
@@ -57,7 +67,7 @@ export function SiteFooter() {
 
   return (
     <footer className="border-t bg-background">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 md:grid-cols-4 md:px-6">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 md:px-6">
         <div className="flex flex-col gap-4">
           <div className="inline-flex items-center gap-2">
             <Image src="/brand/komenin-mono.svg" alt="Komenin" width={24} height={24} />
@@ -71,12 +81,27 @@ export function SiteFooter() {
             <div className="flex flex-col items-start gap-1">
               {column.links.map((link) =>
                 link.kind === "section" ? (
+                  // Real links (not buttons) so crawlers follow Features/Pricing.
+                  // Clicks on the homepage still smooth-scroll to the section.
                   <Button
                     key={link.id}
-                    type="button"
                     variant="link"
                     size="sm"
-                    onClick={() => goToSection(link.id)}
+                    render={
+                      <LocaleLink
+                        href={link.id === "features" ? "/features" : "/pricing"}
+                        onClick={(event: React.SyntheticEvent) => {
+                          // On the homepage keep the smooth-scroll UX; everywhere
+                          // else follow the real link so both humans and crawlers
+                          // land on the indexable page.
+                          if (pathname === "/") {
+                            event.preventDefault();
+                            goToSection(link.id);
+                          }
+                        }}
+                      />
+                    }
+                    nativeButton={false}
                     className="h-auto px-0 text-muted-foreground"
                   >
                     {link.label}

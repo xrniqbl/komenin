@@ -1,8 +1,15 @@
 import { scanContentRisk, type RiskResult } from "@/lib/risk-scanner";
+import {
+  checkHourlyPace,
+  checkMinInterval,
+  effectiveDailyCommentCap,
+  getPlatformGuardrail,
+} from "@/lib/platform-rate-limits";
 
 export type SendPreflightInput = {
   body: string;
   postContent?: string | null;
+  platform?: string | null;
   bannedPhrases?: string[];
   customRules?: Array<{
     id?: string;
@@ -16,6 +23,17 @@ export type SendPreflightInput = {
     healthScore?: number | null;
     actionsToday?: number | null;
     dailyQuota?: number | null;
+    /** Account creation date — enables the stricter new-account (<30d) cap. */
+    createdAt?: Date | string | null;
+    lastActionAt?: Date | string | null;
+  } | null;
+  /** Sliding-window anti-spam signals (from DeliveryLog, UTC). */
+  pace?: {
+    /** Successful sends from this account in the last 60 minutes. */
+    sentInLastHour?: number | null;
+    /** Timestamp of the account's most recent outbound action. */
+    lastActionAt?: Date | string | null;
+    now?: Date;
   } | null;
   /** Recent identical bodies already sent to the same target (lowercased). */
   recentBodies?: string[];
@@ -37,6 +55,9 @@ export type SendPreflightResult = {
   reasons: string[];
   warnings: string[];
   risk: RiskResult;
+  /** Transient pace deferral (seconds) — caller should reschedule, not fail. */
+  paceDeferSec: number;
+  paceReason: string | null;
 };
 
 function normalizeBody(text: string): string {
@@ -50,6 +71,8 @@ function normalizeBody(text: string): string {
 export function runSendPreflight(input: SendPreflightInput): SendPreflightResult {
   const reasons: string[] = [];
   const warnings: string[] = [];
+  let paceDeferSec = 0;
+  let paceReason: string | null = null;
   const body = input.body?.trim() || "";
 
   if (!body) {
@@ -89,12 +112,56 @@ export function runSendPreflight(input: SendPreflightInput): SendPreflightResult
     } else if ((input.account.healthScore ?? 100) < 55) {
       warnings.push(`Account health low (${input.account.healthScore})`);
     }
+    // Daily cap: strictest of platform safe cap, new-account warming cap,
+    // and the operator-configured quota. The operator can go lower (safer)
+    // but never higher than the platform guardrail.
+    const guardrail = getPlatformGuardrail(input.platform);
+    const customQuota =
+      typeof input.account.dailyQuota === "number" ? input.account.dailyQuota : null;
+    const cap = effectiveDailyCommentCap({
+      platform: input.platform,
+      accountCreatedAt: input.account.createdAt ?? null,
+      customDailyQuota: customQuota,
+    });
     const used = input.account.actionsToday ?? 0;
-    const quota = input.account.dailyQuota ?? 0;
-    if (quota > 0 && used >= quota) {
-      reasons.push(`Daily account quota reached (${used}/${quota})`);
-    } else if (quota > 0 && used / quota >= 0.9) {
-      warnings.push(`Daily account quota nearly full (${used}/${quota})`);
+    if (used >= cap) {
+      reasons.push(
+        `Daily quota reached (${used}/${cap}) — batas aman harian ${guardrail.label} tercapai (${used}/${cap} komentar/hari), jeda hingga besok agar akun tidak dibatasi`,
+      );
+    } else if (used / cap >= 0.8) {
+      warnings.push(
+        `Daily quota nearly full (${used}/${cap}) — mendekati batas aman harian ${guardrail.label}, kurangi tempo agar tidak terdeteksi spam`,
+      );
+    }
+
+    // Hourly sliding-window pace: catches bursts that the daily counter misses
+    // (e.g. 10 sends in 5 minutes on a fresh account).
+    if (input.pace && input.pace.sentInLastHour != null) {
+      const pace = checkHourlyPace({
+        platform: input.platform,
+        kind: "comments",
+        sentInLastHour: input.pace.sentInLastHour,
+      });
+      if (!pace.ok) {
+        paceDeferSec = Math.max(paceDeferSec, pace.retryAfterSec);
+        paceReason = pace.message;
+        warnings.push((pace.message || "Hourly pace") + " — pengiriman ditunda ~15 menit");
+      }
+    }
+
+    // Minimum interval: two comments seconds apart is the #1 bot signature.
+    {
+      const gap = checkMinInterval({
+        platform: input.platform,
+        kind: "comments",
+        lastActionAt: input.pace?.lastActionAt ?? input.account.lastActionAt ?? null,
+        now: input.pace?.now,
+      });
+      if (!gap.ok) {
+        paceDeferSec = Math.max(paceDeferSec, gap.waitSec);
+        paceReason = gap.message;
+        warnings.push((gap.message || "Too soon") + " — dijadwalkan ulang otomatis");
+      }
     }
   }
 
@@ -132,5 +199,7 @@ export function runSendPreflight(input: SendPreflightInput): SendPreflightResult
     reasons,
     warnings,
     risk,
+    paceDeferSec,
+    paceReason,
   };
 }

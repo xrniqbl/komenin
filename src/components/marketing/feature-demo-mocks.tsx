@@ -149,7 +149,7 @@ export function AgentIntelligenceMock() {
             </div>
             <div className="space-y-1 text-xs">
               <div className="rounded bg-muted p-2 text-[11px]">
-                <span className="font-medium">Coupon FAQ:</span> AETHER20 gives 20% off first month.
+                <span className="font-medium">Coupon FAQ:</span> KOMENIN20 gives 20% off first month.
               </div>
               <div className="rounded bg-muted p-2 text-[11px]">
                 <span className="font-medium">Brand FAQ:</span> Komenin is enterprise social ops control plane.
@@ -158,7 +158,7 @@ export function AgentIntelligenceMock() {
           </CardContent>
         </Card>
         <div className="rounded-xl rounded-br-sm border bg-card px-3 py-2 text-xs leading-relaxed">
-          Thanks for asking! Komenin supports approval-first workflows - good fit for enterprise ops. Our AETHER20 coupon
+          Thanks for asking! Komenin supports approval-first workflows - good fit for enterprise ops. Our KOMENIN20 coupon
           gives 20% off first month if you want to pilot.
         </div>
         <div className="flex gap-1.5">
@@ -232,7 +232,7 @@ export function SkillExecutionMock() {
               </div>
               <div className="flex gap-2">
                 <Dot color="bg-blue-500" />
-                <span>lookup: code AETHER20 valid 20%</span>
+                <span>lookup: code KOMENIN20 valid 20%</span>
               </div>
               <div className="flex gap-2">
                 <Dot color="bg-purple-500" />

@@ -76,6 +76,10 @@ model LoginSession {
   createdAt  DateTime  @default(now())
   lastSeenAt DateTime  @default(now())
   revokedAt  DateTime?
+  /// Set when the TOTP challenge is passed for this device session. The JWT
+  /// `totpGate` flag is cleared only when this row says so — never from a
+  /// client-supplied session value (see jwt callback in src/lib/auth.ts).
+  totpVerifiedAt DateTime?
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt])
@@ -113,6 +117,23 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+/// Durable single-use nonce registry (M5) for SSO tickets + OAuth states.
+/// In-memory Maps only work per server process — on multi-instance/serverless
+/// deploys a sniffed ticket/state could be replayed against another instance.
+/// The UNIQUE nonceHash makes the claim atomic: exactly one concurrent
+/// consumer wins, losers get P2002. Pruned opportunistically on insert.
+model ConsumedNonce {
+  id        String   @id @default(cuid())
+  /// "sso_ticket" | "oauth_state" — namespaced so identical nonces cannot collide.
+  kind      String
+  /// sha256("<kind>:<nonce>") — the raw nonce never touches the database.
+  nonceHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
 }
 
 /// One-time passcode for email sign-in. The 6-digit code is stored HASHED
@@ -1168,14 +1189,15 @@ model Notification {
 model DigestMarker {
   id          String   @id @default(cuid())
   workspaceId String
-  /// UTC day key: YYYY-MM-DD
+  /// UTC day key (YYYY-MM-DD) for daily markers, ISO week key (YYYY-Www)
+  /// for weekly markers — disambiguated by `kind`.
   dayKey      String
   kind        String   @default("approval_digest")
   createdAt   DateTime @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@unique([workspaceId, dayKey])
+  @@unique([workspaceId, dayKey, kind])
   @@index([workspaceId, dayKey])
 }
 

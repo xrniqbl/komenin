@@ -4,34 +4,37 @@ import { PUBLIC_ROUTES, absoluteUrl } from "@/lib/seo";
 import { withLocalePath } from "@/lib/i18n/paths";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date();
+  // Stable build date so `lastModified` doesn't shift on every build and waste
+  // crawl budget. Override with BUILD_DATE (YYYY-MM-DD) when content changes.
+  const buildDate = process.env.BUILD_DATE ? new Date(process.env.BUILD_DATE) : new Date();
+  const lastModified = Number.isNaN(buildDate.getTime()) ? new Date() : buildDate;
 
+  const alternatesFor = (path: string) => ({
+    languages: {
+      en: absoluteUrl(path),
+      id: absoluteUrl(withLocalePath("id", path)),
+      "x-default": absoluteUrl(path),
+    },
+  });
+
+  // Yearly legal pages rarely change: omit lastModified so crawlers don't
+  // treat every build as a content update.
   const staticEntries: MetadataRoute.Sitemap = PUBLIC_ROUTES.map((route) => ({
     url: absoluteUrl(route.path),
-    lastModified: now,
+    ...(route.changeFrequency === "yearly" ? {} : { lastModified }),
     changeFrequency: route.changeFrequency,
     priority: route.priority,
-    alternates: {
-      languages: {
-        en: absoluteUrl(route.path),
-        id: absoluteUrl(withLocalePath("id", route.path)),
-      },
-    },
+    alternates: alternatesFor(route.path),
   }));
 
   const tutorialEntries: MetadataRoute.Sitemap = getAllTutorialSlugs().map((slug) => {
     const path = `/docs/tutorial/${slug}`;
     return {
       url: absoluteUrl(path),
-      lastModified: now,
+      lastModified,
       changeFrequency: "monthly" as const,
       priority: slug === "introduction" ? 0.72 : 0.65,
-      alternates: {
-        languages: {
-          en: absoluteUrl(path),
-          id: absoluteUrl(withLocalePath("id", path)),
-        },
-      },
+      alternates: alternatesFor(path),
     };
   });
 
@@ -39,15 +42,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     .filter((item) => item.href.startsWith("/docs/"))
     .map((item) => ({
       url: absoluteUrl(item.href),
-      lastModified: now,
+      lastModified,
       changeFrequency: "monthly" as const,
       priority: item.href.startsWith("/docs/api") ? 0.62 : 0.68,
-      alternates: {
-        languages: {
-          en: absoluteUrl(item.href),
-          id: absoluteUrl(withLocalePath("id", item.href)),
-        },
-      },
+      alternates: alternatesFor(item.href),
     }));
 
   // Indonesian variants as first-class URLs so both languages get indexed.
@@ -62,6 +60,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       languages: {
         en: (entry.alternates?.languages as { en: string }).en,
         id: (entry.alternates?.languages as { id: string }).id,
+        "x-default": (entry.alternates?.languages as { en: string }).en,
       },
     },
   }));

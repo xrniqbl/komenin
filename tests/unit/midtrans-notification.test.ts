@@ -35,7 +35,7 @@ function sign(
 
 function notificationPayload(over: Record<string, unknown> = {}) {
   const base = {
-    order_id: "AETH-TEST-1",
+    order_id: "KMN-TEST-1",
     status_code: "200",
     gross_amount: "499000.00",
     transaction_status: "settlement",
@@ -76,7 +76,7 @@ beforeEach(() => {
 
 describe("midtrans notification route", () => {
   it("accepts a correctly signed settlement and applies the order", async () => {
-    applyPaidOrderMock.mockResolvedValue({ ok: true, orderCode: "AETH-TEST-1" });
+    applyPaidOrderMock.mockResolvedValue({ ok: true, orderCode: "KMN-TEST-1" });
 
     const res = await POST(request(notificationPayload()));
 
@@ -86,7 +86,7 @@ describe("midtrans notification route", () => {
 
     expect(applyPaidOrderMock).toHaveBeenCalledTimes(1);
     const [orderCode, context] = applyPaidOrderMock.mock.calls[0];
-    expect(orderCode).toBe("AETH-TEST-1");
+    expect(orderCode).toBe("KMN-TEST-1");
     expect(context.signatureValid).toBe(true);
     expect(context.transactionStatus).toBe("settlement");
     expect(context.expectedGrossAmount).toBe("499000.00");
@@ -103,7 +103,7 @@ describe("midtrans notification route", () => {
 
   it("rejects a signature computed with the wrong server key", async () => {
     const payload = notificationPayload({
-      signature_key: sign("AETH-TEST-1", "200", "499000.00", "SB-Mid-server-OTHER"),
+      signature_key: sign("KMN-TEST-1", "200", "499000.00", "SB-Mid-server-OTHER"),
     });
 
     const res = await POST(request(payload));

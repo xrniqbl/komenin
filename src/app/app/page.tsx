@@ -2,6 +2,10 @@ import Link from "next/link";
 import { EmptyState } from "@/components/app/empty-state";
 import { OnboardingChecklistCard } from "@/components/app/onboarding-checklist";
 import { PageHeader } from "@/components/app/page-header";
+import {
+  WorkspaceHealthScore,
+  type HealthCheckItem,
+} from "@/components/app/workspace-health-score";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +22,7 @@ export default async function AppHomePage() {
   const entitlements = getEntitlementsForPlanCode(workspace.planCode);
   const checklist = await getOnboardingChecklist();
 
-  const [healthyAccounts, proxyCount, sessionCount, pendingApprovals, recentAudits, accountCount] =
+  const [healthyAccounts, proxyCount, sessionCount, pendingApprovals, recentAudits, accountCount, campaignCount] =
     await Promise.all([
       db.socialAccount.count({
         where: { workspaceId: workspace.id, deletedAt: null, status: "healthy" },
@@ -38,7 +42,75 @@ export default async function AppHomePage() {
       db.socialAccount.count({
         where: { workspaceId: workspace.id, deletedAt: null },
       }),
+      db.campaign.count({
+        where: { workspaceId: workspace.id },
+      }),
     ]);
+
+  // Build health check items
+  const healthItems: HealthCheckItem[] = [
+    {
+      id: "accounts",
+      label: "Social accounts",
+      status: accountCount > 0 ? "good" : "critical",
+      detail:
+        accountCount > 0
+          ? `${accountCount} connected`
+          : "No accounts connected",
+      href: "/app/accounts",
+    },
+    {
+      id: "sessions",
+      label: "Active sessions",
+      status:
+        sessionCount > 0
+          ? sessionCount >= accountCount
+            ? "good"
+            : "warning"
+          : "critical",
+      detail:
+        sessionCount > 0
+          ? `${sessionCount} active`
+          : "No active sessions",
+      href: "/app/sessions",
+    },
+    {
+      id: "proxies",
+      label: "Proxy endpoints",
+      status:
+        proxyCount > 0
+          ? "good"
+          : accountCount > 0
+            ? "warning"
+            : "critical",
+      detail:
+        proxyCount > 0
+          ? `${proxyCount} configured`
+          : "No proxies configured",
+      href: "/app/proxies",
+    },
+    {
+      id: "campaigns",
+      label: "Campaigns",
+      status: campaignCount > 0 ? "good" : "warning",
+      detail:
+        campaignCount > 0
+          ? `${campaignCount} active`
+          : "No campaigns yet",
+      href: "/app/campaigns",
+    },
+    {
+      id: "connector",
+      label: "Live connector",
+      status: readiness.ready ? "good" : mode === "simulator" ? "warning" : "critical",
+      detail: readiness.ready
+        ? "Ready"
+        : mode === "simulator"
+          ? "Simulator mode"
+          : "Not configured",
+      href: "/app/settings/publisher",
+    },
+  ];
 
   const metrics = [
     {
@@ -69,6 +141,11 @@ export default async function AppHomePage() {
       />
 
       <OnboardingChecklistCard checklist={checklist} />
+
+      {/* Health score — shows when onboarding is done or partially done */}
+      {(checklist.complete || checklist.completedCount > 0) && (
+        <WorkspaceHealthScore items={healthItems} />
+      )}
 
       {!readiness.ready ? (
         <Card className="mb-6 border-amber-500/40 bg-amber-500/5">

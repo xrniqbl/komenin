@@ -33,6 +33,7 @@ type Metrics = {
   avgPerDay: number;
   dailyBuckets: { date: string; count: number }[];
   topKeywords: { word: string; count: number }[];
+  spike?: { active: boolean; count48h: number; ratio: number };
 };
 
 export function CompetitorsClient({

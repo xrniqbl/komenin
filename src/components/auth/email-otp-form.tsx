@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,8 @@ import { Label } from "@/components/ui/label";
 type Stage = "email" | "code";
 
 export function EmailOtpForm({ callbackUrl = "/onboarding" }: { callbackUrl?: string }) {
+  const { t } = useLocale();
+  const copy = t.auth;
   const [stage, setStage] = useState<Stage>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -28,15 +31,15 @@ export function EmailOtpForm({ callbackUrl = "/onboarding" }: { callbackUrl?: st
         body: JSON.stringify({ email }),
       });
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload?.error || "Gagal mengirim kode.");
+      if (!res.ok) throw new Error(payload?.error || copy.sendFailed);
       setStage("code");
       setMessage(
         payload?.devCode
           ? `Mode dev — kode: ${payload.devCode}`
-          : "Kode 6 digit sudah dikirim ke email Anda.",
+          : copy.codeSent,
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal mengirim kode.");
+      setError(err instanceof Error ? err.message : copy.sendFailed);
     } finally {
       setBusy(false);
     }
@@ -54,11 +57,11 @@ export function EmailOtpForm({ callbackUrl = "/onboarding" }: { callbackUrl?: st
         callbackUrl,
       });
       if (result?.error) {
-        throw new Error("Kode salah atau kedaluwarsa. Periksa kembali.");
+        throw new Error(copy.codeInvalid);
       }
       window.location.href = result?.url || callbackUrl;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Verifikasi gagal.");
+      setError(err instanceof Error ? err.message : copy.verifyFailed);
       setBusy(false);
     }
   }
@@ -68,25 +71,25 @@ export function EmailOtpForm({ callbackUrl = "/onboarding" }: { callbackUrl?: st
       {stage === "email" ? (
         <form onSubmit={requestCode} className="flex flex-col gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="otp-email">Email</Label>
+            <Label htmlFor="otp-email">{copy.emailLabel}</Label>
             <Input
               id="otp-email"
               type="email"
               required
               autoComplete="email"
-              placeholder="anda@perusahaan.com"
+              placeholder={copy.emailPlaceholder}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
           <Button type="submit" className="w-full" disabled={busy}>
-            {busy ? "Mengirim…" : "Kirim kode masuk"}
+            {busy ? copy.sending : copy.sendCode}
           </Button>
         </form>
       ) : (
         <form onSubmit={verifyCode} className="flex flex-col gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="otp-code">Kode 6 digit</Label>
+            <Label htmlFor="otp-code">{copy.codeLabel}</Label>
             <Input
               id="otp-code"
               inputMode="numeric"
@@ -98,7 +101,7 @@ export function EmailOtpForm({ callbackUrl = "/onboarding" }: { callbackUrl?: st
             />
           </div>
           <Button type="submit" className="w-full" disabled={busy || code.length !== 6}>
-            {busy ? "Memverifikasi…" : "Masuk"}
+            {busy ? copy.verifying : copy.signIn}
           </Button>
           <button
             type="button"
@@ -110,7 +113,7 @@ export function EmailOtpForm({ callbackUrl = "/onboarding" }: { callbackUrl?: st
             }}
             className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
           >
-            Ganti email / kirim ulang kode
+            {copy.changeEmail}
           </button>
         </form>
       )}

@@ -28,7 +28,7 @@ function baseInput(over: Partial<ConnectorActionInput> = {}): ConnectorActionInp
       authorHandle: "user",
     },
     webhook: {
-      url: "https://bridge.example/hooks/aether",
+      url: "https://bridge.example/hooks/komenin",
       token: "super-secret-token",
     },
     official: null,

@@ -13,6 +13,7 @@ import {
   updateLeadFollowUp,
   updateLeadStatus,
 } from "@/server/leads";
+import { LeadsKanban } from "./leads-kanban";
 
 type LeadRow = {
   id: string;
@@ -130,6 +131,8 @@ export function LeadsClient({
 
   return (
     <div className="space-y-4">
+      <LeadsKanban leads={initialLeads} />
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Capture lead manually</CardTitle>

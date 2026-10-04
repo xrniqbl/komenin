@@ -46,13 +46,23 @@ function senderAddress(): BrevoAddress | null {
   return parseFromAddress(process.env.EMAIL_FROM?.trim() || "");
 }
 
+/**
+ * Defense-in-depth: Brevo is a JSON API (no raw SMTP headers), but strip
+ * CR/LF from every address/name/subject fragment anyway so a multiline value
+ * can never become a header injection if the transport ever changes.
+ */
+function stripCrlf(value: string): string {
+  return value.replace(/[\r\n]+/g, " ").trim();
+}
+
 function parseEmailAddress(value: string): BrevoAddress {
-  const match = value.trim().match(/^(.*)<\s*([^<>@\s]+@[^<>\s]+)\s*>$/);
+  const clean = stripCrlf(value);
+  const match = clean.match(/^(.*)<\s*([^<>@\s]+@[^<>\s]+)\s*>$/);
   if (match) {
-    const name = match[1].trim().replace(/^["']|["']$/g, "");
+    const name = stripCrlf(match[1]).replace(/^["']|["']$/g, "");
     return name ? { email: match[2], name } : { email: match[2] };
   }
-  return { email: value.trim() };
+  return { email: clean };
 }
 
 export function isEmailConfigured(): boolean {
@@ -80,6 +90,12 @@ export async function sendEmail(message: EmailMessage): Promise<{
     return { delivered: false, provider: "none", error: "not_configured" };
   }
 
+  // Header-injection defense-in-depth (see stripCrlf): subject + envelope
+  // values are flattened to single lines before hitting the wire.
+  const subject = stripCrlf(message.subject);
+  const to = stripCrlf(message.to);
+  const replyTo = message.replyTo ? stripCrlf(message.replyTo) : undefined;
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10_000);
@@ -92,11 +108,11 @@ export async function sendEmail(message: EmailMessage): Promise<{
       },
       body: JSON.stringify({
         sender,
-        to: [parseEmailAddress(message.to)],
-        subject: message.subject,
+        to: [parseEmailAddress(to)],
+        subject,
         htmlContent: message.html,
         ...(message.text ? { textContent: message.text } : {}),
-        ...(message.replyTo ? { replyTo: parseEmailAddress(message.replyTo) } : {}),
+        ...(replyTo ? { replyTo: parseEmailAddress(replyTo) } : {}),
       }),
       signal: controller.signal,
     });
@@ -105,7 +121,7 @@ export async function sendEmail(message: EmailMessage): Promise<{
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
       console.warn(
-        `[email] Brevo rejected send to ${message.to}: ${response.status} ${detail.slice(0, 200)}`,
+        `[email] Brevo rejected send to ${to}: ${response.status} ${detail.slice(0, 200)}`,
       );
       return {
         delivered: false,
@@ -117,7 +133,7 @@ export async function sendEmail(message: EmailMessage): Promise<{
     return { delivered: true, provider: "brevo" };
   } catch (error) {
     console.warn(
-      `[email] send to ${message.to} failed:`,
+      `[email] send to ${to} failed:`,
       error instanceof Error ? error.message : error,
     );
     return {

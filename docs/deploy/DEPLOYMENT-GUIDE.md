@@ -1,8 +1,8 @@
-# Aether Production Deployment Guide
+# Komenin Production Deployment Guide
 
 **Version**: 2.0  
 **Last Updated**: 2026-08-24  
-**Purpose**: Complete production deployment instructions for Aether social media automation platform  
+**Purpose**: Complete production deployment instructions for Komenin social media automation platform  
 
 ---
 
@@ -23,7 +23,7 @@
 
 ## Overview
 
-This guide provides step-by-step instructions for deploying the Aether application to production. The platform supports two deployment options:
+This guide provides step-by-step instructions for deploying the Komenin application to production. The platform supports two deployment options:
 
 ### Option 1: Self-Hosted Docker (Recommended for Full Control)
 - **Pros**: Complete control, lower cost, custom configurations
@@ -132,15 +132,15 @@ sudo reboot
 
 ```bash
 # Create project directory
-mkdir -p /opt/aether/{logs,backups}
-cd /opt/aether
+mkdir -p /opt/komenin/{logs,backups}
+cd /opt/komenin
 
 # Clone repository (or upload code)
-git clone https://github.com/your-org/aether.git .
+git clone https://github.com/your-org/komenin.git .
 
 # Set proper permissions
-sudo chown -R $USER:$USER /opt/aether
-chmod -R 755 /opt/aether
+sudo chown -R $USER:$USER /opt/komenin
+chmod -R 755 /opt/komenin
 ```
 
 ### Step 3: Generate Secure Secrets
@@ -191,9 +191,9 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-aether}
+      POSTGRES_USER: ${POSTGRES_USER:-komenin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_strong_password!}
-      POSTGRES_DB: ${POSTGRES_DB:-aether}
+      POSTGRES_DB: ${POSTGRES_DB:-komenin}
     volumes:
       - db_data:/var/lib/postgresql/data
 ```
@@ -215,7 +215,7 @@ npm run db:studio
 
 ```sql
 -- Connect to database
-psql -U postgres -d aether
+psql -U postgres -d komenin
 
 -- Grant superadmin role
 UPDATE "User" 
@@ -239,8 +239,8 @@ nano .env.docker
 ```
 
 Required fields:
-- `AETHER_DOMAIN=aether.iniloka.id`
-- `ACME_EMAIL=admin@aether.iniloka.id`
+- `KOMENIN_DOMAIN=komenin.id`
+- `ACME_EMAIL=admin@komenin.id`
 - `POSTGRES_PASSWORD=<secure-password>`
 - `AUTH_SECRET=<generate-with-openssl>`
 - `AUTH_GOOGLE_ID=<google-client-id>`
@@ -254,7 +254,7 @@ Required fields:
 
 ```bash
 # Navigate to deployment directory
-cd /opt/aether
+cd /opt/komenin
 
 # Pull latest images
 docker pull traefik:v3.1
@@ -275,18 +275,18 @@ docker ps
 
 # Expected output:
 # CONTAINER   IMAGE             STATUS
-# aether-app  aether:latest     Up (healthy)
-# aether-db   postgres:alpine   Up (healthy)
-# aether-tr   traefik           Up
+# komenin-app  komenin:latest     Up (healthy)
+# komenin-db   postgres:alpine   Up (healthy)
+# komenin-tr   traefik           Up
 
 # Test health endpoint
 curl http://localhost/api/health
 
 # Expected response:
-# {"ok":true,"service":"aether","timestamp":"..."}
+# {"ok":true,"service":"komenin","timestamp":"..."}
 
 # Test main application
-curl https://aether.iniloka.id
+curl https://komenin.id
 ```
 
 ---
@@ -309,7 +309,7 @@ npm i -g vercel
 vercel login
 
 # Link project
-cd /opt/aether
+cd /opt/komenin
 vercel link
 ```
 
@@ -377,7 +377,7 @@ For Vercel:
 
 ### Task 2: Create First Workspace
 
-1. Visit `https://aether.iniloka.id/signup`
+1. Visit `https://komenin.id/signup`
 2. Complete onboarding wizard
 3. Create workspace via `/app` dashboard
 4. Invite team members
@@ -412,7 +412,7 @@ SOCIAL_PUBLISH_WEBHOOK_URL=https://your-domain.com/api/publish/webhook
 sudo crontab -e
 
 # Add this line (runs daily at 2 AM)
-0 2 * * * cd /opt/aether && docker exec db pg_dump -U aether aether > /opt/aether/backups/db_backup_$(date +\%Y\%m\%d).sql && find /opt/aether/backups -name '*.sql' -mtime +7 -delete
+0 2 * * * cd /opt/komenin && docker exec db pg_dump -U komenin komenin > /opt/komenin/backups/db_backup_$(date +\%Y\%m\%d).sql && find /opt/komenin/backups -name '*.sql' -mtime +7 -delete
 ```
 
 ### Task 5: Monitoring Setup
@@ -471,7 +471,7 @@ docker stats
 
 ```bash
 # Pull latest code
-cd /opt/aether && git pull
+cd /opt/komenin && git pull
 
 # Rebuild images
 docker compose build
@@ -514,7 +514,7 @@ lsof -i :3000
 **Solutions**:
 ```bash
 # Verify callback URLs match exactly
-Expected: https://aether.iniloka.id/api/auth/callback/google
+Expected: https://komenin.id/api/auth/callback/google
 
 # Check OAuth secret format
 node -e "console.log(Buffer.from(process.env.AUTH_GOOGLE_SECRET, 'utf8').toString('base64'))"
@@ -548,7 +548,7 @@ docker compose exec app node -e "console.log(require('./prisma').client.$config)
 **Solutions**:
 ```bash
 # Verify webhook URL is publicly accessible
-curl https://aether.iniloka.id/api/billing/midtrans/notification
+curl https://komenin.id/api/billing/midtrans/notification
 
 # Check signature verification
 export WEBHOOK_SIGNATURE=$(curl -s -X POST https://your-server.com -H "x-signature: test")
@@ -590,7 +590,7 @@ docker compose restart app
 ### Support
 - GitHub Issues: Report bugs
 - Discord Community: Chat with developers
-- Email Support: support@aether.io
+- Email Support: support@komenin.id
 
 ---
 

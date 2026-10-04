@@ -215,7 +215,7 @@ export async function createCheckoutSnap(input: {
   const totalIdr = Math.max(plan.priceIdr - discountIdr, 0);
   // CSPRNG suffix — Date.now()+Math.random() only had ~10 bits of entropy,
   // making order codes guessable within a millisecond window.
-  const orderCode = `AETH-${Date.now()}-${randomBytes(6).toString("hex")}`;
+  const orderCode = `KMN-${Date.now()}-${randomBytes(6).toString("hex")}`;
 
   // Midtrans rejects gross_amount of 0 — if fully discounted, skip Snap and mark paid directly.
   const isFreeOrder = totalIdr === 0;
@@ -547,10 +547,18 @@ export async function applyPaidOrder(orderCode: string, payment?: {
     return { ok: false, orderId: order.id, status };
   }
 
-  // Only treat settlement/capture/success/simulation as paid transitions.
+  // Only treat settlement/capture/success as paid transitions. `simulation`
+  // is a sandbox-only artifact: it is accepted in dev (MIDTRANS_IS_PRODUCTION
+  // unset, see below) but NEVER in production — a `simulation` status on a
+  // production notification means the payload did not come from a real
+  // settlement and must not grant entitlement.
   // Any other (possibly new) status is acknowledged and logged for manual
   // review — throwing would make Midtrans retry the notification for hours.
-  if (!["settlement", "capture", "success", "simulation"].includes(status)) {
+  const simulationAllowed = process.env.MIDTRANS_IS_PRODUCTION !== "true";
+  const paidStatuses = simulationAllowed
+    ? ["settlement", "capture", "success", "simulation"]
+    : ["settlement", "capture", "success"];
+  if (!paidStatuses.includes(status)) {
     await writeAuditLog({
       workspaceId: order.workspaceId,
       actorUserId: order.userId,
@@ -566,7 +574,7 @@ export async function applyPaidOrder(orderCode: string, payment?: {
     return { ok: true, unhandled: true, orderId: order.id, status };
   }
 
-  // settlement / capture / success / simulation
+  // settlement / capture / success (+ simulation in dev only)
   const endsAt = addMonths(now, order.plan.durationMonths);
 
   const result = await db.$transaction(async (tx) => {

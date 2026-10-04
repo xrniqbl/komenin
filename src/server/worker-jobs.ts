@@ -8,12 +8,14 @@ import { buildContentSchedule, generateContentPosts } from "@/lib/content-engine
 import { publishSocialPost } from "@/lib/publish-connector";
 import { refreshDueCredentials } from "@/lib/connectors/token-refresh";
 import { describeSendResult, getRuntimeModeLabel } from "@/lib/runtime-mode";
+import { getPlatformGuardrail, isRateLimitFailure } from "@/lib/platform-rate-limits";
 import { simulateIp } from "@/lib/session-routing";
 import { hourInTimezone, isInQuietHours } from "@/lib/workspace-time";
 import {
   claimCommentAction,
   claimContentCampaign,
   claimContentDraft,
+  claimKnowledgeDocument,
   claimMention,
   claimTargetPost,
   releaseStaleClaims,
@@ -44,6 +46,7 @@ export type WorkerJobName =
   | "usage.rollup"
   | "notify.dispatch"
   | "digest.approvals"
+  | "report.weekly"
   | "billing.expire"
   | "ai.quota_notify"
   | "ai.expire"
@@ -985,7 +988,8 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
 
     const body = action.commentDraft?.content || "";
 
-    const [riskRules, recentDupes] = await Promise.all([
+    const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const [riskRules, recentDupes, sentInLastHour] = await Promise.all([
       db.riskRule.findMany({
         where: { workspaceId: action.workspaceId, isActive: true },
         select: { type: true, pattern: true, severity: true },
@@ -1004,6 +1008,17 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
             take: 20,
           })
         : Promise.resolve([]),
+      // Sliding 60-min window per account: daily counters alone cannot catch
+      // a burst (10 sends in 5 minutes) that triggers platform spam detection.
+      action.socialAccountId
+        ? db.commentAction.count({
+            where: {
+              socialAccountId: action.socialAccountId,
+              status: "sent",
+              executedAt: { gte: hourAgo },
+            },
+          })
+        : Promise.resolve(0),
     ]);
 
     // Mention replies share one anchor TargetPost per parent thread, so its
@@ -1017,6 +1032,7 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
     const preflight = runSendPreflight({
       body,
       postContent: preflightPostContent,
+      platform: action.targetPost?.platform,
       customRules: riskRules,
       account: action.socialAccount
         ? {
@@ -1024,8 +1040,11 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
             healthScore: action.socialAccount.healthScore,
             actionsToday: effectiveActionsToday(action.socialAccount),
             dailyQuota: action.socialAccount.dailyQuota,
+            createdAt: action.socialAccount.createdAt,
+            lastActionAt: action.socialAccount.lastActionAt,
           }
         : null,
+      pace: { sentInLastHour },
       recentBodies: recentDupes
         .map((row) => row.commentDraft?.content || "")
         .filter(Boolean),
@@ -1036,6 +1055,21 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
           }
         : null,
     });
+
+    // Platform pace deferral: a min-interval / hourly-cap block is transient —
+    // push the action forward instead of failing it so the send still happens
+    // once the window clears (never burn an approval for being too early).
+    if (!preflight.blocked && preflight.paceDeferSec > 0) {
+      await db.commentAction.update({
+        where: { id: action.id },
+        data: {
+          status: "scheduled",
+          scheduledFor: new Date(Date.now() + preflight.paceDeferSec * 1000),
+          resultMessage: `Pace deferred ${preflight.paceDeferSec}s: ${preflight.paceReason || "platform guardrail"}`,
+        },
+      });
+      continue;
+    }
 
     if (preflight.blocked) {
       const message = `Preflight blocked: ${preflight.reasons.join("; ")}`;
@@ -1145,6 +1179,50 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
       });
       failed += 1;
       continue;
+    }
+
+    if (!result.ok && isRateLimitFailure(result.message)) {
+      // Platform told us to slow down (429 / action blocked / spam signal):
+      // quarantine the account so the NEXT tick pauses this account instead
+      // of retrying straight into a restriction. Retry uses the long 30m leg.
+      try {
+        const guardrail = getPlatformGuardrail(action.targetPost?.platform);
+        if (action.socialAccountId) {
+        await db.socialAccount.update({
+          where: { id: action.socialAccountId },
+          data: {
+            status: "limited",
+            healthScore: Math.max(10, (action.socialAccount?.healthScore ?? 60) - 20),
+            lastActionAt: new Date(),
+          },
+        });
+        }
+        await db.deliveryLog.create({
+          data: {
+            workspaceId: action.workspaceId,
+            socialAccountId: action.socialAccountId,
+            kind: "send_comment",
+            connector: result.connector,
+            mode: result.mode,
+            ok: false,
+            message: `Rate-limit quarantine (${guardrail.label}): ${result.message}`,
+            payload: {
+              stage: "rate_limit_quarantine",
+              platform: guardrail.platform,
+              safePerHour: guardrail.comments.safePerHour,
+              safePerDay: guardrail.comments.safePerDay,
+            },
+          },
+        });
+        await createNotification({
+          workspaceId: action.workspaceId,
+          title: `Akun @${action.socialAccount?.username || "?"} dibatasi ${guardrail.label}`,
+          body: `Platform mendeteksi pola spam/batasan (${result.message}). Akun dijeda otomatis — turunkan tempo lalu re-auth bila perlu. Batas aman: ${guardrail.comments.safePerHour}/jam, ${guardrail.comments.safePerDay}/hari.`,
+          href: "/app/accounts",
+        });
+      } catch {
+        // quarantine is best-effort; fall through to normal retry/fail path
+      }
     }
 
     if (!result.ok && isRetryableSendFailure(result.message)) {
@@ -1486,6 +1564,7 @@ async function runMentionProcess(limit = 20): Promise<WorkerJobResult> {
       const preflight = runSendPreflight({
         body: generated.content,
         postContent: mention.content,
+        platform: mention.platform,
         customRules: riskRules,
         account: mention.socialAccount
           ? {
@@ -1493,6 +1572,8 @@ async function runMentionProcess(limit = 20): Promise<WorkerJobResult> {
               healthScore: mention.socialAccount.healthScore,
               actionsToday: effectiveActionsToday(mention.socialAccount),
               dailyQuota: mention.socialAccount.dailyQuota,
+              createdAt: mention.socialAccount.createdAt,
+              lastActionAt: mention.socialAccount.lastActionAt,
             }
           : null,
         recentBodies: [],
@@ -1569,9 +1650,14 @@ async function runMentionProcess(limit = 20): Promise<WorkerJobResult> {
         });
 
         if (settings.mode === "auto" && !hardBlocked && mention.socialAccountId) {
-          // Auto mode: skip approval, schedule the reply with a human-like
-          // delay. The send itself rides comment.send like any other action.
-          const delay = pickDelaySeconds(45, 180);
+          // Auto mode: skip approval, schedule the reply with a platform-aware
+          // human-like delay (floored at the safe interval so auto-replies
+          // cannot burst into a spam signature).
+          const mentionGuardrail = getPlatformGuardrail(mention.platform);
+          const delay = pickDelaySeconds(
+            mentionGuardrail.comments.minIntervalSec,
+            Math.max(600, mentionGuardrail.comments.minIntervalSec * 2),
+          );
           await tx.commentAction.create({
             data: {
               workspaceId: mention.workspaceId,
@@ -1796,11 +1882,44 @@ async function runContentPublish(limit = 30): Promise<WorkerJobResult> {
 
   let published = 0;
   let failed = 0;
+  const paceLib = await import("@/lib/platform-rate-limits");
   for (const draft of due) {
     // Atomic claim before publishing: overlapping ticks must not publish the
     // same draft twice.
     const claimed = await claimContentDraft(draft.id);
     if (!claimed) continue;
+
+    // Publish pace guard: posts are heavier than comments — defer (not fail)
+    // when the account already hit its safe hourly window or min interval.
+    if (draft.socialAccountId) {
+      const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const [pubsLastHour, lastPub] = await Promise.all([
+        db.contentDraft.count({
+          where: { socialAccountId: draft.socialAccountId, status: "published", publishedAt: { gte: hourAgo } },
+        }),
+        db.contentDraft.findFirst({
+          where: { socialAccountId: draft.socialAccountId, status: "published" },
+          orderBy: { publishedAt: "desc" },
+          select: { publishedAt: true },
+        }),
+      ]);
+      const pubPlatform = draft.contentCampaign?.platform;
+      if (!paceLib.checkHourlyPace({ platform: pubPlatform, kind: "publishes", sentInLastHour: pubsLastHour }).ok) {
+        await db.contentDraft.update({
+          where: { id: draft.id },
+          data: { status: "scheduled", scheduledFor: new Date(Date.now() + 30 * 60 * 1000), resultMessage: "Publish pace deferred ~30m (batas aman per-jam)" },
+        });
+        continue;
+      }
+      const pubGap = paceLib.checkMinInterval({ platform: pubPlatform, kind: "publishes", lastActionAt: lastPub?.publishedAt ?? null });
+      if (!pubGap.ok) {
+        await db.contentDraft.update({
+          where: { id: draft.id },
+          data: { status: "scheduled", scheduledFor: new Date(Date.now() + pubGap.waitSec * 1000), resultMessage: "Publish pace deferred (jeda aman antar posting)" },
+        });
+        continue;
+      }
+    }
 
     const workspace = await db.workspace.findUnique({
       where: { id: draft.workspaceId },
@@ -1930,17 +2049,19 @@ async function runContentPublish(limit = 30): Promise<WorkerJobResult> {
 
 async function runKnowledgeIngest(limit = 10): Promise<WorkerJobResult> {
   const docs = await db.knowledgeDocument.findMany({
-    where: { status: { in: ["pending", "processing"] } },
+    where: { status: "pending" },
     orderBy: { createdAt: "asc" },
     take: limit,
   });
 
   let ingested = 0;
   for (const doc of docs) {
-    await db.knowledgeDocument.update({
-      where: { id: doc.id },
-      data: { status: "processing" },
-    });
+    // Atomic claim: exactly one overlapping worker wins. The loser skips the
+    // doc instead of double-ingesting it (same pattern as claimTargetPost).
+    // Stale "processing" claims (crashed run) are released by
+    // releaseStaleClaims and re-picked once they fall back to "pending".
+    const claimed = await claimKnowledgeDocument(doc.id);
+    if (!claimed) continue;
     try {
       const chunks = chunkText(doc.rawText);
       await db.$transaction(async (tx) => {
@@ -2071,6 +2192,33 @@ async function runDigestApprovals(): Promise<WorkerJobResult> {
       job: "digest.approvals",
       ok: false,
       message: `Digest failed: ${message}`,
+      count: 0,
+    };
+  }
+}
+
+/**
+ * Weekly workspace report email (Mondays 08:00 WIB). Once-per-week per
+ * workspace via DigestMarker kind=weekly_report; no-op off-slot or without
+ * BREVO_API_KEY.
+ */
+async function runReportWeekly(): Promise<WorkerJobResult> {
+  try {
+    const { sendWeeklyReport } = await import("@/server/weekly-report");
+    const result = await sendWeeklyReport();
+    return {
+      job: "report.weekly",
+      ok: true,
+      message: `Weekly report sent: ${result.sent}, skipped (already sent): ${result.skipped}, errors: ${result.errors}`,
+      count: result.sent,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[report.weekly] failed", error);
+    return {
+      job: "report.weekly",
+      ok: false,
+      message: `Weekly report failed: ${message}`,
       count: 0,
     };
   }
@@ -2412,6 +2560,9 @@ export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult>
       case "digest.approvals":
         result = await runDigestApprovals();
         break;
+      case "report.weekly":
+        result = await runReportWeekly();
+        break;
       case "billing.expire":
         result = await runBillingExpire();
         break;
@@ -2509,6 +2660,7 @@ export const WORKER_JOBS: WorkerJobName[] = [
   "usage.rollup",
   "notify.dispatch",
   "digest.approvals",
+  "report.weekly",
   "billing.expire",
   "ai.quota_notify",
   "ai.expire",

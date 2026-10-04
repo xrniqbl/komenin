@@ -1,8 +1,8 @@
-# Aether Testing Strategy
+# Komenin Testing Strategy
 
 ## Overview
 
-Aether memiliki comprehensive test suite dengan coverage di berbagai layer:
+Komenin memiliki comprehensive test suite dengan coverage di berbagai layer:
 - **Unit Tests**: Individual function/component testing
 - **Integration Tests**: Multi-component/system integration
 - **E2E Tests**: Full user journey validation

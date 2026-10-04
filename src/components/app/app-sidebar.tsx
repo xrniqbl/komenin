@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  AtSign,
   BarChart3,
   Bell,
   Bot,
@@ -74,6 +75,7 @@ const items: NavGroup[] = [
       { label: "Templates", href: "/app/templates", icon: LayoutTemplate },
       { label: "Listeners", href: "/app/listeners", icon: Radar },
       { label: "Inbox", href: "/app/inbox", icon: Inbox },
+      { label: "Mentions", href: "/app/mentions", icon: AtSign },
       { label: "Approvals", href: "/app/approvals", icon: ClipboardCheck },
       { label: "Leads", href: "/app/leads", icon: ContactRound },
       { label: "Activity", href: "/app/activity", icon: Activity },

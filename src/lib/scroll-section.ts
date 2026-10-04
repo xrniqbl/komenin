@@ -1,5 +1,3 @@
-﻿"use client";
-
 const HEADER_OFFSET = 96;
 const STORAGE_KEY = "komenin.scrollTo";
 

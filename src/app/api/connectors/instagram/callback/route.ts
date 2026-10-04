@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import {
   instagramOAuthCallbackUrl,
   isInstagramOAuthConfigured,
-  consumeOAuthState,
+  consumeOAuthStateOnce,
   OAUTH_CALLBACK_RATE_LIMIT,
   OAUTH_CALLBACK_WINDOW_MS,
 } from "@/lib/oauth-state";
@@ -131,7 +131,9 @@ export async function GET(request: Request) {
     );
   }
 
-  const state = consumeOAuthState(stateRaw);
+  // M5: state is claimed atomically in the DB — a replayed callback URL
+  // cannot bind a second credential via another instance.
+  const state = await consumeOAuthStateOnce(stateRaw);
   if (!state || state.provider !== "instagram") {
     return NextResponse.redirect(
       new URL(

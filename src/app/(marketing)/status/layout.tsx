@@ -1,23 +1,24 @@
-import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/json-ld";
 import {
-  PAGE_SEO,
   breadcrumbJsonLd,
-  buildMetadata,
+  generatePageMetadata,
+  pageSeoFor,
   webPageJsonLd,
 } from "@/lib/seo";
+import { getRequestLocale } from "@/lib/i18n/request-locale";
 
-export const metadata: Metadata = buildMetadata(PAGE_SEO.status);
+export const generateMetadata = generatePageMetadata.bind(null, "status");
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const seo = pageSeoFor(await getRequestLocale(), "status");
   return (
     <>
       <JsonLd
         data={[
           webPageJsonLd({
-            name: PAGE_SEO.status.title,
-            description: PAGE_SEO.status.description,
-            path: PAGE_SEO.status.path,
+            name: seo.title,
+            description: seo.description,
+            path: seo.path,
           }),
           breadcrumbJsonLd([
             { name: "Home", path: "/" },

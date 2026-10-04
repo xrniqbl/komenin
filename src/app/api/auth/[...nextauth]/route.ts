@@ -10,10 +10,13 @@ export const runtime = "nodejs";
 // above human login traffic but caps OTP guessing. GET is untouched because
 // client session polling would blow through any shared-IP budget.
 export async function POST(req: NextRequest) {
+  // failClosed: this throttle guards OTP/code guessing — during a limiter
+  // outage requests must be denied, never let through unprotected.
   const rate = await consumeRateLimit({
     key: getRequestRateKey(req, "auth:post"),
     limit: 30,
     windowMs: 60_000,
+    failClosed: true,
   });
   if (!rate.ok) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });

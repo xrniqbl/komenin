@@ -61,34 +61,73 @@ export function isValidPhone(phone: string): boolean {
 
 /**
  * Sanitize HTML content (basic XSS prevention)
- * Only allows safe tags and strips potentially dangerous attributes
+ * Only allows safe tags and strips potentially dangerous attributes.
+ *
+ * Layered parser-free design (no DOM dependency, safe on server/edge):
+ *  1. Strip obviously dangerous constructs (script/style/iframe/object/embed/
+ *     form, event-handler attributes incl. unquoted, javascript:/data:/vbscript:
+ *     URLs, CSS expression()/url(javascript:) payloads, encoded <script>).
+ *  2. Rebuild only allowlisted tags with an allowlisted attribute set —
+ *     everything else is dropped, never passed through. In particular <a>
+ *     keeps only http(s)/mailto hrefs, and <code>/<pre> keep no attributes.
+ * Hand-rolled allowlist rebuilding can never match a real HTML parser, so
+ * treat this as defence-in-depth (CSP + React escaping are the primary
+ * layers), never as a license to render untrusted HTML.
  */
 export function sanitizeHTML(input: string): string {
   if (!input || typeof input !== 'string') return '';
 
-  // Remove script tags and event handlers
   let sanitized = input
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/on\w+="[^"]*"/g, '')
-    .replace(/on\w+='[^']*'/g, '')
-    .replace(/javascript:/gi, '')
-    .replace(/data:[^;]*;/gi, '');
+    // Encoded angle brackets that would decode into tags downstream.
+    .replace(/&lt;\s*script/gi, '')
+    .replace(/&lt;\s*\/\s*script/gi, '')
+    // Full dangerous elements incl. content (svg/math can host event handlers
+    // and script-like payloads, so they go even though plain text is lost).
+    .replace(/<\s*(script|style|iframe|object|embed|form|svg|math)\b[^<]*(?:(?!<\/\s*\1\s*>)<[^<]*)*<\/\s*\1\s*>/gi, '')
+    .replace(/<\s*(script|style|iframe|object|embed|form|svg|math)\b[^>]*\/?>/gi, '')
+    // Event-handler attributes incl. unquoted values (previous version only
+    // matched quoted values, so <img onerror=alert(1)> slipped through).
+    .replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s"'`>=]+)/gi, '')
+    // Dangerous URL schemes and CSS-based vectors.
+    .replace(/javascript\s*:/gi, '')
+    .replace(/vbscript\s*:/gi, '')
+    // data: URIs are only dangerous as navigation/media sources — strip the
+    // scheme prefix but keep surrounding text (previous version ate ";…" text).
+    .replace(/data\s*:\s*(?:image|video|audio|text\/html)[^;,]*;/gi, '')
+    .replace(/expression\s*\(/gi, '')
+    .replace(/url\s*\(\s*['"]?\s*javascript/gi, 'url(');
 
-  // Allow only safe tags
+  // Allow only safe tags, rebuilding each from an attribute allowlist.
   const allowedTags = ['b', 'i', 'em', 'strong', 'u', 'a', 'p', 'br', 'ul', 'ol', 'li', 'code', 'pre'];
+  const allowedAttrs: Record<string, string[]> = {
+    a: ['href', 'title'],
+    p: [], br: [], b: [], i: [], em: [], strong: [], u: [],
+    ul: [], ol: [], li: [], code: [], pre: [],
+  };
 
-  // Simple tag sanitization (for production, consider using DOMPurify)
-  sanitized = sanitized.replace(/<\/?([a-z][a-z0-9]*)\b[^>]*>/gi, (match, tagName) => {
-    if (allowedTags.includes(tagName.toLowerCase())) {
-      // Remove href that starts with javascript:
-      if (tagName.toLowerCase() === 'a') {
-        if (match.includes('href="javascript:') || match.includes("href='javascript:")) {
-          return '';
-        }
+  sanitized = sanitized.replace(/<\/?([a-z][a-z0-9]*)\b([^>]*)>/gi, (match, tagName, attrs) => {
+    const tag = String(tagName).toLowerCase();
+    if (!allowedTags.includes(tag)) return '';
+    const isClose = match.startsWith('</');
+    if (isClose) return `</${tag}>`;
+    if (tag === 'br') return '<br>';
+    const kept: string[] = [];
+    const attrRe = /([a-z-]+)\s*=\s*("[^"]*"|'[^']*'|[^\s"'`>=]+)/gi;
+    let m: RegExpExecArray | null;
+    while ((m = attrRe.exec(String(attrs || ''))) !== null) {
+      const name = m[1].toLowerCase();
+      if (!allowedAttrs[tag].includes(name)) continue;
+      let value = m[2];
+      const quote = value.startsWith("'") ? "'" : '"';
+      value = value.replace(/^['"]|['"]$/g, '');
+      const lower = value.trim().toLowerCase();
+      if (name === 'href') {
+        if (!/^(https?:\/\/|mailto:|#[^\s]*$)/.test(lower) && lower !== '') continue;
+        if (/^(javascript|vbscript|data)\s*:/.test(lower)) continue;
       }
-      return match;
+      kept.push(`${name}=${quote}${value.replace(/"/g, '&quot;')}${quote}`);
     }
-    return '';
+    return kept.length > 0 ? `<${tag} ${kept.join(' ')}>` : `<${tag}>`;
   });
 
   return sanitized.trim();
@@ -156,6 +195,10 @@ export function cleanObject(obj: unknown, maxDepth: number = 5): object {
   const cleaned: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(obj)) {
+    // Prototype pollution guard: never copy magic keys onto a plain object —
+    // `cleaned["__proto__"] = ...` would mutate Object.prototype. `constructor`
+    // / `prototype` are blocked for the same reason.
+    if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
     // Skip empty/null values
     if (value === null || value === undefined || value === '') continue;
 

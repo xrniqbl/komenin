@@ -1,12 +1,12 @@
-# Aether Social Bridge Contract (v1)
+# Komenin Social Bridge Contract (v1)
 
 External bridge contract for live social actions: discover, comment, publish,
 health, and proxy rotation. Any HTTP service implementing this contract can act
-as Aether's live connector backend.
+as Komenin's live connector backend.
 
 ## Purpose
 
-Aether never talks to social platforms directly in live mode. It posts JSON
+Komenin never talks to social platforms directly in live mode. It posts JSON
 actions to an external **bridge** (`SOCIAL_PUBLISH_WEBHOOK_URL`). The bridge
 performs the real platform I/O (or simulates it, like the in-repo mock) and
 returns contract-v1 JSON.

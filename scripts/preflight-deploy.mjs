@@ -5,8 +5,10 @@
  * missing/invalid required var so a bad deploy never reaches users.
  *
  * Usage:
- *   node scripts/preflight-deploy.mjs            # check current env
- *   node scripts/preflight-deploy.mjs --strict   # also require recommended vars
+ *   node scripts/preflight-deploy.mjs              # check current env
+ *   node scripts/preflight-deploy.mjs --strict     # also require recommended vars
+ *   node scripts/preflight-deploy.mjs --self-test  # validate the CHECKS logic
+ *     itself with synthetic env (used in CI; never touches real secrets)
  *
  * It reads from process.env (already loaded by your platform) — never prints
  * secret VALUES, only names + ok/missing status.
@@ -23,6 +25,7 @@ const strict = process.argv.includes("--strict");
 // Load .env.local / .env if present (platform env always wins). No dependency —
 // a tiny parser so this script runs anywhere without `npm install dotenv`.
 import { readFileSync, existsSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 function loadDotEnv(path) {
   if (!existsSync(path)) return;
   for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
@@ -51,11 +54,16 @@ const CHECKS = [
   {
     name: "DIRECT_DATABASE_URL",
     required: true,
+    note: "direct non-pooler endpoint for migrations (PgBouncer strands the advisory lock)",
     validate: (v) => {
-      const poolerUrl = process.env.DATABASE_URL?.trim();
-      if (poolerUrl && v === poolerUrl) {
+      if (/-pooler[.-]/.test(v))
+        return "looks like a -pooler endpoint — use the direct endpoint for migrations";
+      const poolerUrl = (process.env.DATABASE_URL || "").trim();
+      // Neon/Vercel: pooler vs direct must differ (migrations through PgBouncer
+      // strand the advisory lock P1002). Self-hosted Docker Postgres (@db,
+      // no pooler) has no PgBouncer in the path, so an identical URL is safe.
+      if (poolerUrl && v.trim() === poolerUrl && /-pooler[.-]/.test(poolerUrl))
         return "must differ from DATABASE_URL (use the direct non-pooler endpoint) — migrations through PgBouncer can strand the advisory lock (P1002)";
-      }
       return true;
     },
   },
@@ -71,25 +79,60 @@ const CHECKS = [
       /^https:\/\//.test(v) ? true : "must be an https:// origin in production",
   },
   {
+    name: "AUTH_URL",
+    required: true,
+    note: "must equal APP_URL (Auth.js no longer trusts Host in production)",
+    validate: (v) => {
+      if (!/^https:\/\//.test(v)) return "must be an https:// origin in production";
+      const appUrl = (process.env.APP_URL || "").trim();
+      if (appUrl && v.trim() !== appUrl)
+        return "must equal APP_URL — OAuth callbacks need one canonical origin";
+      return true;
+    },
+  },
+  {
     name: "ENCRYPTION_KEY",
     required: true,
     validate: (v) => {
       if (!/^[0-9a-fA-F]{64}$/.test(v)) return "must be exactly 64 hex characters";
-      // Reject guessable keys: a sequential or single-char key is effectively
-      // plaintext for anyone who has ever seen the repo/deploy bundle.
+      // Reject guessable keys: an all-same/low-diversity key is effectively
+      // plaintext for anyone who has ever seen the repo/deploy bundle (this
+      // also rejects the "000…0" CI/build placeholder).
       const collapsed = v.toLowerCase();
       const uniqueChars = new Set(collapsed).size;
       if (uniqueChars <= 4) {
         return "too low entropy (≤4 distinct characters) — generate with: openssl rand -hex 32";
       }
+      // Reject a whole key built from one short repeating block (e.g. "ab".repeat(32)).
+      if (/^(.{1,8})\1{3,}$/.test(collapsed)) {
+        return "looks like a repeating pattern — generate with: openssl rand -hex 32";
+      }
+      // Reject long sequential runs in hex order (0-9a-f cyclic). The threshold
+      // is a RUN of 8+ steps, not any single adjacent pair: a random 64-hex key
+      // contains an adjacent sequential pair ~99.97% of the time, but a run of
+      // 8+ has probability ≈ 63×(1/8)⁷ ≈ 3e-5, so only deliberate sequences
+      // ("0123456789abcdef…") trip this.
+      const order = "0123456789abcdef";
+      const pos = (c) => order.indexOf(c);
+      let best = 1;
+      let run = 1;
+      let dir = 0;
       for (let i = 1; i < collapsed.length; i += 1) {
-        const code = collapsed.charCodeAt(i);
-        const prev = collapsed.charCodeAt(i - 1);
-        const isHexForward = code === prev + 1 || (prev === 57 && code === 97); // 9→a
-        const isHexBackward = code === prev - 1 || (prev === 97 && code === 57); // a→9
-        if (isHexForward || isHexBackward) {
-          return "looks like a sequential pattern — generate with: openssl rand -hex 32";
+        const step = (((pos(collapsed[i]) - pos(collapsed[i - 1])) % 16) + 16) % 16;
+        const s = step === 1 ? 1 : step === 15 ? -1 : 0;
+        if (s !== 0 && s === dir) {
+          run += 1;
+        } else if (s !== 0) {
+          dir = s;
+          run = 2;
+        } else {
+          dir = 0;
+          run = 1;
         }
+        if (run > best) best = run;
+      }
+      if (best >= 8) {
+        return "looks like a sequential pattern — generate with: openssl rand -hex 32";
       }
       return true;
     },
@@ -207,6 +250,39 @@ const CHECKS = [
     note: "HMAC for SSO tickets; production refuses AUTH_SECRET fallback",
     validate: (v) => (v.length >= 16 ? true : "must be ≥16 chars"),
   },
+  // --- SSO/SAML kill-switches (signature validation unimplemented, ACS 501) ---
+  {
+    name: "SSO_ENFORCE_LOGIN",
+    required: false,
+    note: "must NOT be true in production until signed SAML ACS ships",
+    validate: (v) =>
+      v === "true"
+        ? "SSO_ENFORCE_LOGIN=true is not allowed in production — SAML ACS returns 501"
+        : true,
+  },
+  {
+    name: "SAML_ALLOW_UNSIGNED",
+    required: false,
+    note: "never allowed in production",
+    validate: (v) =>
+      v === "true" ? "SAML_ALLOW_UNSIGNED=true is never allowed in production" : true,
+  },
+  {
+    name: "ALLOW_SECURITY_STUBS",
+    required: false,
+    note: "never allowed in production",
+    validate: (v) =>
+      v === "true" ? "ALLOW_SECURITY_STUBS=true is never allowed in production" : true,
+  },
+  {
+    name: "DATABASE_URL",
+    required: false,
+    note: "Neon pooler endpoints need connection_limit (warn-only check)",
+    validate: (v) =>
+      /-pooler[.-]/.test(v) && !/[?&]connection_limit=\d+/.test(v)
+        ? "Neon pooler URL without connection_limit — append ?connection_limit=5&pool_timeout=20"
+        : true,
+  },
 
   // --- AI gateway transport (plaintext HTTP leaks the API key on the wire) ---
   {
@@ -240,10 +316,97 @@ const CHECKS = [
     note: "sender address for OTP/digest emails, e.g. \"Komenin <noreply@komenin.id>\"",
     validate: (v) => /@/.test(v) ? true : "must contain a sender email address",
   },
+
+  // --- Database backups (unencrypted dumps hold every secret in plaintext) ---
+  {
+    name: "BACKUP_ENCRYPTION_KEY",
+    required: false,
+    note: "AES-256 for dumps (or set BACKUP_PLAINTEXT_OK=true to acknowledge plaintext backups)",
+    validate: (v) =>
+      /^[0-9a-fA-F]{64}$/.test(v)
+        ? true
+        : "must be 64 hex characters (openssl rand -hex 32)",
+  },
 ];
 
 let failures = 0;
 let warnings = 0;
+
+if (process.argv.includes("--self-test")) {
+  runSelfTest();
+}
+
+function runSelfTest() {
+  // Exercises the CHECKS validators with synthetic values only — no real env
+  // is read or printed. Guards against regressions like an over-strict
+  // ENCRYPTION_KEY pattern that rejects genuine random keys.
+  let failed = 0;
+  const assert = (label, actual, expected) => {
+    const ok = actual === expected;
+    console.log(`${ok ? GREEN + "✓" : RED + "✗"} self-test${RESET} ${label}`);
+    if (!ok) {
+      failed += 1;
+      console.log(`  expected ${expected}, got ${JSON.stringify(actual)}`);
+    }
+  };
+  const check = (name) => CHECKS.find((c) => c.name === name);
+
+  // 10 genuine random keys must all pass.
+  let randomPass = 0;
+  for (let i = 0; i < 10; i += 1) {
+    if (check("ENCRYPTION_KEY").validate(randomBytes(32).toString("hex")) === true) randomPass += 1;
+  }
+  assert("ENCRYPTION_KEY accepts 10/10 random keys", randomPass, 10);
+  // Known-bad keys must fail.
+  assert("ENCRYPTION_KEY rejects all-zero", check("ENCRYPTION_KEY").validate("0".repeat(64)) !== true, true);
+  assert(
+    "ENCRYPTION_KEY rejects sequential",
+    check("ENCRYPTION_KEY").validate("0123456789abcdef".repeat(4)) !== true,
+    true,
+  );
+  // AUTH_URL must equal APP_URL.
+  process.env.APP_URL = "https://app.example.com";
+  assert("AUTH_URL accepts matching origin", check("AUTH_URL").validate("https://app.example.com"), true);
+  assert("AUTH_URL rejects different origin", check("AUTH_URL").validate("https://other.example.com") !== true, true);
+  // SSO kill-switches must trip.
+  assert("SSO_ENFORCE_LOGIN=true trips", check("SSO_ENFORCE_LOGIN").validate("true") !== true, true);
+  assert("SSO_ENFORCE_LOGIN=false passes", check("SSO_ENFORCE_LOGIN").validate("false"), true);
+  // DIRECT_DATABASE_URL must not be a pooler host.
+  assert(
+    "DIRECT_DATABASE_URL rejects pooler",
+    check("DIRECT_DATABASE_URL").validate("postgresql://u:p@ep-x-pooler.aws.neon.tech:5432/db") !== true,
+    true,
+  );
+  assert(
+    "DIRECT_DATABASE_URL accepts direct",
+    check("DIRECT_DATABASE_URL").validate("postgresql://u:p@ep-x.aws.neon.tech:5432/db"),
+    true,
+  );
+  // Self-hosted Docker Postgres (@db, no pooler): identical URLs are safe
+  // (no PgBouncer in the path), so the validator must accept them.
+  process.env.DATABASE_URL = "postgresql://komenin:pw@db:5432/komenin?schema=public";
+  assert(
+    "DIRECT_DATABASE_URL accepts identical non-pooler (docker)",
+    check("DIRECT_DATABASE_URL").validate("postgresql://komenin:pw@db:5432/komenin?schema=public"),
+    true,
+  );
+  // On a pooled endpoint, identical URLs must still fail.
+  process.env.DATABASE_URL = "postgresql://u:p@ep-x-pooler.aws.neon.tech:5432/db";
+  assert(
+    "DIRECT_DATABASE_URL rejects identical pooler",
+    check("DIRECT_DATABASE_URL").validate("postgresql://u:p@ep-x-pooler.aws.neon.tech:5432/db") !== true,
+    true,
+  );
+  delete process.env.DATABASE_URL;
+  delete process.env.APP_URL;
+
+  if (failed > 0) {
+    console.log(`${RED}SELF-TEST FAIL${RESET}: ${failed} assertion(s) failed.\n`);
+    process.exit(1);
+  }
+  console.log(`${GREEN}SELF-TEST PASS${RESET}: preflight validators behave.\n`);
+  process.exit(0);
+}
 
 console.log(`\nPre-flight deploy check ${strict ? "(strict)" : ""}\n${"=".repeat(46)}`);
 

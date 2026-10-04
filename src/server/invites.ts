@@ -102,6 +102,9 @@ export async function createInvite(input: {
 export async function acceptInvite(token: string) {
   const session = await auth();
   if (!session?.user?.id || !session.user.email) throw new Error("Unauthorized");
+  // M3: accepting an invite grants a new workspace membership — a still-gated
+  // session (2FA pending) must complete the challenge first.
+  if (session.user.totpGate) throw new Error("Two-factor verification required");
 
   const invite = await db.invite.findUnique({ where: { tokenHash: hashToken(token) } });
   if (!invite || invite.acceptedAt || invite.expiresAt < new Date()) {

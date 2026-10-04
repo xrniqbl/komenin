@@ -7,12 +7,23 @@ import {
   safeOutboundFetch,
   UnsafeUrlError,
 } from "@/lib/url-safety";
+import { isAllowedOfficialApiBaseUrl } from "@/lib/connectors/official-base";
 
-/** Guard for workspace/env-controlled Graph base URLs (SSRF). */
+/** Guard for workspace/env-controlled Graph base URLs (SSRF + token exfiltration).
+ * resolveOfficialBase pins the base to the approved provider allowlist: a
+ * workspace admin with settings.manage may store an arbitrary `apiBaseUrl`,
+ * and without the pin the platform bearer token would be sent to that host.
+ */
 function resolveOfficialBase(raw: string | undefined | null, fallback: string): {
   base: string;
 } | { error: string } {
   const candidate = raw?.replace(/\/$/, "") || fallback;
+  if (!isAllowedOfficialApiBaseUrl(candidate)) {
+    return {
+      error:
+        "Official API base blocked: hostname must be from an approved provider domain",
+    };
+  }
   try {
     const url = assertSafeOutboundUrl(candidate);
     return { base: url.toString().replace(/\/$/, "") };

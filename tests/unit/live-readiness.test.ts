@@ -54,7 +54,7 @@ describe("evaluateLiveReadiness", () => {
 
   it("is ready when live webhook url + token are set", () => {
     process.env.SIMULATOR_MODE = "false";
-    process.env.SOCIAL_PUBLISH_WEBHOOK_URL = "https://bridge.example/hooks/aether";
+    process.env.SOCIAL_PUBLISH_WEBHOOK_URL = "https://bridge.example/hooks/komenin";
     process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN = "super-secret-token-value";
     process.env.SOCIAL_CONNECTOR_POLICY = "prefer_webhook";
     process.env.WORKER_SECRET = "worker-secret-at-least-16";
@@ -101,7 +101,7 @@ describe("mention ingest readiness (F2)", () => {
 
   it("warns when no mention ingest path is configured", () => {
     process.env.SIMULATOR_MODE = "false";
-    process.env.SOCIAL_PUBLISH_WEBHOOK_URL = "https://bridge.example/hooks/aether";
+    process.env.SOCIAL_PUBLISH_WEBHOOK_URL = "https://bridge.example/hooks/komenin";
     process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN = "super-secret-token-value";
     for (const key of extraKeys) delete process.env[key];
     const result = evaluateLiveReadiness();
@@ -112,7 +112,7 @@ describe("mention ingest readiness (F2)", () => {
 
   it("does not warn about mention ingest when an app secret is set", () => {
     process.env.SIMULATOR_MODE = "false";
-    process.env.SOCIAL_PUBLISH_WEBHOOK_URL = "https://bridge.example/hooks/aether";
+    process.env.SOCIAL_PUBLISH_WEBHOOK_URL = "https://bridge.example/hooks/komenin";
     process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN = "super-secret-token-value";
     process.env.INSTAGRAM_APP_SECRET = "ig-app-secret";
     process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN = "verify-me";
@@ -127,7 +127,7 @@ describe("mention ingest readiness (F2)", () => {
 
   it("warns about the missing Meta verify token when only the app secret is set", () => {
     process.env.SIMULATOR_MODE = "false";
-    process.env.SOCIAL_PUBLISH_WEBHOOK_URL = "https://bridge.example/hooks/aether";
+    process.env.SOCIAL_PUBLISH_WEBHOOK_URL = "https://bridge.example/hooks/komenin";
     process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN = "super-secret-token-value";
     process.env.INSTAGRAM_APP_SECRET = "ig-app-secret";
     delete process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN;

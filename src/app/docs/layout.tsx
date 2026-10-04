@@ -7,6 +7,7 @@ import {
   PAGE_SEO,
   breadcrumbJsonLd,
   buildMetadata,
+  organizationJsonLd,
   webPageJsonLd,
 } from "@/lib/seo";
 
@@ -17,6 +18,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
     <div className="min-h-screen bg-background text-foreground">
       <JsonLd
         data={[
+          organizationJsonLd(),
           webPageJsonLd({
             name: PAGE_SEO.docs.title,
             description: PAGE_SEO.docs.description,

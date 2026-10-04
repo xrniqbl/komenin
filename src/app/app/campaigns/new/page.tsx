@@ -27,8 +27,8 @@ export default async function NewCampaignPage() {
       goal: String(formData.get("goal") || "") || undefined,
       listenerQuery: String(formData.get("listenerQuery") || "") || undefined,
       dailyLimit: Number(formData.get("dailyLimit") || 30),
-      minDelaySec: Number(formData.get("minDelaySec") || 45),
-      maxDelaySec: Number(formData.get("maxDelaySec") || 180),
+      minDelaySec: Number(formData.get("minDelaySec") || 180),
+      maxDelaySec: Number(formData.get("maxDelaySec") || 600),
       socialAccountIds,
       clientId: clientId || undefined,
     });
@@ -118,13 +118,17 @@ export default async function NewCampaignPage() {
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="minDelaySec">Min delay (sec)</Label>
-                <Input id="minDelaySec" name="minDelaySec" type="number" defaultValue={45} />
+                <Input id="minDelaySec" name="minDelaySec" type="number" defaultValue={180} />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="maxDelaySec">Max delay (sec)</Label>
-                <Input id="maxDelaySec" name="maxDelaySec" type="number" defaultValue={180} />
+                <Input id="maxDelaySec" name="maxDelaySec" type="number" defaultValue={600} />
               </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Batas aman anti-spam: Instagram 12/jam · 50/hari (jeda ≥3 mnt), Threads 10/jam · 40/hari (jeda ≥4 mnt),
+              TikTok 8/jam · 30/hari (jeda ≥5 mnt). Nilai di atasnya ditolak otomatis — detail di /app/rate-limits.
+            </p>
             <div className="flex flex-col gap-3">
               <div className="text-sm font-medium">Accounts</div>
               {accounts.length === 0 ? (

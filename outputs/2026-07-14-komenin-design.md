@@ -1,15 +1,15 @@
-﻿# Aether Design Spec
+﻿# Komenin Design Spec
 
 **Date:** 2026-07-14  
 **Status:** Draft for user review  
-**Codename:** Aether (replaceable)  
+**  
 **Product type:** Multi-tenant B2B SaaS control plane for managed social engagement operations
 
 ---
 
 ## 1. Summary
 
-Aether is an enterprise SaaS platform that helps growth teams and agencies operate many social accounts safely and intelligently across Instagram, Threads, and TikTok.
+Komenin is an enterprise SaaS platform that helps growth teams and agencies operate many social accounts safely and intelligently across Instagram, Threads, and TikTok.
 
 It combines four product pillars:
 
@@ -518,7 +518,7 @@ Google login → workspace → proxies → accounts → agent knowledge → coup
 
 ## 15. Open Items (non-blocking)
 
-- Final product name (currently Aether)
+- Final product name: Komenin
 - Exact job system choice: Inngest vs BullMQ
 - Stripe plan packaging numbers
 - Whether memory ships in first vertical slice or immediately after RAG

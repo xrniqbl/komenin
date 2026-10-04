@@ -96,9 +96,9 @@ export async function POST(request: Request) {
     completeUrl.searchParams.set("ticket", result.ticket);
     return NextResponse.redirect(completeUrl);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "ACS failed" },
-      { status: 400 },
-    );
+    // Dev-only route, but never reflect internal errors (DB/config details)
+    // to the client — log full, return generic.
+    console.error("[saml-acs] dev ACS failed", error);
+    return NextResponse.json({ error: "ACS failed" }, { status: 400 });
   }
 }

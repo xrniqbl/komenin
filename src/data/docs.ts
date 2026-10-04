@@ -350,7 +350,7 @@ npm run dev`,
         id: "create",
         title: "Create a campaign",
         body:
-          "Define platform, mode (default approval_required), delays, daily limits, agent, and linked accounts. Attach listeners for keyword/competitor discovery.",
+          "Define platform, mode (default approval_required), delays, daily limits, agent, and linked accounts. Attach listeners for keyword/competitor discovery. Batas aman anti-spam per platform ditegakkan otomatis: Instagram 12 komentar/jam, 50/hari (jeda 3 mnt); Threads 10/jam, 40/hari (jeda 4 mnt); TikTok 8/jam, 30/hari (jeda 5 mnt). Campaign yang melebihi batas ditolak saat dibuat — lihat /app/rate-limits.",
       },
       {
         id: "pipeline",
@@ -359,7 +359,8 @@ npm run dev`,
           "listener.poll discovers target posts",
           "comment.generate creates drafts + pending approvals",
           "operators edit/approve/reject",
-          "comment.send executes due actions through connector router",
+          "comment.send executes due actions through connector router (hourly pace + min-interval defer, daily cap fail-closed)",
+          "429/action-blocked responses quarantine the account to limited with an operator notification",
         ],
       },
       {
@@ -1322,13 +1323,13 @@ export const apiPages: Record<string, DocsPage> = {
         code: `// request
 {
   "planCode": "growth_6m",
-  "voucherCode": "AETHER10"
+  "voucherCode": "KOMENIN10"
 }
 
 // response
 {
   "orderId": "clx...",
-  "orderCode": "AETH-1710000000-123",
+  "orderCode": "KMN-1710000000-123",
   "token": "snap-token-or-sim-token",
   "redirectUrl": "https://app.sandbox.midtrans.com/snap/v2/vtweb/...",
   "totalIdr": 2154600,
@@ -1344,7 +1345,7 @@ export const apiPages: Record<string, DocsPage> = {
         body: "Midtrans server-to-server notification. Signature is verified when MIDTRANS_SERVER_KEY is set.",
         code: `// request
 {
-  "order_id": "AETH-1710000000-123",
+  "order_id": "KMN-1710000000-123",
   "status_code": "200",
   "gross_amount": "2154600.00",
   "signature_key": "<sha512>",
@@ -1368,12 +1369,12 @@ export const apiPages: Record<string, DocsPage> = {
         title: "POST /api/billing/voucher/validate",
         body: "Validates a voucher for the selected plan before checkout.",
         code: `// request
-{ "code": "AETHER10", "planCode": "growth_6m" }
+{ "code": "KOMENIN10", "planCode": "growth_6m" }
 
 // response
 {
   "voucherId": "clx...",
-  "code": "AETHER10",
+  "code": "KOMENIN10",
   "type": "percent",
   "value": 10,
   "discountIdr": 239400,

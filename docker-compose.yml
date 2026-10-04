@@ -1,5 +1,5 @@
 ##
-## Aether + Traefik — multi-site stack untuk 1 VPS
+## Komenin + Traefik — multi-site stack untuk 1 VPS
 ## Traefik jadi reverse-proxy + auto HTTPS (Let's Encrypt) untuk banyak web.
 ##
 ## Cara pakai:
@@ -51,7 +51,7 @@ services:
       - web
 
   # ─────────────────────────────────────────────
-  # PostgreSQL — database Aether
+  # PostgreSQL — database Komenin
   # ─────────────────────────────────────────────
   db:
     image: postgres:16-alpine
@@ -71,15 +71,15 @@ services:
       retries: 5
 
   # ─────────────────────────────────────────────
-  # Aether — aplikasi Next.js
-  # CI deploy men-set AETHER_IMAGE ke tag GHCR SHA; tanpa itu compose
-  # memakai image lokal (aether:latest) atau build dari source.
+  # Komenin — aplikasi Next.js
+  # CI deploy men-set KOMENIN_IMAGE ke tag GHCR SHA; tanpa itu compose
+  # memakai image lokal (komenin:latest) atau build dari source.
   # ─────────────────────────────────────────────
   app:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${AETHER_IMAGE:-aether:latest}
+    image: ${KOMENIN_IMAGE:-komenin:latest}
     restart: unless-stopped
     depends_on:
       db:
@@ -88,38 +88,73 @@ services:
       NODE_ENV: production
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
+      # Self-hosted Postgres (@db) tanpa PgBouncer: DIRECT boleh identik dengan
+      # DATABASE_URL. Di Neon/Vercel keduanya wajib beda (pooler vs direct).
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public"
-      APP_URL: "https://${AETHER_DOMAIN}"
-      AUTH_URL: "https://${AETHER_DOMAIN}"
-      AUTH_TRUST_HOST: "true"
+      DIRECT_DATABASE_URL: ${DIRECT_DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public}
+      APP_URL: "https://${KOMENIN_DOMAIN}"
+      AUTH_URL: "https://${KOMENIN_DOMAIN}"
+      AUTH_TRUST_HOST: "false"
       AUTH_SECRET: ${AUTH_SECRET}
       AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID}
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       SIMULATOR_MODE: ${SIMULATOR_MODE:-false}
       ALLOW_SECURITY_STUBS: "false"
+      SSO_ENFORCE_LOGIN: "false"
+      SAML_ALLOW_UNSIGNED: "false"
       WORKER_SECRET: ${WORKER_SECRET}
       CRON_SECRET: ${CRON_SECRET}
+      # OAuth state / SSO ticket / API-key pepper — tanpa fallback AUTH_SECRET di prod
+      OAUTH_STATE_SECRET: ${OAUTH_STATE_SECRET}
+      SSO_TICKET_SECRET: ${SSO_TICKET_SECRET}
+      API_KEY_PEPPER: ${API_KEY_PEPPER}
+      # Durable rate limiting (wajib prod — memory fallback lemah di serverless/Docker scale)
+      UPSTASH_REDIS_REST_URL: ${UPSTASH_REDIS_REST_URL}
+      UPSTASH_REDIS_REST_TOKEN: ${UPSTASH_REDIS_REST_TOKEN}
+      # Email transaksional (wajib prod — OTP login + digest gagal diam-diam tanpanya)
+      BREVO_API_KEY: ${BREVO_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM}
+      SUPPORT_INBOX_EMAIL: ${SUPPORT_INBOX_EMAIL:-}
       AI_GATEWAY_ENABLED: ${AI_GATEWAY_ENABLED:-false}
       AI_GATEWAY_BASE_URL: ${AI_GATEWAY_BASE_URL:-}
       AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY:-}
       AI_MODEL_PRIMARY: ${AI_MODEL_PRIMARY:-}
+      AI_MODEL_FALLBACKS: ${AI_MODEL_FALLBACKS:-}
+      AI_RATE_LIMIT_PER_MIN: ${AI_RATE_LIMIT_PER_MIN:-60}
+      KOMENIN_AI_MODELS_STARTER: ${KOMENIN_AI_MODELS_STARTER:-}
+      KOMENIN_AI_MODELS_PRO: ${KOMENIN_AI_MODELS_PRO:-}
+      KOMENIN_AI_MODELS_PRO_MAX: ${KOMENIN_AI_MODELS_PRO_MAX:-}
+      AI_MODEL_COST_IDR: ${AI_MODEL_COST_IDR:-}
       SOCIAL_PUBLISH_WEBHOOK_URL: ${SOCIAL_PUBLISH_WEBHOOK_URL:-}
       SOCIAL_PUBLISH_WEBHOOK_TOKEN: ${SOCIAL_PUBLISH_WEBHOOK_TOKEN:-}
+      SOCIAL_CONNECTOR_POLICY: ${SOCIAL_CONNECTOR_POLICY:-prefer_webhook}
+      INSTAGRAM_GRAPH_BASE_URL: ${INSTAGRAM_GRAPH_BASE_URL:-https://graph.facebook.com/v21.0}
+      INSTAGRAM_APP_ID: ${INSTAGRAM_APP_ID:-}
+      INSTAGRAM_APP_SECRET: ${INSTAGRAM_APP_SECRET:-}
+      THREADS_APP_ID: ${THREADS_APP_ID:-}
+      THREADS_APP_SECRET: ${THREADS_APP_SECRET:-}
+      TIKTOK_CLIENT_KEY: ${TIKTOK_CLIENT_KEY:-}
+      TIKTOK_CLIENT_SECRET: ${TIKTOK_CLIENT_SECRET:-}
       MIDTRANS_IS_PRODUCTION: ${MIDTRANS_IS_PRODUCTION:-false}
       MIDTRANS_SERVER_KEY: ${MIDTRANS_SERVER_KEY:-}
       MIDTRANS_CLIENT_KEY: ${MIDTRANS_CLIENT_KEY:-}
       MIDTRANS_MERCHANT_ID: ${MIDTRANS_MERCHANT_ID:-}
-      AETHER_REGION: ${AETHER_REGION:-ap-southeast-1}
+      NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION: ${MIDTRANS_IS_PRODUCTION:-false}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+      BACKUP_PLAINTEXT_OK: ${BACKUP_PLAINTEXT_OK:-}
+      KOMENIN_REGION: ${KOMENIN_REGION:-ap-southeast-1}
     networks:
       - web
       - internal
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.aether.rule=Host(`${AETHER_DOMAIN}`)"
-      - "traefik.http.routers.aether.entrypoints=websecure"
-      - "traefik.http.routers.aether.tls.certresolver=le"
-      - "traefik.http.services.aether.loadbalancer.server.port=3000"
+      - "traefik.http.routers.komenin.rule=Host(`${KOMENIN_DOMAIN}`)"
+      - "traefik.http.routers.komenin.entrypoints=websecure"
+      - "traefik.http.routers.komenin.tls.certresolver=le"
+      - "traefik.http.services.komenin.loadbalancer.server.port=3000"
 
   # ─────────────────────────────────────────────
   # Cron — scheduler untuk job worker. Jalur Vercel punya vercel.json crons,

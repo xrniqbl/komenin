@@ -114,7 +114,57 @@ export function evaluateProductionGate(): ProductionGateResult {
   }
 
   if (process.env.AUTH_URL && process.env.APP_URL && process.env.AUTH_URL !== process.env.APP_URL) {
-    warnings.push("AUTH_URL and APP_URL differ");
+    errors.push(
+      "AUTH_URL and APP_URL differ — Auth.js no longer trusts the Host header in production, so OAuth callbacks must share one canonical origin",
+    );
+  }
+  if (!process.env.AUTH_URL?.trim() || !process.env.APP_URL?.trim()) {
+    errors.push("AUTH_URL and APP_URL are both required in production (canonical OAuth origin)");
+  }
+
+  // SSO/SAML is not production-ready (signature validation unimplemented, ACS
+  // returns 501). A single stray flag would otherwise silently change login
+  // behaviour or imply enterprise SSO that does not exist.
+  if (process.env.SSO_ENFORCE_LOGIN === "true") {
+    errors.push(
+      "SSO_ENFORCE_LOGIN=true is not allowed in production — SAML ACS returns 501 until XML signature validation ships",
+    );
+  }
+  if (process.env.SAML_ALLOW_UNSIGNED === "true") {
+    errors.push("SAML_ALLOW_UNSIGNED=true is never allowed in production");
+  }
+  if (process.env.ALLOW_SECURITY_STUBS === "true") {
+    errors.push("ALLOW_SECURITY_STUBS=true is never allowed in production");
+  }
+
+  // Neon pooler guidance: Prisma migrations through PgBouncer strand the
+  // advisory lock (P1002), so DIRECT_DATABASE_URL must be the direct endpoint.
+  const directUrl = process.env.DIRECT_DATABASE_URL || "";
+  if (!directUrl.trim()) {
+    errors.push("DIRECT_DATABASE_URL is required in production (direct non-pooler endpoint for migrations)");
+  } else if (/-pooler[.-]/.test(directUrl)) {
+    errors.push(
+      "DIRECT_DATABASE_URL looks like a -pooler endpoint — use the direct (non-pooler) endpoint for migrations",
+    );
+  }
+  const pooledUrl = process.env.DATABASE_URL || "";
+  // Neon/Vercel: pooler vs direct must differ (PgBouncer strands the advisory
+  // lock P1002). Self-hosted Docker Postgres (@db, no pooler in either URL) has
+  // no PgBouncer in the path, so identical URLs are safe there.
+  if (
+    directUrl.trim() &&
+    pooledUrl.trim() &&
+    directUrl.trim() === pooledUrl.trim() &&
+    /-pooler[.-]/.test(pooledUrl)
+  ) {
+    errors.push(
+      "DIRECT_DATABASE_URL must differ from DATABASE_URL on a pooled endpoint — migrations through PgBouncer can strand the advisory lock (P1002)",
+    );
+  }
+  if (/-pooler[.-]/.test(pooledUrl) && !/[?&]connection_limit=\d+/.test(pooledUrl)) {
+    warnings.push(
+      "DATABASE_URL looks like a Neon pooler endpoint without connection_limit — append ?connection_limit=5&pool_timeout=20 to stay under the compute's max connections",
+    );
   }
 
   if (!process.env.OAUTH_STATE_SECRET?.trim()) {
@@ -138,6 +188,20 @@ export function evaluateProductionGate(): ProductionGateResult {
     errors.push(
       "UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are required in production (fail-closed auth rate limits deny traffic during a limiter outage)",
     );
+  }
+  // Database backups: an unencrypted dump is a full plaintext copy of every
+  // secret in the DB (session cookies, OAuth tokens, TOTP seeds). The dismiss
+  // path is a conscious "we keep plaintext backups" decision, not an omission.
+  if (!process.env.BACKUP_ENCRYPTION_KEY?.trim()) {
+    // Conscious opt-out: BACKUP_PLAINTEXT_OK=true means the operator knowingly
+    // accepts plaintext backups — warn only on a genuine omission.
+    if (process.env.BACKUP_PLAINTEXT_OK?.trim().toLowerCase() !== "true") {
+      warnings.push(
+        "BACKUP_ENCRYPTION_KEY is unset — database backups are stored unencrypted (set it to AES-256-encrypt dumps, or set BACKUP_PLAINTEXT_OK=true to acknowledge plaintext backups)",
+      );
+    }
+  } else if (!/^[0-9a-fA-F]{64}$/.test(process.env.BACKUP_ENCRYPTION_KEY.trim())) {
+    errors.push("BACKUP_ENCRYPTION_KEY must be 64 hex characters (openssl rand -hex 32)");
   }
   if (isEncryptionRotationStaged()) {
     warnings.push(

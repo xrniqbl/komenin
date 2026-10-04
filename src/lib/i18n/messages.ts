@@ -8,6 +8,9 @@ export const messages = {
       enterprise: "Enterprise",
       security: "Security",
       docs: "Docs",
+      useCases: "Use cases",
+      integrations: "Integrations",
+      changelog: "Changelog",
       login: "Log in",
       startFree: "Start free",
       openMenu: "Open menu",
@@ -425,13 +428,190 @@ export const messages = {
     },
     aboutPage: {
       title: "About Komenin",
-      subtitle: "A quiet control plane for teams that need scale with governance.",
+      subtitle:
+        "Komenin is an approval-first social media automation control plane for Instagram, Threads, and TikTok. Agencies and ops teams run comment campaigns, AI-drafted replies, and scheduled publishing from one governed workspace — with session routing, human approval gates, and a full audit trail on every action.",
       cta: "Start free",
       points: [
-        "Enterprise-first design",
-        "Operator workflows",
-        "AI with guardrails",
+        "Approval-first automation: every comment and post passes a human gate before it goes live",
+        "Session routing with proxy pools and health scoring keeps multi-account operations safe",
+        "AI drafts with guardrails, knowledge retrieval, and memory — never uncontrolled spam",
+        "Audit trails, RBAC, rate limits, and human-like pacing built in for team operations",
       ],
+    },
+    platformPage: {
+      badge: "Platform",
+      cta: "Start free",
+      backHome: "Back to home",
+      talkSales: "Talk to sales",
+      agencies: {
+        title: "Komenin for Agencies",
+        subtitle:
+          "Run every client brand from one governed workspace: tag campaigns and leads per client, report per-brand volume, and keep approvals fast with bulk actions and keyboard shortcuts.",
+        sections: [
+          {
+            title: "Multi-brand without multi-tenant pain",
+            body: "One workspace, many clients — no login juggling.",
+            bullets: [
+              "Client profiles tag campaigns, leads, and reports per brand",
+              "Agency analytics: leads, follow-ups due, and volume per client",
+              "Per-client approval queues with full audit trails",
+            ],
+          },
+          {
+            title: "Throughput with guardrails",
+            body: "Ship more replies without losing control.",
+            bullets: [
+              "Bulk approve/reject with risk-flag filters",
+              "Human-like pacing and platform rate limits enforced automatically",
+              "Quiet hours pause sends across every client account",
+            ],
+          },
+          {
+            title: "Prove the value",
+            body: "Weekly client-ready numbers out of the box.",
+            bullets: [
+              "Per-platform send and publish mix with CSV export",
+              "Leads pipeline from new to won with follow-up tracking",
+              "Monday weekly report email per workspace",
+            ],
+          },
+        ],
+      },
+      instagram: {
+        title: "Instagram Automation with Approval Control",
+        subtitle:
+          "Discover conversations, draft contextual comments with AI, approve in a mobile-friendly queue, and publish paced replies — all behind proxy-routed, health-scored sessions.",
+        sections: [
+          {
+            title: "Engagement that looks human",
+            body: "Pacing and limits matched to Instagram norms.",
+            bullets: [
+              "Keyword and competitor listeners surface the right posts",
+              "AI drafts with tone, knowledge, and memory — editable before send",
+              "Human-like delays and daily caps keep accounts safe",
+            ],
+          },
+          {
+            title: "Auto posts on schedule",
+            body: "Turn one topic into a month of content.",
+            bullets: [
+              "Topic → N posts with drag-and-drop publish calendar",
+              "Bulk approve pending drafts, reschedule in one gesture",
+              "Simulator or live publish bridge with testable delivery",
+            ],
+          },
+        ],
+      },
+      tiktok: {
+        title: "TikTok Publishing & Comment Ops",
+        subtitle:
+          "Schedule original posts from a single topic and run approval-gated comment campaigns — with freshness checks and strict pacing for TikTok limits.",
+        sections: [
+          {
+            title: "Content that ships daily",
+            body: "Consistency without the grind.",
+            bullets: [
+              "Generate N unique posts per topic with hashtags",
+              "Calendar view with unscheduled backlog and drag reschedule",
+              "Publish bridge with fake-ID simulator for safe testing",
+            ],
+          },
+          {
+            title: "Comments with a human gate",
+            body: "Reply fast, never reckless.",
+            bullets: [
+              "Risk scanner flags spammy drafts before they queue",
+              "Approval queue with bulk actions and keyboard flow",
+              "Per-platform analytics show what actually shipped",
+            ],
+          },
+        ],
+      },
+      threads: {
+        title: "Threads Replies at Conversation Speed",
+        subtitle:
+          "Catch mentions fast, generate contextual replies with AI, and approve in seconds — tuned for the fast-moving Threads conversation pace.",
+        sections: [
+          {
+            title: "Never miss a mention",
+            body: "Inbound comments become owned work.",
+            bullets: [
+              "Mention inbox with status tabs and auto-reply settings",
+              "Template or AI replies, always risk-scanned",
+              "Approve-and-schedule in one click from the queue",
+            ],
+          },
+          {
+            title: "Operate safely at speed",
+            body: "Fast replies, enforced guardrails.",
+            bullets: [
+              "Daily reply caps and quiet hours respected automatically",
+              "Session health scoring with auto-degrade on failure",
+              "Every approval and send written to the audit trail",
+            ],
+          },
+        ],
+      },
+      integrations: {
+        title: "Integrations",
+        subtitle:
+          "Connect Komenin to the rest of your stack: publish bridges, skill webhooks, outbound notifications, and the worker API.",
+        sections: [
+          {
+            title: "Publish bridge",
+            body: "Deliver posts through your own worker.",
+            bullets: [
+              "SOCIAL_PUBLISH_WEBHOOK_URL with bearer-token auth",
+              "Simulator mode records fake external IDs for safe testing",
+              "Delivery log per post with retry visibility",
+            ],
+          },
+          {
+            title: "Skill webhooks",
+            body: "Trigger your own automations from comment intent.",
+            bullets: [
+              "Webhook executor with encrypted bearer tokens",
+              "Intent keyword triggers route posts to the right skill",
+              "Chain-of-thought run timeline per execution",
+            ],
+          },
+          {
+            title: "Notifications & API",
+            body: "Events flow out, jobs flow in.",
+            bullets: [
+              "Outbound webhooks for approvals, timeouts, and digests",
+              "Worker API with cron-ready job endpoints",
+              "CSV exports for analytics, leads, and audit archives",
+            ],
+          },
+        ],
+      },
+      changelog: {
+        title: "Changelog",
+        subtitle: "What shipped lately in Komenin — automation depth, reporting, and governance.",
+        entries: [
+          {
+            date: "Oct 2026",
+            title: "Reporting depth: per-platform mix, CSV exports, weekly email",
+            body: "Analytics now breaks sends and publishes down by platform with one-click CSV export, plus a Monday weekly report email and AI balance visibility in billing.",
+          },
+          {
+            date: "Oct 2026",
+            title: "Campaign operations: duplicate, archive, row actions",
+            body: "Duplicate any campaign into a draft copy, archive finished work behind a toggle, and manage status from row menus and detail pages.",
+          },
+          {
+            date: "Oct 2026",
+            title: "Leads kanban + competitor spike alerts",
+            body: "A four-stage kanban sits above the lead list, and Competitor Radar flags posting spikes (48h volume vs 30d baseline) with a red badge.",
+          },
+          {
+            date: "Oct 2026",
+            title: "Inbox tabs + notification triage",
+            body: "Inbox gains status and platform tabs with search and draft-readiness badges; notifications gain status tabs, search, unread counts, and archive.",
+          },
+        ],
+      },
     },
     contactPage: {
       badge: "Contact",
@@ -694,12 +874,69 @@ export const messages = {
       pricing: "Pricing",
       security: "Security",
       docs: "Docs",
+      useCases: "Use cases",
+      integrations: "Integrations",
+      changelog: "Changelog",
       about: "About",
       contact: "Contact",
       enterprise: "Enterprise",
       privacy: "Privacy",
       terms: "Terms",
       aup: "AUP",
+    },
+    auth: {
+      emailLabel: "Email",
+      emailPlaceholder: "you@company.com",
+      sendCode: "Send sign-in code",
+      sending: "Sending…",
+      codeSent: "A 6-digit code was sent to your email.",
+      codeLabel: "6-digit code",
+      signIn: "Sign in",
+      verifying: "Verifying…",
+      changeEmail: "Change email / resend code",
+      sendFailed: "Failed to send the code.",
+      codeInvalid: "Wrong or expired code. Please check again.",
+      verifyFailed: "Verification failed.",
+      totpTitle: "Two-step verification",
+      totpDescription: "Enter the 6-digit code from your authenticator app to continue.",
+      totpLabel: "Authenticator code",
+      totpVerify: "Verify",
+      totpWrong: "Wrong code. Try again.",
+      totpVerifyFailed: "Verification failed. Try again.",
+      totpEnrollStartFailed: "Failed to start 2FA enrollment.",
+      totpCodeClockHint: "Code not correct — make sure the device clock is accurate and try again.",
+      totpEnabledNotice: "2FA is on. Next sign-in will ask for an authenticator code.",
+      totpEnableFailed: "Failed to enable 2FA.",
+      totpDisableWrong: "Wrong code — 2FA was not disabled.",
+      totpDisabledNotice: "2FA is off.",
+      totpDisableFailed: "Failed to disable 2FA.",
+      totpDisableCodeLabel: "Current code to disable",
+      totpDeactivate: "Disable 2FA",
+      totpActivate: "Enable 2FA",
+      totpProcessing: "Working…",
+      totpStep1: "1. Add to your authenticator app",
+      totpStep1Hint: "Scan the URI below in your app, or enter the key manually:",
+      totpPendingRestart: "A previous enrollment was never confirmed. Restart to get a new key.",
+      totpNewKey: "Generate a new key",
+      totpRestart: "Restart enrollment",
+      totpStep2: "2. Enter the 6-digit code",
+      securityTitle: "Two-step (TOTP)",
+      securityActive: "On",
+      securityInactive: "Off",
+      securityDescription:
+        "A second code from your authenticator app (Google Authenticator, Authy, 1Password). Applies to every sign-in method, including Google and email OTP.",
+      devicesTitle: "Signed-in devices",
+      devicesDescription:
+        "Still-active sign-in sessions. Revoking a device forces it to sign in again (takes effect within ~1 minute).",
+      devicesLoading: "Loading…",
+      devicesEmpty: "No recorded sessions yet — the list fills in since this feature launched.",
+      devicesThisDevice: "This device",
+      devicesLastActive: "last active",
+      devicesRevoke: "Revoke",
+      devicesRevokeOthers: "Sign out other devices",
+      devicesRevokeFailed: "Failed to revoke the device.",
+      devicesRevokeOthersFailed: "Failed to revoke other sessions.",
+      devicesUnknown: "Unknown device",
     },
     docsUi: {
       brand: "Komenin Documentation",
@@ -793,6 +1030,9 @@ export const messages = {
       enterprise: "Enterprise",
       security: "Keamanan",
       docs: "Dokumentasi",
+      useCases: "Studi kasus",
+      integrations: "Integrasi",
+      changelog: "Changelog",
       login: "Masuk",
       startFree: "Mulai gratis",
       openMenu: "Buka menu",
@@ -1211,13 +1451,190 @@ export const messages = {
     },
     aboutPage: {
       title: "Tentang Komenin",
-      subtitle: "Control plane yang tenang untuk tim yang butuh skala dengan governance.",
+      subtitle:
+        "Komenin adalah control plane otomatisasi sosial media dengan approval-first untuk Instagram, Threads, dan TikTok. Agensi dan tim ops menjalankan campaign komentar, balasan AI, dan jadwal posting dari satu workspace yang terkendali — dengan session routing, gerbang persetujuan manusia, dan jejak audit lengkap di setiap aksi.",
       cta: "Mulai gratis",
       points: [
-        "Desain enterprise-first",
-        "Workflow operator",
-        "AI dengan guardrail",
+        "Otomatisasi dengan persetujuan: setiap komentar dan postingan melewati gerbang manusia sebelum tayang",
+        "Session routing dengan proxy pool dan health scoring menjaga operasi multi-akun tetap aman",
+        "Draf AI dengan guardrail, knowledge retrieval, dan memori — bukan spam tanpa kontrol",
+        "Audit trail, RBAC, rate limit, dan pacing seperti manusia bawaan untuk operasi tim",
       ],
+    },
+    platformPage: {
+      badge: "Platform",
+      cta: "Mulai gratis",
+      backHome: "Kembali ke beranda",
+      talkSales: "Hubungi sales",
+      agencies: {
+        title: "Komenin untuk Agensi",
+        subtitle:
+          "Jalankan setiap brand klien dari satu workspace terkendali: tandai campaign dan leads per klien, laporkan volume per brand, dan percepat approval dengan aksi massal dan shortcut keyboard.",
+        sections: [
+          {
+            title: "Multi-brand tanpa repot multi-tenant",
+            body: "Satu workspace, banyak klien — tanpa gonta-ganti login.",
+            bullets: [
+              "Profil klien menandai campaign, leads, dan laporan per brand",
+              "Analitik agensi: leads, follow-up jatuh tempo, dan volume per klien",
+              "Antrean approval per klien dengan audit trail lengkap",
+            ],
+          },
+          {
+            title: "Throughput dengan guardrail",
+            body: "Kirim lebih banyak balasan tanpa kehilangan kontrol.",
+            bullets: [
+              "Approve/reject massal dengan filter risk-flag",
+              "Pacing human-like dan rate limit platform ditegakkan otomatis",
+              "Quiet hours menghentikan pengiriman di semua akun klien",
+            ],
+          },
+          {
+            title: "Buktikan nilainya",
+            body: "Angka siap-klien setiap minggu.",
+            bullets: [
+              "Mix kirim dan posting per platform dengan export CSV",
+              "Pipeline leads dari baru hingga won dengan tracking follow-up",
+              "Email laporan mingguan Senin per workspace",
+            ],
+          },
+        ],
+      },
+      instagram: {
+        title: "Otomatisasi Instagram dengan Kontrol Persetujuan",
+        subtitle:
+          "Temukan percakapan, buat komentar kontekstual dengan AI, setujui di antrean ramah-mobile, dan kirim balasan terjadwal — semua di balik session proxy dengan health scoring.",
+        sections: [
+          {
+            title: "Engagement yang terlihat manusiawi",
+            body: "Pacing dan limit sesuai norma Instagram.",
+            bullets: [
+              "Listener kata kunci dan kompetitor menemukan postingan tepat",
+              "Draf AI dengan tone, knowledge, dan memori — bisa diedit sebelum kirim",
+              "Delay human-like dan batas harian menjaga akun tetap aman",
+            ],
+          },
+          {
+            title: "Auto posting terjadwal",
+            body: "Ubah satu topik menjadi konten sebulan.",
+            bullets: [
+              "Topik → N postingan dengan kalender publish drag-and-drop",
+              "Approve massal draf tertunda, jadwalkan ulang sekali gerak",
+              "Bridge publish simulator atau live dengan delivery teruji",
+            ],
+          },
+        ],
+      },
+      tiktok: {
+        title: "Publishing & Operasi Komentar TikTok",
+        subtitle:
+          "Jadwalkan postingan orisinal dari satu topik dan jalankan campaign komentar dengan gerbang persetujuan — dengan freshness check dan pacing ketat untuk limit TikTok.",
+        sections: [
+          {
+            title: "Konten yang tayang setiap hari",
+            body: "Konsisten tanpa kerja berat.",
+            bullets: [
+              "Generate N postingan unik per topik dengan hashtag",
+              "Tampilan kalender dengan backlog dan reschedule drag",
+              "Bridge publish dengan simulator ID palsu untuk testing aman",
+            ],
+          },
+          {
+            title: "Komentar dengan gerbang manusia",
+            body: "Balas cepat, tidak pernah nekat.",
+            bullets: [
+              "Risk scanner menandai draf spam sebelum antre",
+              "Antrean approval dengan aksi massal dan alur keyboard",
+              "Analitik per platform menunjukkan yang benar-benar terkirim",
+            ],
+          },
+        ],
+      },
+      threads: {
+        title: "Balasan Threads Secepat Percakapan",
+        subtitle:
+          "Tangkap mention dengan cepat, buat balasan kontekstual dengan AI, dan setujui dalam hitungan detik — disetel untuk ritme percakapan Threads yang cepat.",
+        sections: [
+          {
+            title: "Tak ada mention terlewat",
+            body: "Komentar masuk menjadi pekerjaan terkelola.",
+            bullets: [
+              "Inbox mention dengan tab status dan pengaturan auto-reply",
+              "Balasan template atau AI, selalu melewati risk-scan",
+              "Approve-dan-jadwalkan sekali klik dari antrean",
+            ],
+          },
+          {
+            title: "Operasi cepat yang aman",
+            body: "Balasan cepat, guardrail ditegakkan.",
+            bullets: [
+              "Batas balasan harian dan quiet hours dihormati otomatis",
+              "Health scoring session dengan auto-degrade saat gagal",
+              "Setiap approval dan pengiriman tercatat di audit trail",
+            ],
+          },
+        ],
+      },
+      integrations: {
+        title: "Integrasi",
+        subtitle:
+          "Hubungkan Komenin ke stack Anda: bridge publish, webhook skill, notifikasi outbound, dan worker API.",
+        sections: [
+          {
+            title: "Bridge publish",
+            body: "Kirim postingan lewat worker Anda sendiri.",
+            bullets: [
+              "SOCIAL_PUBLISH_WEBHOOK_URL dengan auth bearer-token",
+              "Mode simulator mencatat ID eksternal palsu untuk testing aman",
+              "Log delivery per postingan dengan visibilitas retry",
+            ],
+          },
+          {
+            title: "Webhook skill",
+            body: "Picu otomatisasi Anda dari intent komentar.",
+            bullets: [
+              "Webhook executor dengan bearer token terenkripsi",
+              "Pemicu kata kunci intent mengarahkan postingan ke skill tepat",
+              "Timeline run chain-of-thought per eksekusi",
+            ],
+          },
+          {
+            title: "Notifikasi & API",
+            body: "Event keluar, job masuk.",
+            bullets: [
+              "Webhook outbound untuk approval, timeout, dan digest",
+              "Worker API dengan endpoint job siap-cron",
+              "Export CSV untuk analitik, leads, dan arsip audit",
+            ],
+          },
+        ],
+      },
+      changelog: {
+        title: "Changelog",
+        subtitle: "Yang baru di Komenin — kedalaman otomatisasi, pelaporan, dan governance.",
+        entries: [
+          {
+            date: "Okt 2026",
+            title: "Kedalaman pelaporan: mix per platform, export CSV, email mingguan",
+            body: "Analitik kini memecah kiriman dan posting per platform dengan export CSV sekali klik, plus email laporan mingguan Senin dan visibilitas saldo AI di billing.",
+          },
+          {
+            date: "Okt 2026",
+            title: "Operasi campaign: duplikat, arsip, aksi baris",
+            body: "Duplikat campaign apa pun menjadi salinan draf, arsipkan pekerjaan selesai di balik toggle, dan kelola status dari menu baris dan halaman detail.",
+          },
+          {
+            date: "Okt 2026",
+            title: "Kanban leads + alert spike kompetitor",
+            body: "Kanban empat tahap di atas daftar leads, dan Competitor Radar menandai spike posting (volume 48 jam vs baseline 30 hari) dengan badge merah.",
+          },
+          {
+            date: "Okt 2026",
+            title: "Tab inbox + triase notifikasi",
+            body: "Inbox mendapat tab status dan platform dengan pencarian dan badge kesiapan draf; notifikasi mendapat tab status, pencarian, hitungan unread, dan arsip.",
+          },
+        ],
+      },
     },
     contactPage: {
       badge: "Kontak",
@@ -1482,12 +1899,69 @@ export const messages = {
       pricing: "Harga",
       security: "Keamanan",
       docs: "Dokumentasi",
+      useCases: "Studi kasus",
+      integrations: "Integrasi",
+      changelog: "Changelog",
       about: "Tentang",
       contact: "Kontak",
       enterprise: "Enterprise",
       privacy: "Privasi",
       terms: "Syarat",
       aup: "AUP",
+    },
+    auth: {
+      emailLabel: "Email",
+      emailPlaceholder: "anda@perusahaan.com",
+      sendCode: "Kirim kode masuk",
+      sending: "Mengirim…",
+      codeSent: "Kode 6 digit sudah dikirim ke email Anda.",
+      codeLabel: "Kode 6 digit",
+      signIn: "Masuk",
+      verifying: "Memverifikasi…",
+      changeEmail: "Ganti email / kirim ulang kode",
+      sendFailed: "Gagal mengirim kode.",
+      codeInvalid: "Kode salah atau kedaluwarsa. Periksa kembali.",
+      verifyFailed: "Verifikasi gagal.",
+      totpTitle: "Verifikasi dua langkah",
+      totpDescription: "Masukkan kode 6 digit dari aplikasi autentikator Anda untuk melanjutkan.",
+      totpLabel: "Kode autentikator",
+      totpVerify: "Verifikasi",
+      totpWrong: "Kode salah. Coba lagi.",
+      totpVerifyFailed: "Verifikasi gagal. Coba lagi.",
+      totpEnrollStartFailed: "Gagal memulai pendaftaran 2FA.",
+      totpCodeClockHint: "Kode belum benar — pastikan jam perangkat akurat dan coba lagi.",
+      totpEnabledNotice: "2FA aktif. Login berikutnya akan diminta kode autentikator.",
+      totpEnableFailed: "Gagal mengaktifkan 2FA.",
+      totpDisableWrong: "Kode salah — 2FA tidak dinonaktifkan.",
+      totpDisabledNotice: "2FA dinonaktifkan.",
+      totpDisableFailed: "Gagal menonaktifkan 2FA.",
+      totpDisableCodeLabel: "Kode saat ini untuk menonaktifkan",
+      totpDeactivate: "Nonaktifkan 2FA",
+      totpActivate: "Aktifkan 2FA",
+      totpProcessing: "Memproses…",
+      totpStep1: "1. Tambahkan ke aplikasi autentikator",
+      totpStep1Hint: "Scan URI berikut di aplikasi Anda, atau masukkan kunci manual:",
+      totpPendingRestart: "Pendaftaran sebelumnya belum dikonfirmasi. Mulai ulang untuk mendapat kunci baru.",
+      totpNewKey: "Buat kunci baru",
+      totpRestart: "Mulai ulang pendaftaran",
+      totpStep2: "2. Masukkan kode 6 digit",
+      securityTitle: "Dua langkah (TOTP)",
+      securityActive: "Aktif",
+      securityInactive: "Nonaktif",
+      securityDescription:
+        "Kode kedua dari aplikasi autentikator (Google Authenticator, Authy, 1Password). Berlaku untuk semua cara login, termasuk Google dan email OTP.",
+      devicesTitle: "Perangkat login",
+      devicesDescription:
+        "Sesi login yang masih aktif. Mencabut sebuah perangkat memaksanya login ulang (berlaku dalam ±1 menit).",
+      devicesLoading: "Memuat…",
+      devicesEmpty: "Belum ada sesi tercatat — daftar terisi sejak fitur ini aktif.",
+      devicesThisDevice: "Perangkat ini",
+      devicesLastActive: "terakhir aktif",
+      devicesRevoke: "Cabut",
+      devicesRevokeOthers: "Keluar dari perangkat lain",
+      devicesRevokeFailed: "Gagal mencabut perangkat.",
+      devicesRevokeOthersFailed: "Gagal mencabut sesi lain.",
+      devicesUnknown: "Perangkat tidak diketahui",
     },
     docsUi: {
       brand: "Dokumentasi Komenin",

@@ -64,6 +64,35 @@ export default async function RateLimitsPage() {
       </div>
 
       <div>
+        <h3 className="mb-3 text-sm font-semibold">Batas aman per platform (anti-spam)</h3>
+        <p className="mb-3 max-w-3xl text-xs text-muted-foreground">
+          Estimasi konservatif agar akun tidak terdeteksi spam dan kena pembatasan. Sistem menegakkannya otomatis:
+          campaign yang melebihi batas ditolak saat dibuat, pengiriman yang terlalu cepat dijadwalkan ulang,
+          dan akun yang kena 429/action-blocked dijeda otomatis (status limited).
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {data.guardrails.map((g) => (
+            <Card key={g.platform}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium">{g.label}</div>
+                  <Badge variant="outline" className="text-[10px]">{g.summary}</Badge>
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Komentar {g.commentsPerHour}/jam · {g.commentsPerDay}/hari · jeda ≥{g.minIntervalMin} mnt · posting {g.publishesPerDay}/hari · akun baru {g.newAccountPerDay}/hari
+                </div>
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+                  {g.notes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      <div>
         <h3 className="mb-3 text-sm font-semibold">Account daily quotas</h3>
         <RateLimitGrid accounts={data.accounts} />
       </div>

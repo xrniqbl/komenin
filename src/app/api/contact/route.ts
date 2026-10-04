@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { assertSameOrigin } from "@/lib/csrf";
 import { contactPayloadSchema, contactWebhookUrl, salesInbox } from "@/lib/contact";
 import { FEATURE_FLAG_KEYS, isFeatureEnabled } from "@/lib/feature-flags";
 import { buildContactNotification, sendEmail } from "@/lib/email";
@@ -17,6 +18,12 @@ export const runtime = "nodejs";
  *  - CONTACT_WEBHOOK_URL POST JSON
  */
 export async function POST(request: Request) {
+  // Public form, but state-changing (audit log + inbox email + webhook).
+  // Same-origin guard stops third-party sites from submitting as the visitor;
+  // server-to-server posts without Origin/Sec-Fetch-Site still pass.
+  const csrf = assertSameOrigin(request);
+  if (csrf) return csrf;
+
   const rate = await consumeRateLimit({
     key: getRequestRateKey(request, "api:contact"),
     limit: 8,

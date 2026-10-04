@@ -88,9 +88,10 @@ export function verifySsoTicket(raw: string): SsoTicketPayload | null {
  * Single-use nonce registry: a signed ticket may only be exchanged once.
  * Guards against replay inside the 120s TTL window — a ticket seen in transit
  * (browser history, access logs, Referer) must not mint a second session.
- * Entries are pruned lazily on insert; the map lives per server process,
- * mirroring consumeOAuthState. Cross-process replay is bounded by the short
- * TTL plus the userId/email binding inside the signed payload.
+ *
+ * M5: consumption is claimed in the DB (ConsumedNonce, UNIQUE nonceHash) so
+ * every server instance sees every consumption. The in-memory map below is
+ * kept as a fast-path local guard only — the DB is the source of truth.
  */
 const consumedNonces = new Map<string, number>();
 
@@ -112,6 +113,33 @@ export function consumeSsoTicket(raw: string): SsoTicketPayload | null {
   const nonce = payload.nonce || "";
   if (nonce) {
     if (consumedNonces.has(nonce)) return null;
+    consumedNonces.set(nonce, payload.exp);
+  }
+  return payload;
+}
+
+/**
+ * Async variant: verifies the ticket AND atomically claims its nonce in the
+ * DB (cross-instance single-use). Prefer this in all server paths — the sync
+ * consumeSsoTicket above is kept for edge/test callers without DB access.
+ * Returns null when the ticket is invalid, expired, or already consumed.
+ */
+export async function consumeSsoTicketOnce(raw: string): Promise<SsoTicketPayload | null> {
+  const payload = verifySsoTicket(raw);
+  if (!payload) return null;
+
+  const now = Date.now();
+  pruneConsumedNonces(now);
+
+  const nonce = payload.nonce || "";
+  if (nonce) {
+    if (consumedNonces.has(nonce)) return null;
+    const { claimSsoTicketNonce } = await import("@/lib/consumed-nonce");
+    const claimed = await claimSsoTicketNonce(nonce, payload.exp);
+    if (!claimed) {
+      consumedNonces.set(nonce, payload.exp);
+      return null;
+    }
     consumedNonces.set(nonce, payload.exp);
   }
   return payload;

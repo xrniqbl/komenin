@@ -20,6 +20,12 @@ type AccountStatus = {
   actionsToday: number;
   pct: number;
   throttled: boolean;
+  effectiveCap?: number;
+  effectiveUsed?: number;
+  sentInLastHour?: number;
+  hourlyCap?: number;
+  hourlyThrottled?: boolean;
+  limitSummary?: string;
 };
 
 export function RateLimitGrid({ accounts }: { accounts: AccountStatus[] }) {
@@ -61,7 +67,14 @@ export function RateLimitGrid({ accounts }: { accounts: AccountStatus[] }) {
               ) : null}
             </div>
             <div className="mt-3">
-              <QuotaMeter used={acc.actionsToday} limit={acc.dailyQuota} label="Daily quota" />
+              <QuotaMeter used={acc.effectiveUsed ?? acc.actionsToday} limit={acc.effectiveCap ?? acc.dailyQuota} label="Batas aman harian" />
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              <span>Tempo/jam: {acc.sentInLastHour ?? 0}/{acc.hourlyCap ?? "—"}</span>
+              {acc.limitSummary ? <span>· {acc.limitSummary}</span> : null}
+              {acc.hourlyThrottled ? (
+                <Badge variant="destructive" className="text-[10px]">jeda/jam</Badge>
+              ) : null}
             </div>
           </CardContent>
         </Card>

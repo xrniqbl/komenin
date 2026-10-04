@@ -246,8 +246,10 @@ export default function PricingPage() {
           </div>
 
           {/* FAQ */}
-          <div>
-            <h3 className="mb-3 text-sm font-semibold">{copy.ai.faqHeading}</h3>
+          <section aria-labelledby="ai-faq-heading">
+            <h2 id="ai-faq-heading" className="mb-3 text-base font-semibold">
+              {copy.ai.faqHeading}
+            </h2>
             <div className="grid gap-3 md:grid-cols-2">
               {copy.ai.faq.map((item) => (
                 <Card key={item.q} className="border bg-background/95">
@@ -258,7 +260,7 @@ export default function PricingPage() {
                 </Card>
               ))}
             </div>
-          </div>
+          </section>
         </section>
 
         <section className="grid gap-4 md:grid-cols-2">

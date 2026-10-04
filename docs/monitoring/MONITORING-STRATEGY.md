@@ -1,8 +1,8 @@
-# Aether Monitoring & Observability Strategy
+# Komenin Monitoring & Observability Strategy
 
 ## Overview
 
-Observability is critical for production-grade systems. This document defines what metrics we track, how we alert, and the tools we use to monitor Aether's health, performance, and security.
+Observability is critical for production-grade systems. This document defines what metrics we track, how we alert, and the tools we use to monitor Komenin's health, performance, and security.
 
 ## Pillars of Observability
 
@@ -41,7 +41,7 @@ End-to-end request flow across services - tells us **"where it broke"**
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     Aether Stack                             │
+│                     Komenin Stack                             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐      │
@@ -440,7 +440,7 @@ threshold:
   duration: 1m
 notify:
   channels:
-    - pagerduty: aether-oncall
+    - pagerduty: komenin-oncall
     - slack: #ops-critical
     - sms: on-call-phone
     
@@ -452,7 +452,7 @@ threshold:
   duration: 5m
 notify:
   channels:
-    - pagerduty: aether-oncall
+    - pagerduty: komenin-oncall
     - slack: #ops-critical
     
 name: payment_processing_failure
@@ -463,7 +463,7 @@ threshold:
   duration: 5m
 notify:
   channels:
-    - pagerduty: aether-payment-team
+    - pagerduty: komenin-payment-team
     - slack: #ops-critical
     
 name: social_platform_outage
@@ -474,7 +474,7 @@ threshold:
   duration: 2m
 notify:
   channels:
-    - pagerduty: aether-platform-team
+    - pagerduty: komenin-platform-team
     - slack: #platform-alerts
 ```
 
@@ -542,7 +542,7 @@ notify:
 
 ### Executive Dashboard (High-Level Business Metrics)
 
-**URL**: `grafana.dashboards/aether/executive`
+**URL**: `grafana.dashboards/komenin/executive`
 
 **Panels**:
 1. **Revenue**: MRR, ARR, Monthly New Subscriptions
@@ -555,7 +555,7 @@ notify:
 
 ### Operations Dashboard (Real-Time Operational Metrics)
 
-**URL**: `grafana.dashboards/aether/operations`
+**URL**: `grafana.dashboards/komenin/operations`
 
 **Panels**:
 1. **Live Request Graph**: RPS by endpoint (last 15 minutes)
@@ -570,7 +570,7 @@ notify:
 
 ### Developer Dashboard (Code-Level Debugging)
 
-**URL**: `grafana.dashboards/aether/developers`
+**URL**: `grafana.dashboards/komenin/developers`
 
 **Panels**:
 1. **Distributed Traces**: Last 100 trace IDs with spans
@@ -604,7 +604,7 @@ enum LogLevel {
 {
   "timestamp": "2026-08-24T10:30:00Z",
   "level": "ERROR",
-  "service": "aether-app",
+  "service": "komenin-app",
   "trace_id": "abc123-def456",
   "span_id": "ghi789",
   "message": "Failed to publish Instagram post",

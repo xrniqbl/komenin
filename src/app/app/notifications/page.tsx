@@ -1,6 +1,9 @@
+import Link from "next/link";
 import { ListPagination, paginateItems } from "@/components/app/list-pagination";
 import { PageHeader } from "@/components/app/page-header";
+import { FilterBar } from "@/components/app/filter-bar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Empty,
@@ -9,19 +12,41 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import {
+  archiveNotification,
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/server/notifications";
+import { cn } from "@/lib/utils";
+
+const STATUS_TABS = [
+  { value: "", label: "All" },
+  { value: "unread", label: "Unread" },
+  { value: "read", label: "Read" },
+  { value: "archived", label: "Archived" },
+];
 
 export default async function NotificationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; status?: string; q?: string }>;
 }) {
   const params = await searchParams;
-  const notifications = await listNotifications(100);
+  const status = (params.status || "").trim();
+  const notifications = await listNotifications(100, {
+    status: status || undefined,
+    q: params.q,
+  });
+  const unreadCount = notifications.filter((n) => n.status === "unread").length;
   const { items, window } = paginateItems(notifications, params.page, 10);
+
+  const tabHref = (value: string) => {
+    const qs = new URLSearchParams();
+    if (value) qs.set("status", value);
+    if (params.q) qs.set("q", params.q);
+    const suffix = qs.toString();
+    return suffix ? `/app/notifications?${suffix}` : "/app/notifications";
+  };
 
   async function markAll() {
     "use server";
@@ -34,20 +59,53 @@ export default async function NotificationsPage({
         title="Notifications"
         description="Workspace alerts for approvals, failures, and health events."
         action={
-          <form action={markAll}>
-            <Button type="submit" variant="outline">
-              Mark all read
-            </Button>
-          </form>
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 ? <Badge variant="default">{unreadCount} unread</Badge> : null}
+            <form action={markAll}>
+              <Button type="submit" variant="outline">
+                Mark all read
+              </Button>
+            </form>
+          </div>
         }
       />
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-muted-foreground">Status:</span>
+        {STATUS_TABS.map((option) => {
+          const active = (option.value === "" && !status) || option.value === status;
+          return (
+            <Button
+              key={option.value || "__all"}
+              size="sm"
+              variant={active ? "default" : "outline"}
+              render={
+                <Link
+                  href={tabHref(option.value)}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(active && "pointer-events-none")}
+                />
+              }
+              nativeButton={false}
+            >
+              {option.label}
+            </Button>
+          );
+        })}
+      </div>
+      <div className="mb-4">
+        <FilterBar placeholder="Search notifications…" defaultQ={params.q || ""} />
+      </div>
       <div className="space-y-3">
         {items.length === 0 ? (
           <Card className="gap-0 py-0">
             <Empty className="py-12">
               <EmptyHeader>
                 <EmptyTitle>No notifications yet</EmptyTitle>
-                <EmptyDescription>Worker events will appear here.</EmptyDescription>
+                <EmptyDescription>
+                  {status || params.q
+                    ? "No notifications match these filters."
+                    : "Worker events will appear here."}
+                </EmptyDescription>
               </EmptyHeader>
             </Empty>
           </Card>
@@ -56,8 +114,10 @@ export default async function NotificationsPage({
             {items.map((item) => (
               <Card key={item.id}>
                 <CardHeader>
-                  <CardTitle className="text-base">
-                    {item.title} {item.status === "unread" ? "· unread" : ""}
+                  <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+                    <span>{item.title}</span>
+                    {item.status === "unread" ? <Badge variant="default">unread</Badge> : null}
+                    {item.status === "archived" ? <Badge variant="outline">archived</Badge> : null}
                   </CardTitle>
                   <CardDescription>
                     {item.createdAt.toISOString().replace("T", " ").slice(0, 19)} UTC
@@ -72,18 +132,32 @@ export default async function NotificationsPage({
                       </a>
                     ) : null}
                   </div>
-                  {item.status === "unread" ? (
-                    <form
-                      action={async () => {
-                        "use server";
-                        await markNotificationRead(item.id);
-                      }}
-                    >
-                      <Button type="submit" variant="outline" size="sm">
-                        Mark read
-                      </Button>
-                    </form>
-                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    {item.status === "unread" ? (
+                      <form
+                        action={async () => {
+                          "use server";
+                          await markNotificationRead(item.id);
+                        }}
+                      >
+                        <Button type="submit" variant="outline" size="sm">
+                          Mark read
+                        </Button>
+                      </form>
+                    ) : null}
+                    {item.status !== "archived" ? (
+                      <form
+                        action={async () => {
+                          "use server";
+                          await archiveNotification(item.id);
+                        }}
+                      >
+                        <Button type="submit" variant="ghost" size="sm">
+                          Archive
+                        </Button>
+                      </form>
+                    ) : null}
+                  </div>
                 </CardContent>
               </Card>
             ))}

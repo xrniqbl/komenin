@@ -1,22 +1,25 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/app/page-header";
 import { QuotaMeter } from "@/components/analytics/quota-meter";
+import { PlatformMixCard } from "@/components/analytics/platform-mix-card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAnalyticsSummary, getClientAgencyReport, getAiUsageAnalytics } from "@/server/analytics";
+import { getAnalyticsSummary, getClientAgencyReport, getAiUsageAnalytics, exportCommentSendsCsv, exportPublishesCsv } from "@/server/analytics";
+import { getWorkspaceAiBillingStatus } from "@/server/ai-providers";
 import { listRateLimitStatus } from "@/server/rate-limits";
 import { checkUsageAlerts } from "@/server/usage-alerts";
 import { AiUsageCard } from "@/components/analytics/ai-usage-card";
 
 export default async function AnalyticsPage() {
-  const [summary, quota, alerts, agency, aiUsage] = await Promise.all([
+  const [summary, quota, alerts, agency, aiUsage, aiBalance] = await Promise.all([
     getAnalyticsSummary(30),
     listRateLimitStatus(),
     checkUsageAlerts(),
     getClientAgencyReport(30),
     getAiUsageAnalytics(30),
+    getWorkspaceAiBillingStatus(),
   ]);
 
   const metrics = [
@@ -25,10 +28,18 @@ export default async function AnalyticsPage() {
     { label: "Pending approvals", value: summary.approvalsPending },
     { label: "Approvals decided", value: summary.approvalsDone },
     { label: "Posts published", value: summary.publishes },
+    { label: "New leads", value: summary.leadsNew },
+    { label: "Leads won", value: summary.leadsWon },
+    { label: "Skill runs", value: summary.skillRuns },
     { label: "Healthy accounts", value: summary.healthyAccounts },
     { label: "Degraded accounts", value: summary.degradedAccounts },
-    { label: "Skill runs", value: summary.skillRuns },
   ];
+
+  const aiRemaining = (() => {
+    const monthly = BigInt(aiBalance.monthlyCredits || "0");
+    const used = BigInt(aiBalance.usedThisPeriod || "0");
+    return (monthly > used ? monthly - used : 0n).toString();
+  })();
 
   return (
     <div className="space-y-6">
@@ -77,9 +88,27 @@ export default async function AnalyticsPage() {
         </Card>
       </div>
 
+      <Card>
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="text-sm">AI credit balance</CardTitle>
+          <CardDescription>
+            Tier {aiBalance.tier} · subscription remaining {new Intl.NumberFormat("id-ID").format(Number(aiRemaining))} · PAYG{" "}
+            {new Intl.NumberFormat("id-ID").format(Number(aiBalance.paygBalance || "0"))}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center gap-2 p-4 pt-2">
+          <Button size="sm" variant="outline" render={<Link href="/app/settings/ai" />} nativeButton={false}>
+            Manage AI billing
+          </Button>
+          <Button size="sm" variant="outline" render={<Link href="/app/checkout" />} nativeButton={false}>
+            Top up credits
+          </Button>
+        </CardContent>
+      </Card>
+
       <AiUsageCard data={aiUsage} />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {metrics.map((metric) => (
           <Card key={metric.label}>
             <CardHeader>
@@ -88,6 +117,29 @@ export default async function AnalyticsPage() {
             </CardHeader>
           </Card>
         ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <PlatformMixCard
+          title="Comment sends by platform"
+          description={`Last ${summary.rangeDays} days`}
+          rows={summary.sendsByPlatform}
+          exportAction={async () => {
+            "use server";
+            return exportCommentSendsCsv(30);
+          }}
+          exportLabel="Export CSV"
+        />
+        <PlatformMixCard
+          title="Publishes by platform"
+          description={`Last ${summary.rangeDays} days`}
+          rows={summary.publishesByPlatform}
+          exportAction={async () => {
+            "use server";
+            return exportPublishesCsv(30);
+          }}
+          exportLabel="Export CSV"
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
