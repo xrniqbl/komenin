@@ -14,6 +14,7 @@ const include = [
   ".env.docker.example",
   "deploy",
   "prisma",
+  "scripts",
   "src",
   "public",
   "package.json",

@@ -55,6 +55,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_module
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 
+# Preflight tanpa dependensi — bisa dijalankan di VPS via
+# `docker compose exec app node ./scripts/preflight-deploy.mjs`
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/preflight-deploy.mjs ./scripts/preflight-deploy.mjs
+
 # Entrypoint
 COPY --chown=nextjs:nodejs deploy/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh

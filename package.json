@@ -20,6 +20,8 @@
     "db:studio": "prisma studio",
     "preflight": "node scripts/preflight-deploy.mjs",
     "preflight:strict": "node scripts/preflight-deploy.mjs --strict",
+    "smoke:security": "tsx scripts/smoke-security.ts",
+    "smoke:product": "tsx scripts/smoke-product.ts",
     "secrets:re-encrypt": "node scripts/re-encrypt-secrets.mjs",
     "check:models": "node scripts/check-ai-models.mjs",
     "pack:deploy": "node scripts/pack-deploy.mjs",

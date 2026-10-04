@@ -1,0 +1,12 @@
+# Normalisasi akhir baris: repo memakai LF.
+# Khususnya script shell & cron yang dieksekusi di container Linux —
+# CRLF membuat shebang gagal ("bad interpreter") dan crond error.
+* text=auto
+*.sh text eol=lf
+*.mjs text eol=lf
+*.mts text eol=lf
+Dockerfile text eol=lf
+deploy/cron-jobs text eol=lf
+deploy/cron-entrypoint.sh text eol=lf
+deploy/docker-entrypoint.sh text eol=lf
+scripts/backup-db.sh text eol=lf

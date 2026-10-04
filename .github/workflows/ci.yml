@@ -34,6 +34,9 @@ jobs:
       - name: Preflight self-test (gate logic, not real secrets)
         run: node scripts/preflight-deploy.mjs --self-test
 
+      - name: Product smoke (no env needed, no network)
+        run: npm run smoke:product
+
       - name: Build application
         run: npm run build
         env:
