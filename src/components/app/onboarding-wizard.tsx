@@ -207,7 +207,7 @@ export function OnboardingWizard({
       <div className="mb-8">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-neutral-900 text-white">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-electric-500 text-white">
               <Sparkles className="size-4" />
             </div>
             <span className="font-semibold text-lg">Komenin</span>
@@ -219,8 +219,8 @@ export function OnboardingWizard({
 
         {/* Step indicator bar */}
         <Progress value={progressPercent}>
-          <ProgressTrack className="h-1.5 bg-neutral-100">
-            <ProgressIndicator className="bg-neutral-900 transition-all duration-500 ease-out" />
+          <ProgressTrack className="h-1.5 bg-white/10">
+            <ProgressIndicator className="bg-electric-500 transition-all duration-500 ease-out" />
           </ProgressTrack>
         </Progress>
 
@@ -235,7 +235,7 @@ export function OnboardingWizard({
                 key={step}
                 className={`flex items-center gap-1.5 text-xs transition-colors duration-300 ${
                   isActive
-                    ? "font-medium text-neutral-900"
+                    ? "font-medium text-white"
                     : isCompleted
                       ? "text-neutral-500"
                       : "text-neutral-300"
@@ -244,10 +244,10 @@ export function OnboardingWizard({
                 <span
                   className={`flex size-5 items-center justify-center rounded-full text-[10px] transition-all duration-300 ${
                     isActive
-                      ? "bg-neutral-900 text-white shadow-md"
+                      ? "bg-electric-500 text-white shadow-md"
                       : isCompleted
                         ? "bg-neutral-200 text-neutral-600"
-                        : "bg-neutral-100 text-neutral-400"
+                        : "bg-white/10 text-neutral-400"
                   }`}
                 >
                   {isCompleted ? (
@@ -394,7 +394,7 @@ function WelcomeStep({
   return (
     <div className="flex flex-col items-center justify-center pt-8 text-center">
       <div
-        className="mb-6 flex size-20 items-center justify-center rounded-2xl bg-neutral-900 text-white shadow-lg"
+        className="mb-6 flex size-20 items-center justify-center rounded-2xl bg-electric-500 text-white shadow-lg"
         style={{ animation: "scaleIn 0.5s ease-out" }}
       >
         <Sparkles className="size-8" />
@@ -643,8 +643,8 @@ function GoalsStep({
                 onClick={() => toggleGoal(goal.value)}
                 className={`group relative flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all duration-200 ${
                   isSelected
-                    ? "border-neutral-900 bg-neutral-900/[0.03] shadow-sm"
-                    : "border-neutral-200 hover:border-neutral-400 hover:shadow-sm"
+                    ? "border-electric-500 bg-electric-500/[0.03] shadow-sm"
+                    : "border-white/10 hover:border-white/25 hover:shadow-sm"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${index * 0.05}s both`,
@@ -654,8 +654,8 @@ function GoalsStep({
                 <span
                   className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs transition-all duration-200 ${
                     isSelected
-                      ? "bg-neutral-900 text-white"
-                      : "border border-neutral-300 bg-white"
+                      ? "bg-electric-500 text-white"
+                      : "border border-white/15 bg-white/5"
                   }`}
                 >
                   {isSelected && <Check className="size-3" />}
@@ -690,8 +690,8 @@ function GoalsStep({
                 onClick={() => togglePlatform(platform.value)}
                 className={`group relative flex flex-col items-center gap-2 rounded-xl border-2 px-4 py-5 transition-all duration-200 ${
                   isSelected
-                    ? "border-neutral-900 bg-neutral-900/[0.03] shadow-sm"
-                    : "border-neutral-200 hover:border-neutral-400 hover:shadow-sm"
+                    ? "border-electric-500 bg-electric-500/[0.03] shadow-sm"
+                    : "border-white/10 hover:border-white/25 hover:shadow-sm"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${(index + 4) * 0.05}s both`,
@@ -700,8 +700,8 @@ function GoalsStep({
                 <span
                   className={`absolute right-2 top-2 flex size-4 items-center justify-center rounded-full text-[10px] transition-all duration-200 ${
                     isSelected
-                      ? "bg-neutral-900 text-white"
-                      : "border border-neutral-300 bg-white"
+                      ? "bg-electric-500 text-white"
+                      : "border border-white/15 bg-white/5"
                   }`}
                 >
                   {isSelected && <Check className="size-2.5" />}
@@ -770,8 +770,8 @@ function TemplateStep({
                 }
                 className={`group relative flex items-start gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${
                   isSelected
-                    ? "border-neutral-900 bg-neutral-900/[0.03] shadow-sm"
-                    : "border-neutral-200 hover:border-neutral-400 hover:shadow-sm"
+                    ? "border-electric-500 bg-electric-500/[0.03] shadow-sm"
+                    : "border-white/10 hover:border-white/25 hover:shadow-sm"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${index * 0.05}s both`,
@@ -780,7 +780,7 @@ function TemplateStep({
                 {/* Icon */}
                 <span
                   className={`flex size-10 shrink-0 items-center justify-center rounded-lg text-xl transition-all ${
-                    isSelected ? "bg-neutral-900 shadow-md" : "bg-neutral-100"
+                    isSelected ? "bg-electric-500 shadow-md" : "bg-white/10"
                   }`}
                 >
                   {template.icon}
@@ -810,7 +810,7 @@ function TemplateStep({
                   </p>
                   {isSelected && (
                     <div
-                      className="mt-3 flex flex-wrap gap-4 rounded-lg bg-neutral-50 p-3 text-xs text-muted-foreground"
+                      className="mt-3 flex flex-wrap gap-4 rounded-lg bg-white/5 p-3 text-xs text-neutral-400"
                       style={{ animation: "fadeInUp 0.2s ease-out" }}
                     >
                       <span>
@@ -840,8 +840,8 @@ function TemplateStep({
                 <span
                   className={`mt-1 flex size-5 shrink-0 items-center justify-center rounded-full text-xs transition-all duration-200 ${
                     isSelected
-                      ? "bg-neutral-900 text-white"
-                      : "border border-neutral-300 bg-white"
+                      ? "bg-electric-500 text-white"
+                      : "border border-white/15 bg-white/5"
                   }`}
                 >
                   {isSelected && <Check className="size-3" />}
@@ -891,7 +891,7 @@ function LaunchStep({
     <div>
       <div className="mb-6 text-center">
         <div
-          className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-neutral-900 text-white shadow-lg"
+          className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-electric-500 text-white shadow-lg"
           style={{ animation: "scaleIn 0.5s ease-out" }}
         >
           <Rocket className="size-7" />

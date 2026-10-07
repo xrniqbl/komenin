@@ -17,10 +17,10 @@ const buttonVariants = cva(
         default: "bg-neutral-900 text-white hover:bg-neutral-800",
         destructive: "bg-red-600 text-white hover:bg-red-500",
         outline:
-          "border border-neutral-300 bg-white text-neutral-900 shadow-xs hover:bg-neutral-50",
-        secondary: "bg-neutral-100 text-neutral-900 hover:bg-neutral-200",
-        ghost: "text-neutral-900 hover:bg-neutral-100 hover:text-neutral-900",
-        link: "text-neutral-900 underline-offset-4 hover:underline",
+          "border border-white/15 bg-transparent text-neutral-200 shadow-xs hover:bg-white/5 hover:text-white",
+        secondary: "bg-white/10 text-white hover:bg-white/15",
+        ghost: "text-neutral-300 hover:bg-white/10 hover:text-white",
+        link: "text-neutral-300 underline-offset-4 hover:text-white hover:underline",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",

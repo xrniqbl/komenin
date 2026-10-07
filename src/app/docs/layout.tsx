@@ -15,7 +15,7 @@ export const metadata: Metadata = buildMetadata(PAGE_SEO.docs);
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="bg-marketing min-h-screen text-foreground">
       <JsonLd
         data={[
           organizationJsonLd(),

@@ -40,11 +40,11 @@ export function OnboardingChecklistCard({
   const nextStep = checklist.steps.find((s) => !s.done);
 
   return (
-    <Card className="group mb-6 overflow-hidden border-neutral-900/20 bg-background transition-shadow hover:shadow-md">
+    <Card className="group mb-6 overflow-hidden border-electric-500/20 bg-background transition-shadow hover:shadow-md">
       {/* Animated gradient accent bar */}
-      <div className="relative h-1 w-full overflow-hidden bg-neutral-100">
+      <div className="relative h-1 w-full overflow-hidden bg-white/10">
         <div
-          className="absolute inset-y-0 left-0 bg-neutral-900 transition-all duration-700 ease-out"
+          className="absolute inset-y-0 left-0 bg-electric-500 transition-all duration-700 ease-out"
           style={{ width: `${progressPercent}%` }}
         />
       </div>
@@ -52,7 +52,7 @@ export function OnboardingChecklistCard({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-neutral-900 text-white shadow-sm">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-electric-500 text-white shadow-sm">
               <Sparkles className="size-4" />
             </div>
             <div>
@@ -108,8 +108,8 @@ export function OnboardingChecklistCard({
                 {Math.round(progressPercent)}%
               </span>
             </div>
-            <ProgressTrack className="mt-1.5 h-2 bg-neutral-100">
-              <ProgressIndicator className="rounded-full bg-neutral-900 transition-all duration-700 ease-out" />
+            <ProgressTrack className="mt-1.5 h-2 bg-white/10">
+              <ProgressIndicator className="rounded-full bg-electric-500 transition-all duration-700 ease-out" />
             </ProgressTrack>
           </Progress>
         </div>
@@ -124,10 +124,10 @@ export function OnboardingChecklistCard({
                 key={step.id}
                 className={`flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 transition-all duration-200 ${
                   step.done
-                    ? "border-neutral-100 bg-neutral-50/50 opacity-60"
+                    ? "border-white/5 bg-white/[0.02] opacity-60"
                     : isNext
-                      ? "border-neutral-900/20 bg-neutral-900/[0.02] shadow-sm"
-                      : "border-neutral-200"
+                      ? "border-electric-500/20 bg-electric-500/[0.02] shadow-sm"
+                      : "border-white/10"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${index * 0.05}s both`,
@@ -137,9 +137,9 @@ export function OnboardingChecklistCard({
                   <span
                     className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs transition-all duration-300 ${
                       step.done
-                        ? "bg-neutral-900 text-white"
+                        ? "bg-electric-500 text-white"
                         : isNext
-                          ? "border-2 border-neutral-900 text-neutral-900"
+                          ? "border-2 border-electric-500 text-white"
                           : "border border-neutral-300 text-muted-foreground"
                     }`}
                     style={
