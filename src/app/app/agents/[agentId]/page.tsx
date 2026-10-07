@@ -262,7 +262,7 @@ export default async function AgentDetailPage({
             </form>
             <div className="space-y-2">
               {agent.knowledgeDocuments.map((doc) => (
-                <div key={doc.id} className="rounded-lg border p-3 text-sm">
+                <div key={doc.id} className="glass rounded-xl border-white/10 p-3 text-sm">
                   <div className="font-medium">{doc.title}</div>
                   <div className="text-xs text-muted-foreground">
                     {doc.status} · chunks {doc.chunkCount}
@@ -297,7 +297,7 @@ export default async function AgentDetailPage({
             </form>
             <div className="space-y-2">
               {agent.memoryEntries.map((entry) => (
-                <div key={entry.id} className="rounded-lg border p-3 text-sm">
+                <div key={entry.id} className="glass rounded-xl border-white/10 p-3 text-sm">
                   <div className="text-xs text-muted-foreground">
                     {entry.entityType}:{entry.entityKey}
                   </div>

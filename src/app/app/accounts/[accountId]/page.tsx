@@ -145,7 +145,7 @@ export default async function AccountDetailPage({
               <div className="text-sm text-muted-foreground">No probes yet.</div>
             ) : (
               account.healthChecks.map((check) => (
-                <div key={check.id} className="rounded-lg border px-3 py-2 text-sm">
+                <div key={check.id} className="glass rounded-xl border-white/10 px-3 py-2 text-sm">
                   <div className="flex items-center justify-between">
                     <span>{check.ok ? "OK" : "Fail"} · {check.signal}</span>
                     <span className="text-xs text-muted-foreground">{check.latencyMs ?? "—"} ms</span>
@@ -166,7 +166,7 @@ export default async function AccountDetailPage({
               <div className="text-sm text-muted-foreground">No rotations yet.</div>
             ) : (
               account.rotationLogs.map((log) => (
-                <div key={log.id} className="rounded-lg border px-3 py-2 text-sm">
+                <div key={log.id} className="glass rounded-xl border-white/10 px-3 py-2 text-sm">
                   <div className="font-mono text-xs">
                     {log.oldIp || "—"} → {log.newIp || "—"}
                   </div>

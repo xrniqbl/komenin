@@ -139,7 +139,7 @@ export default async function CampaignDetailPage({
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {campaign.targetPosts.map((post) => (
-              <div key={post.id} className="rounded-lg border px-3 py-2">
+              <div key={post.id} className="glass rounded-xl border-white/10 px-3 py-2">
                 <div className="text-xs text-muted-foreground">@{post.authorHandle} · {post.status}</div>
                 <div className="mt-1">{post.content}</div>
               </div>
@@ -153,7 +153,7 @@ export default async function CampaignDetailPage({
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {campaign.drafts.map((draft) => (
-              <div key={draft.id} className="rounded-lg border px-3 py-2">
+              <div key={draft.id} className="glass rounded-xl border-white/10 px-3 py-2">
                 <div className="text-xs text-muted-foreground">{draft.status}</div>
                 <div className="mt-1">{draft.content}</div>
               </div>

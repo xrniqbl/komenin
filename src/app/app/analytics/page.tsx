@@ -12,13 +12,19 @@ import { listRateLimitStatus } from "@/server/rate-limits";
 import { checkUsageAlerts } from "@/server/usage-alerts";
 import { AiUsageCard } from "@/components/analytics/ai-usage-card";
 
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
+  const params = await searchParams;
+  const rangeDays = params.range === "7" ? 7 : params.range === "90" ? 90 : 30;
   const [summary, quota, alerts, agency, aiUsage, aiBalance] = await Promise.all([
-    getAnalyticsSummary(30),
+    getAnalyticsSummary(rangeDays),
     listRateLimitStatus(),
     checkUsageAlerts(),
-    getClientAgencyReport(30),
-    getAiUsageAnalytics(30),
+    getClientAgencyReport(rangeDays),
+    getAiUsageAnalytics(rangeDays),
     getWorkspaceAiBillingStatus(),
   ]);
 
@@ -47,9 +53,32 @@ export default async function AnalyticsPage() {
         title="Analytics"
         description={`Workspace KPIs for the last ${summary.rangeDays} days. Period ${quota.periodKey}.`}
         action={
-          <Button variant="outline" render={<Link href="/app/rate-limits" />} nativeButton={false}>
-            Rate limits
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex rounded-md border">
+              {[
+                { value: "7", label: "7d" },
+                { value: "30", label: "30d" },
+                { value: "90", label: "90d" },
+              ].map((opt) => (
+                <Link
+                  key={opt.value}
+                  href={`/app/analytics?range=${opt.value}`}
+                  className={`px-3 py-1.5 text-sm ${
+                    rangeDays === Number(opt.value)
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  } ${opt.value === "7" ? "rounded-l-md" : ""} ${
+                    opt.value === "90" ? "rounded-r-md" : ""
+                  }`}
+                >
+                  {opt.label}
+                </Link>
+              ))}
+            </div>
+            <Button variant="outline" render={<Link href="/app/rate-limits" />} nativeButton={false}>
+              Rate limits
+            </Button>
+          </div>
         }
       />
 
@@ -126,7 +155,7 @@ export default async function AnalyticsPage() {
           rows={summary.sendsByPlatform}
           exportAction={async () => {
             "use server";
-            return exportCommentSendsCsv(30);
+            return exportCommentSendsCsv(rangeDays);
           }}
           exportLabel="Export CSV"
         />
@@ -136,7 +165,7 @@ export default async function AnalyticsPage() {
           rows={summary.publishesByPlatform}
           exportAction={async () => {
             "use server";
-            return exportPublishesCsv(30);
+            return exportPublishesCsv(rangeDays);
           }}
           exportLabel="Export CSV"
         />
@@ -152,7 +181,7 @@ export default async function AnalyticsPage() {
               <div className="text-muted-foreground">No deliveries yet.</div>
             ) : (
               summary.deliveries.map((row) => (
-                <div key={row.kind} className="flex items-center justify-between rounded-lg border px-3 py-2">
+                <div key={row.kind} className="flex items-center justify-between glass rounded-xl border-white/10 px-3 py-2">
                   <span>{row.kind}</span>
                   <span className="font-medium">{row.count}</span>
                 </div>
@@ -198,7 +227,7 @@ export default async function AnalyticsPage() {
             agency.rows.map((row) => (
               <div
                 key={row.clientId || "unassigned"}
-                className="grid gap-2 rounded-lg border px-3 py-3 sm:grid-cols-2 lg:grid-cols-4"
+                className="grid gap-2 glass rounded-xl border-white/10 px-3 py-3 sm:grid-cols-2 lg:grid-cols-4"
               >
                 <div>
                   <div className="font-medium">{row.name}</div>
