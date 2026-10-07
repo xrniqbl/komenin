@@ -48,7 +48,7 @@ export default async function SessionDetailPage({
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {session.socialAccount.healthChecks.map((check) => (
-              <div key={check.id} className="rounded-lg border px-3 py-2">
+              <div key={check.id} className="glass rounded-xl border-white/10 px-3 py-2">
                 {check.ok ? "OK" : "Fail"} · {check.signal}
               </div>
             ))}

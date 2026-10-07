@@ -229,7 +229,7 @@ export default async function PublisherSettingsPage({
               {status.credentials.map((cred) => (
                 <div
                   key={cred.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm"
+                  className="flex flex-wrap items-center justify-between gap-2 glass rounded-xl border-white/10 px-3 py-2 text-sm"
                 >
                   <div>
                     <span className="font-medium">{cred.provider}</span>

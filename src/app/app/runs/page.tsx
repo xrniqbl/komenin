@@ -115,7 +115,7 @@ export default async function RunsPage({
               </CardHeader>
               <CardContent className="space-y-2 text-sm">
                 {run.steps.map((step) => (
-                  <div key={step.id} className="rounded-lg border p-3">
+                  <div key={step.id} className="glass rounded-xl border-white/10 p-3">
                     <div className="font-medium">
                       {step.ordinal}. {step.title}
                     </div>

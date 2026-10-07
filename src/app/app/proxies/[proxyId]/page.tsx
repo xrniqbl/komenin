@@ -107,7 +107,7 @@ export default async function ProxyDetailPage({
                 <Link
                   key={assignment.id}
                   href={`/app/accounts/${assignment.socialAccount.id}`}
-                  className="block rounded-lg border px-3 py-2 hover:border-brand"
+                  className="glass block rounded-xl border-white/10 px-3 py-2 hover:border-electric-500/40"
                 >
                   @{assignment.socialAccount.username}
                 </Link>
@@ -126,7 +126,7 @@ export default async function ProxyDetailPage({
             <div className="text-sm text-muted-foreground">No rotation events.</div>
           ) : (
             proxy.rotationLogs.map((log) => (
-              <div key={log.id} className="rounded-lg border px-3 py-2 text-sm">
+              <div key={log.id} className="glass rounded-xl border-white/10 px-3 py-2 text-sm">
                 <div className="font-mono text-xs">
                   {log.oldIp || "—"} → {log.newIp || "—"}
                 </div>
