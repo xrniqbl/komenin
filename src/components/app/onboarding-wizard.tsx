@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -202,14 +203,18 @@ export function OnboardingWizard({
     filteredTemplates.length > 0 ? filteredTemplates : allTemplatesForPlatforms;
 
   return (
-    <div className="relative mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-8">
+    <div className="bg-marketing relative mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-8">
       {/* Progress header */}
       <div className="mb-8">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-electric-500 text-white">
-              <Sparkles className="size-4" />
-            </div>
+            <Image
+              src="/brand/komenin-robot-waving.png"
+              alt="Komenin"
+              width={32}
+              height={32}
+              className="size-8 object-contain"
+            />
             <span className="font-semibold text-lg">Komenin</span>
           </div>
           <span className="text-sm text-muted-foreground tabular-nums">
@@ -394,10 +399,17 @@ function WelcomeStep({
   return (
     <div className="flex flex-col items-center justify-center pt-8 text-center">
       <div
-        className="mb-6 flex size-20 items-center justify-center rounded-2xl bg-electric-500 text-white shadow-lg"
+        className="mb-6 flex size-24 items-center justify-center"
         style={{ animation: "scaleIn 0.5s ease-out" }}
       >
-        <Sparkles className="size-8" />
+        <Image
+          src="/brand/komenin-robot-waving.png"
+          alt="Komenin robot waving"
+          width={96}
+          height={96}
+          className="size-24 object-contain"
+          priority
+        />
       </div>
       <h1
         className="mb-3 text-3xl font-bold tracking-tight md:text-4xl"
