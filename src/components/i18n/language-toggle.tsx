@@ -1,21 +1,18 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "@/components/i18n/locale-provider";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { alternateLocalePath } from "@/lib/i18n/paths";
 import type { Locale } from "@/lib/i18n/messages";
 
 export function LanguageToggle({ className }: { className?: string }) {
-  const router = useRouter();
-  const pathname = usePathname() || "/";
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
   const { locale, setLocale, t } = useLocale();
 
   return (
     <div
       className={cn(
-        "inline-flex items-center rounded-full border border-neutral-200 bg-white p-1",
+        "glass inline-flex items-center rounded-full border-white/10 p-1",
         className,
       )}
       role="group"
@@ -23,30 +20,24 @@ export function LanguageToggle({ className }: { className?: string }) {
     >
       {(["en", "id"] as Locale[]).map((code) => {
         const active = locale === code;
+        const href = alternateLocalePath(pathname, code);
         return (
-          <Button
+          <a
             key={code}
-            type="button"
-            size="xs"
-            variant={active ? "default" : "ghost"}
+            href={href}
             onClick={() => {
-              // Keep the cookie in sync for client components and the
-              // fallback locale resolution, then move to the localized URL.
               setLocale(code);
-              if (code !== locale) {
-                router.push(alternateLocalePath(pathname, code));
-              } else {
-                router.refresh();
-              }
             }}
             className={cn(
-              "rounded-full px-2.5",
-              !active && "text-neutral-600 hover:text-neutral-900",
+              "rounded-full px-2.5 py-1 text-xs font-medium touch-manipulation",
+              active
+                ? "bg-electric-500 text-white"
+                : "text-neutral-400 hover:text-white",
             )}
             aria-pressed={active}
           >
             {code.toUpperCase()}
-          </Button>
+          </a>
         );
       })}
     </div>
