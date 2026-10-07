@@ -118,7 +118,7 @@ export function WorkspaceHealthScore({ items }: WorkspaceHealthScoreProps) {
             {items.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
+                className="flex items-center justify-between gap-3 glass rounded-xl border-white/10 px-3 py-2"
               >
                 <div className="flex items-center gap-2.5">
                   {item.status === "good" ? (

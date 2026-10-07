@@ -335,7 +335,7 @@ export function AiProvidersManager({
             initialProviders.map((p) => (
               <div
                 key={p.id}
-                className="flex flex-wrap items-start justify-between gap-3 rounded-lg border px-3 py-3"
+                className="flex flex-wrap items-start justify-between gap-3 glass rounded-xl border-white/10 px-3 py-3"
               >
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -424,7 +424,7 @@ export function AiProvidersManager({
           </CardHeader>
           <CardContent className="space-y-2">
             {envBootstrap.providers.map((p) => (
-              <div key={p.id} className="rounded-lg border px-3 py-2 text-sm">
+              <div key={p.id} className="glass rounded-xl border-white/10 px-3 py-2 text-sm">
                 <div className="font-medium">{p.id}</div>
                 <div className="font-mono text-xs text-muted-foreground">{p.baseUrl}</div>
                 <div className="mt-1 flex flex-wrap gap-1">
