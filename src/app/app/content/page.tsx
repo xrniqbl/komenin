@@ -41,6 +41,16 @@ export default async function ContentCampaignsPage({
   ]);
   const mode = getRuntimeModeLabel();
 
+  const archiveHref = (() => {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set("q", params.q);
+    if (params.status) qs.set("status", params.status);
+    if (params.platform) qs.set("platform", params.platform);
+    if (params.showArchived !== "1") qs.set("showArchived", "1");
+    const suffix = qs.toString();
+    return suffix ? `/app/content?${suffix}` : "/app/content";
+  })();
+
   return (
     <div>
       <PageHeader
@@ -69,7 +79,7 @@ export default async function ContentCampaignsPage({
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span>{params.showArchived === "1" ? "Showing archived campaigns." : "Archived campaigns are hidden."}</span>
           <Link
-            href={params.showArchived === "1" ? "/app/content" : "/app/content?showArchived=1"}
+            href={archiveHref}
             className="font-medium text-primary hover:underline"
           >
             {params.showArchived === "1" ? "Hide archived" : "Show archived"}

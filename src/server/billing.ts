@@ -446,8 +446,24 @@ export async function applyPaidOrder(orderCode: string, payment?: {
 
   // Refund / chargeback must run even when order is already "paid" (Midtrans
   // sends these after settlement). Do this BEFORE the already-paid short-circuit.
+  if (status === "partial_refund" && payment?.signatureValid) {
+    const { reconcileRefundNotification } = await import("@/server/refund-reconciliation");
+    const receipt = await reconcileRefundNotification(payment.payload as Record<string, unknown>);
+    return { ok: receipt.state === "applied", orderId: order.id, status: "partial_refund", reconciliationState: receipt.state };
+  }
+  if (["refund", "chargeback"].includes(status) && payment?.signatureValid) {
+    const { reconcileRefundNotification } = await import("@/server/refund-reconciliation");
+    const receipt = await reconcileRefundNotification(payment.payload as Record<string, unknown>);
+    return { ok: receipt.state === "applied", orderId: order.id, status, reconciliationState: receipt.state };
+  }
   if (status === "partial_refund") {
-    const gross = parseMidtransGrossAmount(grossCandidate);
+    // Midtrans gross_amount is the original charge, not the refunded portion.
+    const payload = payment?.payload && typeof payment.payload === "object"
+      ? payment.payload as Record<string, unknown> : {};
+    const gross = parseMidtransGrossAmount(payload.refund_amount);
+    if (order.status !== "paid" || gross == null || gross <= 0 || gross > order.totalIdr) {
+      throw new Error("Invalid partial refund amount or order status");
+    }
     let creditsRefunded = 0n;
     // Proportional clawback (F4): reverse the refunded IDR fraction of the
     // order's AI credits inside one transaction. Entitlement (subscription /
@@ -466,7 +482,7 @@ export async function applyPaidOrder(orderCode: string, payment?: {
       });
     }
     // Keep entitlement; OrderStatus has no partial_refunded value.
-    if (order.status === "paid" || order.status === "refunded") {
+    if (order.status === "paid") {
       await db.subscriptionOrder.update({
         where: { id: order.id },
         data: {
@@ -521,10 +537,15 @@ export async function applyPaidOrder(orderCode: string, payment?: {
   }
 
   if (order.status === "paid") {
+    const { replayRefundsAfterSettlement } = await import("@/server/refund-reconciliation");
+    await replayRefundsAfterSettlement(order.id);
     return { ok: true, alreadyPaid: true, orderId: order.id };
   }
   if (order.status === "refunded") {
     return { ok: false, orderId: order.id, status: "refunded", alreadyRefunded: true };
+  }
+  if (["canceled", "failed", "expired"].includes(order.status)) {
+    throw new Error(`Cannot settle ${order.status} order`);
   }
 
   if (["pending", "authorize"].includes(status)) {
@@ -584,7 +605,7 @@ export async function applyPaidOrder(orderCode: string, payment?: {
     // committed row and matches 0 rows, so exactly one caller proceeds. This is
     // the single source of idempotency for the paid transition.
     const claim = await tx.subscriptionOrder.updateMany({
-      where: { id: order.id, status: { not: "paid" } },
+      where: { id: order.id, status: "pending" },
       data: {
         status: "paid",
         paidAt: now,
@@ -593,6 +614,8 @@ export async function applyPaidOrder(orderCode: string, payment?: {
       },
     });
     if (claim.count === 0) {
+      const current = await tx.subscriptionOrder.findUniqueOrThrow({ where: { id: order.id } });
+      if (current.status !== "paid") throw new Error(`Order status is ${current.status}; settlement rejected`);
       return { paid: null, subscription: null as null, alreadyPaid: true as const };
     }
 
@@ -737,6 +760,11 @@ export async function applyPaidOrder(orderCode: string, payment?: {
 
     return { paid, subscription, alreadyPaid: false as const };
   });
+
+  // Only after fulfillment commits: an early signed refund receipt can now
+  // safely reverse the entitlement. A replay failure cannot revoke settlement.
+  const { replayRefundsAfterSettlement } = await import("@/server/refund-reconciliation");
+  await replayRefundsAfterSettlement(order.id);
 
   if (result.alreadyPaid || (!result.subscription && !("aiFulfilled" in result))) {
     return { ok: true, alreadyPaid: true, orderId: order.id };

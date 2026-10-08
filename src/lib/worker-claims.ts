@@ -97,6 +97,39 @@ export async function claimKnowledgeDocument(docId: string): Promise<boolean> {
 }
 
 /**
+ * Heartbeat for in-flight claims: bump `updatedAt` so `releaseStaleClaims`
+ * does not mistake a long-running batch for a dead worker and release rows
+ * that are still being processed (which would cause duplicate sends on the
+ * next tick). Only rows still in the transient status are touched —
+ * finished rows never match the status filter.
+ *
+ * Call periodically (e.g. every N items) from long batch loops with the
+ * IDs claimed so far.
+ */
+export async function heartbeatCommentActions(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.commentAction.updateMany({
+    where: { id: { in: ids }, status: "sending" },
+    data: { updatedAt: new Date() },
+  });
+}
+
+export async function heartbeatContentDrafts(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.contentDraft.updateMany({
+    where: { id: { in: ids }, status: "publishing" },
+    data: { updatedAt: new Date() },
+  });
+}
+
+export async function heartbeatMentions(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db.mention.updateMany({
+    where: { id: { in: ids }, status: "generating" },
+    data: { updatedAt: new Date() },
+  });
+}
+/**
  * Recover work stranded in a transient claim state when its run is stale.
  * A claim older than maxAgeMs means the worker died (timeout/redeploy), so
  * the row is released for the next tick instead of being stuck forever.

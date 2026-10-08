@@ -39,7 +39,7 @@ export function AdminListFilters({
           ))}
         </select>
       ) : null}
-      <Button type="submit" variant="outline" size="sm">
+      <Button type="submit" variant="glass" size="sm">
         Terapkan
       </Button>
     </form>

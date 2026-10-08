@@ -27,18 +27,23 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "dest
 export default async function RunsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; skillId?: string }>;
 }) {
   const params = await searchParams;
   const status = (params.status || "").trim();
-  const runs = await listSkillRuns(100, status ? { status } : undefined);
+  const skillId = (params.skillId || "").trim();
+  const runs = await listSkillRuns(
+    100,
+    status || skillId ? { status, skillId } : undefined,
+  );
 
   async function retryAction(formData: FormData) {
     "use server";
     const runId = String(formData.get("runId") || "");
     if (!runId) return;
     await retrySkillRun(runId);
-    redirect("/app/runs");
+    const activeStatus = String(formData.get("status") || "").trim();
+    redirect(activeStatus ? `/app/runs?status=${encodeURIComponent(activeStatus)}` : "/app/runs");
   }
 
   return (
@@ -55,8 +60,10 @@ export default async function RunsPage({
             (option.value === "" && !status) || option.value === status;
           const href =
             option.value === ""
-              ? "/app/runs"
-              : `/app/runs?status=${encodeURIComponent(option.value)}`;
+              ? skillId
+                ? `/app/runs?skillId=${encodeURIComponent(skillId)}`
+                : "/app/runs"
+              : `/app/runs?status=${encodeURIComponent(option.value)}${skillId ? `&skillId=${encodeURIComponent(skillId)}` : ""}`;
           return (
             <Button
               key={option.value || "__all"}
@@ -75,6 +82,11 @@ export default async function RunsPage({
             </Button>
           );
         })}
+        {skillId ? (
+          <Button size="sm" variant="glass" render={<Link href="/app/runs" />} nativeButton={false}>
+            Clear skill filter
+          </Button>
+        ) : null}
       </div>
       <div className="space-y-3">
         {runs.length === 0 ? (
@@ -102,7 +114,8 @@ export default async function RunsPage({
                   {run.status === "failed" || run.status === "cancelled" ? (
                     <form action={retryAction}>
                       <input type="hidden" name="runId" value={run.id} />
-                      <Button type="submit" size="sm" variant="outline">
+                      <input type="hidden" name="status" value={status} />
+                      <Button type="submit" size="sm" variant="glass">
                         Retry
                       </Button>
                     </form>

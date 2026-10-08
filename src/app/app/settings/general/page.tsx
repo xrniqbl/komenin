@@ -121,7 +121,7 @@ export default async function GeneralSettingsPage() {
               Set the same start and end hour to disable quiet hours. Overnight windows
               (e.g. 22:00–06:00) are supported.
             </p>
-            {canManage ? <Button type="submit">Save scheduling</Button> : null}
+            {canManage ? <Button variant="electric" type="submit">Save scheduling</Button> : null}
           </form>
         </CardContent>
       </Card>

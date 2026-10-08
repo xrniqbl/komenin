@@ -11,6 +11,7 @@
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { writeAuditLog } from "@/server/audit";
+import { reportError } from "@/lib/error-reporting";
 
 const REPORT_WEEKDAY_UTC = 1; // Monday
 const REPORT_HOUR_UTC = 1; // 08:00 WIB (UTC+7), same slot as the daily digest
@@ -278,7 +279,7 @@ export async function sendWeeklyReport(now = new Date()): Promise<{
           publishes: target.publishes,
           leadsNew: target.leadsNew,
         },
-      }).catch(() => undefined);
+      }).catch((e) => reportError(e, { scope: "worker:weekly_report", workspaceId: target.workspaceId }));
     } else {
       errors += 1;
     }

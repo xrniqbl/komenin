@@ -9,11 +9,11 @@ import { Label } from "@/components/ui/label";
 
 type Stage = "email" | "code";
 
-export function EmailOtpForm({ callbackUrl = "/onboarding" }: { callbackUrl?: string }) {
+export function EmailOtpForm({ callbackUrl = "/onboarding", initialEmail = "" }: { callbackUrl?: string; initialEmail?: string }) {
   const { t } = useLocale();
   const copy = t.auth;
   const [stage, setStage] = useState<Stage>("email");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -82,7 +82,7 @@ export function EmailOtpForm({ callbackUrl = "/onboarding" }: { callbackUrl?: st
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={busy}>
+          <Button variant="electric" type="submit" className="w-full" disabled={busy}>
             {busy ? copy.sending : copy.sendCode}
           </Button>
         </form>
@@ -100,7 +100,7 @@ export function EmailOtpForm({ callbackUrl = "/onboarding" }: { callbackUrl?: st
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={busy || code.length !== 6}>
+          <Button variant="electric" type="submit" className="w-full" disabled={busy || code.length !== 6}>
             {busy ? copy.verifying : copy.signIn}
           </Button>
           <button

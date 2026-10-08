@@ -67,7 +67,7 @@ export function CompetitorCard({
           destructive
           disabled={pending}
           trigger={
-            <Button size="sm" variant="ghost" className="h-7 text-xs">
+            <Button size="sm" variant="glass" className="h-7 text-xs">
               Remove
             </Button>
           }

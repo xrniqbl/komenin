@@ -60,3 +60,9 @@ deploy-package/
 komenin-deploy.zip
 zip-exclude.txt
 
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

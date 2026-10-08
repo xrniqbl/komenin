@@ -24,8 +24,8 @@ export function DocsArticle({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{page.title}</h1>
-              <p className="mt-3 max-w-3xl text-base text-muted-foreground md:text-lg">
+              <h1 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">{page.title}</h1>
+              <p className="mt-3 max-w-3xl text-base text-neutral-400 md:text-lg">
                 {page.description}
               </p>
             </div>
@@ -40,23 +40,23 @@ export function DocsArticle({
           <div className="mt-10 space-y-10">
             {page.sections.map((section) => (
               <section key={section.id} id={section.id} className="scroll-mt-28">
-                <h2 className="text-xl font-semibold tracking-tight md:text-2xl">
+                <h2 className="text-xl font-semibold tracking-tight text-white md:text-2xl">
                   {section.title}
                 </h2>
                 {section.body ? (
-                  <p className="mt-3 text-sm leading-7 text-muted-foreground md:text-base">
+                  <p className="mt-3 text-sm leading-7 text-neutral-400 md:text-base">
                     {section.body}
                   </p>
                 ) : null}
                 {section.bullets?.length ? (
-                  <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-7 text-muted-foreground md:text-base">
+                  <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-7 text-neutral-400 md:text-base">
                     {section.bullets.map((bullet) => (
                       <li key={bullet}>{bullet}</li>
                     ))}
                   </ul>
                 ) : null}
                 {section.steps?.length ? (
-                  <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-7 text-muted-foreground md:text-base">
+                  <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-7 text-neutral-400 md:text-base">
                     {section.steps.map((step) => (
                       <li key={step}>{step}</li>
                     ))}
@@ -65,7 +65,7 @@ export function DocsArticle({
                 {section.code ? (
                   <Card className="mt-4 gap-0 overflow-hidden py-0">
                     <CardContent className="p-0">
-                      <pre className="overflow-x-auto bg-muted/40 p-4 text-xs leading-6 md:text-sm">
+                      <pre className="overflow-x-auto bg-black/30 p-4 font-mono text-xs leading-6 text-neutral-200 md:text-sm">
                         <code>{section.code}</code>
                       </pre>
                     </CardContent>
@@ -77,9 +77,9 @@ export function DocsArticle({
 
           <DocsPager prev={prev} next={next} />
 
-          <div className="mt-8 text-sm text-muted-foreground">
+          <div className="mt-8 text-sm text-neutral-500">
             {t.docsUi.needProductUi}{" "}
-            <Link href="/app" className="font-medium text-foreground underline-offset-4 hover:underline">
+            <Link href="/app" className="font-medium text-white underline-offset-4 hover:underline">
               {t.docsUi.openCommandCenter}
             </Link>
           </div>

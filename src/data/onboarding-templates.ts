@@ -1,10 +1,20 @@
 import type { Platform } from "@prisma/client";
 
+export type TemplateIconName =
+  | "MessageSquare"
+  | "Target"
+  | "Megaphone"
+  | "LifeBuoy"
+  | "Music"
+  | "Search"
+  | "Threads"
+  | "Sparkles";
+
 export type CampaignTemplate = {
   id: string;
   name: string;
   description: string;
-  icon: string;
+  icon: TemplateIconName;
   category: "engagement" | "leads" | "brand" | "support";
   platform: Platform;
   goal: string;
@@ -22,7 +32,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     name: "Engagement Booster",
     description:
       "Auto-comment on trending posts in your niche. AI drafts friendly, on-brand replies that spark conversations.",
-    icon: "💬",
+    icon: "MessageSquare",
     category: "engagement",
     platform: "instagram",
     goal: "Increase brand visibility and drive profile visits through strategic commenting",
@@ -37,7 +47,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     name: "Lead Magnet",
     description:
       "Target posts where users ask for recommendations. AI replies with helpful info + soft CTA to your link.",
-    icon: "🎯",
+    icon: "Target",
     category: "leads",
     platform: "instagram",
     goal: "Capture leads by replying to intent-rich posts with value-first comments",
@@ -52,7 +62,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     name: "Brand Amplifier",
     description:
       "Comment on competitor posts and industry leaders. Build brand recall by being present in relevant conversations.",
-    icon: "📢",
+    icon: "Megaphone",
     category: "brand",
     platform: "instagram",
     goal: "Build brand awareness through presence in industry conversations",
@@ -67,7 +77,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     name: "Support Responder",
     description:
       "Monitor brand mentions and quickly respond. AI drafts empathetic, helpful replies to customer queries.",
-    icon: "🛟",
+    icon: "LifeBuoy",
     category: "support",
     platform: "instagram",
     goal: "Respond quickly to brand mentions and customer inquiries",
@@ -83,7 +93,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     name: "TikTok Commenter",
     description:
       "Jump into viral TikTok conversations. AI drafts witty, platform-native comments that match TikTok's tone.",
-    icon: "🎵",
+    icon: "Music",
     category: "engagement",
     platform: "tiktok",
     goal: "Drive profile visits through engaging comments on trending TikTok videos",
@@ -98,7 +108,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     name: "TikTok Lead Finder",
     description:
       "Target TikTok videos where users seek product recommendations. AI replies with value-driven comments.",
-    icon: "🔍",
+    icon: "Search",
     category: "leads",
     platform: "tiktok",
     goal: "Capture TikTok leads through helpful replies on recommendation-seeking videos",
@@ -114,7 +124,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     name: "Threads Conversationalist",
     description:
       "Engage in thoughtful Threads discussions. AI drafts insightful replies that build your authority.",
-    icon: "🧵",
+    icon: "Threads",
     category: "engagement",
     platform: "threads",
     goal: "Build thought leadership through quality conversations on Threads",
@@ -129,7 +139,7 @@ export const CAMPAIGN_TEMPLATES: CampaignTemplate[] = [
     name: "Threads Brand Voice",
     description:
       "Establish your brand voice on Threads. AI comments align with your brand personality and industry expertise.",
-    icon: "✨",
+    icon: "Sparkles",
     category: "brand",
     platform: "threads",
     goal: "Build consistent brand presence and authority on Threads",
@@ -149,11 +159,11 @@ export function getTemplateById(id: string): CampaignTemplate | undefined {
   return CAMPAIGN_TEMPLATES.find((t) => t.id === id);
 }
 
-export function getTemplateCategories(): { value: CampaignTemplate["category"]; label: string; icon: string }[] {
+export function getTemplateCategories(): { value: CampaignTemplate["category"]; label: string; icon: TemplateIconName }[] {
   return [
-    { value: "engagement", label: "Engagement", icon: "💬" },
-    { value: "leads", label: "Lead Generation", icon: "🎯" },
-    { value: "brand", label: "Brand Awareness", icon: "📢" },
-    { value: "support", label: "Customer Support", icon: "🛟" },
+    { value: "engagement", label: "Engagement", icon: "MessageSquare" },
+    { value: "leads", label: "Lead Generation", icon: "Target" },
+    { value: "brand", label: "Brand Awareness", icon: "Megaphone" },
+    { value: "support", label: "Customer Support", icon: "LifeBuoy" },
   ];
 }

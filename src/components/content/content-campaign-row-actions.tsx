@@ -2,7 +2,8 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontalIcon } from "lucide-react";
+import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
+
 import { Button } from "@/components/ui/button";
 import {
   Menu,
@@ -49,14 +50,14 @@ export function ContentCampaignRowActions({
         className="inline-flex"
         render={
           <Button
-            variant="outline"
+            variant="glass"
             size="icon-sm"
             disabled={pending}
             aria-label="Auto post campaign actions"
           />
         }
       >
-        <MoreHorizontalIcon className="size-4" />
+        <MoreHorizRoundedIcon className="size-4" />
       </MenuTrigger>
       <MenuPopup align="end">
         <MenuItem

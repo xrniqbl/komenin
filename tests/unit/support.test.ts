@@ -113,7 +113,7 @@ describe("ticket email builders", () => {
     const msg = buildNewTicketEmailToCs(base);
     expect(msg.to).toBe("cs@komenin.id");
     expect(msg.replyTo).toBe("budi@brand.id");
-    expect(msg.subject).toBe("[Ticket 12345678] bug — Campaign tidak jalan");
+    expect(msg.subject).toBe("[Tiket 12345678] bug — Campaign tidak jalan");
     expect(msg.html).toContain("budi@brand.id");
     expect(msg.html).toContain("Kopi Nusantara");
   });

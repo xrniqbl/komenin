@@ -1,7 +1,9 @@
 "use client";
 
 import { NumberField as NumberFieldPrimitive } from "@base-ui/react/number-field";
-import { MinusIcon, PlusIcon } from "lucide-react";
+import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import RemoveRoundedIcon from '@mui/icons-material/RemoveRounded';
+
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
@@ -65,7 +67,7 @@ export function NumberFieldDecrement({
       data-slot="number-field-decrement"
       {...props}
     >
-      <MinusIcon />
+      <RemoveRoundedIcon />
     </NumberFieldPrimitive.Decrement>
   );
 }
@@ -83,7 +85,7 @@ export function NumberFieldIncrement({
       data-slot="number-field-increment"
       {...props}
     >
-      <PlusIcon />
+      <AddRoundedIcon />
     </NumberFieldPrimitive.Increment>
   );
 }

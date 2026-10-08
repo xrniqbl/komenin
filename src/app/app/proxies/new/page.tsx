@@ -126,7 +126,7 @@ export default function NewProxyPage() {
               <Label htmlFor="country">Country</Label>
               <Input id="country" name="country" placeholder="ID" />
             </div>
-            <Button type="submit" size="lg">
+            <Button variant="electric" type="submit" size="lg">
               Save proxy
             </Button>
           </form>

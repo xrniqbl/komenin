@@ -38,8 +38,9 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "48x48", type: "image/x-icon" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/brand/komenin-logo-256.png", sizes: "256x256", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/komenin-robot-256.png", sizes: "256x256", type: "image/png" },
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     shortcut: ["/favicon.ico"],
@@ -79,15 +80,29 @@ export const metadata: Metadata = {
   },
   // Search-console ownership tokens come from env so the repo never bakes a
   // real token into git. Set GOOGLE_SITE_VERIFICATION / BING_SITE_VERIFICATION
-  // when claiming the domain in GSC/Bing Webmaster Tools; empty = tag omitted.
-  ...(process.env.GOOGLE_SITE_VERIFICATION || process.env.BING_SITE_VERIFICATION
+  // / TIKTOK_SITE_VERIFICATION when claiming the domain; empty = tag omitted.
+  ...(process.env.GOOGLE_SITE_VERIFICATION ||
+  process.env.BING_SITE_VERIFICATION ||
+  process.env.TIKTOK_SITE_VERIFICATION
     ? {
         verification: {
           ...(process.env.GOOGLE_SITE_VERIFICATION
             ? { google: process.env.GOOGLE_SITE_VERIFICATION }
             : {}),
-          ...(process.env.BING_SITE_VERIFICATION
-            ? { other: { "msvalidate.01": process.env.BING_SITE_VERIFICATION } }
+          ...(process.env.BING_SITE_VERIFICATION || process.env.TIKTOK_SITE_VERIFICATION
+            ? {
+                other: {
+                  ...(process.env.BING_SITE_VERIFICATION
+                    ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION }
+                    : {}),
+                  ...(process.env.TIKTOK_SITE_VERIFICATION
+                    ? {
+                        "tiktok-developers-site-verification":
+                          process.env.TIKTOK_SITE_VERIFICATION,
+                      }
+                    : {}),
+                },
+              }
             : {}),
         },
       }
@@ -116,7 +131,7 @@ export default async function RootLayout({
   const locale = await getRequestLocale();
 
   return (
-    <html lang={locale} className={interTight.variable} data-scroll-behavior="smooth">
+    <html lang={locale} className={`${interTight.variable} dark`} data-scroll-behavior="smooth">
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         <AppProviders initialLocale={locale}>{children}</AppProviders>
       </body>

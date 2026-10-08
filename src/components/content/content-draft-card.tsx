@@ -132,7 +132,7 @@ export function ContentDraftCard({ draft }: { draft: Draft }) {
               <Button type="button" onClick={handleApprove} disabled={pending}>
                 {pending ? "..." : "Approve & schedule"}
               </Button>
-              <Button type="button" variant="outline" onClick={handleReject} disabled={pending}>
+              <Button type="button" variant="glass" onClick={handleReject} disabled={pending}>
                 {pending ? "..." : "Reject"}
               </Button>
               <div className="flex flex-col gap-2 border-t pt-3">
@@ -144,7 +144,7 @@ export function ContentDraftCard({ draft }: { draft: Draft }) {
                   onChange={(e) => setSchedValue(e.target.value)}
                   required
                 />
-                <Button type="button" variant="outline" onClick={handleReschedule} disabled={pending}>
+                <Button type="button" variant="glass" onClick={handleReschedule} disabled={pending}>
                   Save schedule
                 </Button>
               </div>
@@ -173,7 +173,7 @@ export function ContentDraftCard({ draft }: { draft: Draft }) {
                   onChange={(e) => setSchedValue(e.target.value)}
                   required
                 />
-                <Button type="button" variant="outline" onClick={handleReschedule} disabled={pending}>
+                <Button type="button" variant="glass" onClick={handleReschedule} disabled={pending}>
                   Save schedule
                 </Button>
               </div>

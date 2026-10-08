@@ -21,6 +21,8 @@ import { formatIdr } from "@/lib/billing/catalog";
 import {
   adminCancelOrder,
   adminRefundOrder,
+  adminReviewRefund,
+  listRefundReconciliations,
   listAdminOrders,
 } from "@/server/admin";
 
@@ -45,6 +47,16 @@ export default async function AdminBillingPage({
     page: Number(params.page) || 1,
   });
   const window = getPageWindow(result.total, result.page, result.perPage);
+  const refundReceipts = await listRefundReconciliations();
+
+  async function reviewAction(formData: FormData) {
+    "use server";
+    await adminReviewRefund(
+      String(formData.get("receiptId") || ""),
+      String(formData.get("action")) as "retry" | "resolve",
+      String(formData.get("reason") || ""),
+    );
+  }
 
   async function cancelAction(formData: FormData) {
     "use server";
@@ -68,6 +80,26 @@ export default async function AdminBillingPage({
           kirimi dana lewat dashboard Midtrans, lalu catat alasannya di sini.
         </p>
       </div>
+      <Card className="p-4">
+        <h2 className="text-lg font-semibold">Refund reconciliation review</h2>
+        <p className="text-sm text-muted-foreground">Retry only reapplies local accounting. Resolve records a manual decision; neither action sends money through Midtrans.</p>
+        {refundReceipts.length === 0 ? <p className="text-sm">No refunds require review.</p> : (
+          <div className="space-y-3">
+            {refundReceipts.map((receipt) => (
+              <div key={receipt.id} className="rounded border p-3 text-sm">
+                <div className="font-medium">{receipt.order?.orderCode ?? "Unknown order"} · {receipt.transactionStatus} · {receipt.state}</div>
+                <div>{receipt.refundAmountIdr == null ? "Amount unspecified" : formatIdr(receipt.refundAmountIdr)} · {receipt.reason ?? "Awaiting processing"} · attempts: {receipt.attemptCount}</div>
+                <form action={reviewAction} className="mt-2 flex flex-wrap items-center gap-2">
+                  <input type="hidden" name="receiptId" value={receipt.id} />
+                  <Input name="reason" aria-label="Review reason" placeholder="Review reason" required className="max-w-64" />
+                  <Button type="submit" name="action" value="retry" variant="glass" size="sm">Retry local reconciliation</Button>
+                  <Button type="submit" name="action" value="resolve" variant="glass" size="sm">Resolve without adjustment</Button>
+                </form>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
       <AdminListFilters
         q={params.q}
         status={params.status}
@@ -113,7 +145,7 @@ export default async function AdminBillingPage({
                         {order.status === "pending" ? (
                           <form action={cancelAction}>
                             <input type="hidden" name="orderId" value={order.id} />
-                            <Button type="submit" variant="outline" size="sm">
+                            <Button type="submit" variant="glass" size="sm">
                               Cancel
                             </Button>
                           </form>
@@ -127,7 +159,7 @@ export default async function AdminBillingPage({
                               className="max-w-40"
                               required
                             />
-                            <Button type="submit" variant="outline" size="sm">
+                            <Button type="submit" variant="glass" size="sm">
                               Refund
                             </Button>
                           </form>

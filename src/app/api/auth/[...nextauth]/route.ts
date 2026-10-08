@@ -1,5 +1,6 @@
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
 import { handlers } from "@/lib/auth";
+import { apiError } from "@/lib/api-errors";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
     failClosed: true,
   });
   if (!rate.ok) {
-    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    return apiError("RATE_LIMITED", 429);
   }
   return handlers.POST(req);
 }

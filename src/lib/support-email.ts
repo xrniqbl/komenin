@@ -43,23 +43,23 @@ export function buildNewTicketEmailToCs(
 ): EmailMessage {
   const bodyHtml = `
   <p style="margin:0 0 12px;color:#374151;">
-    <b>From:</b> ${escapeHtml(input.reporterName)} &lt;${escapeHtml(input.reporterEmail)}&gt;<br/>
+    <b>Dari:</b> ${escapeHtml(input.reporterName)} &lt;${escapeHtml(input.reporterEmail)}&gt;<br/>
     <b>Workspace:</b> ${escapeHtml(input.workspaceName || "—")}<br/>
-    <b>Category:</b> ${escapeHtml(input.category)}<br/>
-    <b>At:</b> ${input.submittedAt.toISOString()}
+    <b>Kategori:</b> ${escapeHtml(input.category)}<br/>
+    <b>Waktu:</b> ${input.submittedAt.toISOString()}
   </p>
   <pre style="white-space:pre-wrap;font-family:inherit;background:#f9fafb;padding:12px;border-radius:8px;">${escapeHtml(input.body)}</pre>`;
   return {
     to: supportInbox(),
     replyTo: input.reporterEmail,
-    subject: `[Ticket ${ticketShortId(input.ticketId)}] ${input.category} — ${input.subject}`,
+    subject: `[Tiket ${ticketShortId(input.ticketId)}] ${input.category} — ${input.subject}`,
     text:
-      `New support ticket ${ticketShortId(input.ticketId)}\n\n` +
-      `From: ${input.reporterName} <${input.reporterEmail}>\n` +
+      `Tiket support baru ${ticketShortId(input.ticketId)}\n\n` +
+      `Dari: ${input.reporterName} <${input.reporterEmail}>\n` +
       `Workspace: ${input.workspaceName || "-"}\n` +
-      `Category: ${input.category}\n\n${input.body}`,
+      `Kategori: ${input.category}\n\n${input.body}`,
     html: wrapLayout(
-      `New support ticket — ${escapeHtml(input.subject)}`,
+      `Tiket support baru — ${escapeHtml(input.subject)}`,
       bodyHtml,
       ticketUrl(input.ticketId),
     ),
@@ -76,15 +76,15 @@ export type ReplyEmailInput = {
 /** Reporter notification when CS replies to their ticket. */
 export function buildReplyEmailToReporter(input: ReplyEmailInput): EmailMessage {
   const bodyHtml = `
-  <p style="margin:0 0 12px;color:#374151;">Komenin support replied to your ticket <b>${escapeHtml(input.subject)}</b>:</p>
+  <p style="margin:0 0 12px;color:#374151;">Support Komenin membalas tiket Anda <b>${escapeHtml(input.subject)}</b>:</p>
   <pre style="white-space:pre-wrap;font-family:inherit;background:#f9fafb;padding:12px;border-radius:8px;">${escapeHtml(input.replyBody)}</pre>`;
   return {
     to: input.reporterEmail,
-    subject: `[Ticket ${ticketShortId(input.ticketId)}] New reply from Komenin support`,
+    subject: `[Tiket ${ticketShortId(input.ticketId)}] Balasan baru dari support Komenin`,
     text:
-      `Komenin support replied to your ticket "${input.subject}":\n\n` +
+      `Support Komenin membalas tiket Anda "${input.subject}":\n\n` +
       `${input.replyBody}\n\n${ticketUrl(input.ticketId)}`,
-    html: wrapLayout("Your support ticket has a new reply", bodyHtml, ticketUrl(input.ticketId)),
+    html: wrapLayout("Tiket support Anda ada balasan baru", bodyHtml, ticketUrl(input.ticketId)),
   };
 }
 
@@ -98,14 +98,14 @@ export type StatusEmailInput = {
 /** Reporter notification when the ticket status changes. */
 export function buildStatusEmailToReporter(input: StatusEmailInput): EmailMessage {
   const bodyHtml = `
-  <p style="margin:0;color:#374151;">Your ticket <b>${escapeHtml(input.subject)}</b> is now
-  <b>${escapeHtml(input.status)}</b>.</p>`;
+  <p style="margin:0;color:#374151;">Tiket Anda <b>${escapeHtml(input.subject)}</b> kini
+  berstatus <b>${escapeHtml(input.status)}</b>.</p>`;
   return {
     to: input.reporterEmail,
-    subject: `[Ticket ${ticketShortId(input.ticketId)}] Status: ${input.status}`,
+    subject: `[Tiket ${ticketShortId(input.ticketId)}] Status: ${input.status}`,
     text:
-      `Your support ticket "${input.subject}" is now ${input.status}.\n` +
+      `Tiket support Anda "${input.subject}" kini berstatus ${input.status}.\n` +
       `${ticketUrl(input.ticketId)}`,
-    html: wrapLayout("Support ticket status update", bodyHtml, ticketUrl(input.ticketId)),
+    html: wrapLayout("Update status tiket support", bodyHtml, ticketUrl(input.ticketId)),
   };
 }

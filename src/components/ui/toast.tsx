@@ -1,23 +1,22 @@
 "use client";
 
 import { Toast } from "@base-ui/react/toast";
-import {
-  CircleAlertIcon,
-  CircleCheckIcon,
-  InfoIcon,
-  LoaderCircleIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded';
+import InfoRoundedIcon from '@mui/icons-material/InfoRounded';
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import WarningRoundedIcon from '@mui/icons-material/WarningRounded';
+
 import type React from "react";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
 const TOAST_ICONS = {
-  error: CircleAlertIcon,
-  info: InfoIcon,
-  loading: LoaderCircleIcon,
-  success: CircleCheckIcon,
-  warning: TriangleAlertIcon,
+  error: ErrorRoundedIcon,
+  info: InfoRoundedIcon,
+  loading: RefreshRoundedIcon,
+  success: CheckCircleRoundedIcon,
+  warning: WarningRoundedIcon,
 } as const;
 
 type SwipeDirection = "up" | "down" | "left" | "right";

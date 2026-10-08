@@ -46,7 +46,7 @@ export async function listCampaigns(input?: {
 
 export async function getCampaign(campaignId: string) {
   const { workspace } = await requireActiveWorkspace();
-  return db.campaign.findFirst({
+  const campaign = await db.campaign.findFirst({
     where: { id: campaignId, workspaceId: workspace.id },
     include: {
       agent: true,
@@ -54,9 +54,19 @@ export async function getCampaign(campaignId: string) {
       accounts: { include: { socialAccount: true } },
       listeners: true,
       targetPosts: { orderBy: { discoveredAt: "desc" }, take: 20 },
-      drafts: { orderBy: { createdAt: "desc" }, take: 20 },
+      drafts: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        include: { action: { select: { status: true } } },
+      },
     },
   });
+  if (!campaign) return null;
+  const ws = await db.workspace.findUnique({
+    where: { id: workspace.id },
+    select: { timezone: true, quietHoursStart: true, quietHoursEnd: true },
+  });
+  return { ...campaign, workspaceSettings: ws };
 }
 
 export async function createCampaign(input: {
@@ -326,4 +336,206 @@ export async function duplicateCampaign(input: {
 
   revalidatePath("/app/campaigns");
   return copy;
+}
+
+export type CampaignEffectivePacing = {
+  platform: string;
+  platformPerHour: number;
+  platformPerDay: number;
+  minDelaySec: number;
+  campaignDailyLimit: number;
+  effectiveDailyLimit: number;
+  sentLastHour: number;
+  hourlyRemaining: number;
+  hourlyBlocked: boolean;
+  sentToday: number;
+  dailyRemaining: number;
+};
+
+/**
+ * Effective pacing panel data: platform guardrail + campaign pacing +
+ * remaining quota. Read-only; no permission gate beyond workspace scoping.
+ */
+export async function getCampaignEffectivePacing(
+  campaignId: string,
+): Promise<CampaignEffectivePacing | null> {
+  const { workspace } = await requireActiveWorkspace();
+  const campaign = await db.campaign.findFirst({
+    where: { id: campaignId, workspaceId: workspace.id },
+    select: {
+      id: true,
+      platform: true,
+      dailyLimit: true,
+      minDelaySec: true,
+      maxDelaySec: true,
+    },
+  });
+  if (!campaign) return null;
+
+  const { getPlatformGuardrail } = await import("@/lib/platform-rate-limits");
+  const guardrail = getPlatformGuardrail(campaign.platform);
+  const effectiveDailyLimit = Math.max(
+    1,
+    Math.min(campaign.dailyLimit, guardrail.comments.safePerDay),
+  );
+
+  const now = new Date();
+  const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const [sentLastHour, sentToday] = await Promise.all([
+    db.commentAction.count({
+      where: {
+        workspaceId: workspace.id,
+        campaignId: campaign.id,
+        status: "sent",
+        executedAt: { gte: hourAgo },
+      },
+    }),
+    db.commentAction.count({
+      where: {
+        workspaceId: workspace.id,
+        campaignId: campaign.id,
+        status: "sent",
+        executedAt: { gte: dayAgo },
+      },
+    }),
+  ]);
+
+  const hourlyRemaining = Math.max(0, guardrail.comments.safePerHour - sentLastHour);
+  const dailyRemaining = Math.max(0, effectiveDailyLimit - sentToday);
+
+  return {
+    platform: campaign.platform,
+    platformPerHour: guardrail.comments.safePerHour,
+    platformPerDay: guardrail.comments.safePerDay,
+    minDelaySec: Math.max(campaign.minDelaySec, guardrail.comments.minIntervalSec),
+    campaignDailyLimit: campaign.dailyLimit,
+    effectiveDailyLimit,
+    sentLastHour,
+    hourlyRemaining,
+    hourlyBlocked: sentLastHour >= guardrail.comments.safePerHour,
+    sentToday,
+    dailyRemaining,
+  };
+}
+
+export type CampaignVariantStat = {
+  variant: string;
+  drafts: number;
+  approved: number;
+  sent: number;
+};
+
+/** Per-variant distribution for A/B copy comparison (read-only). */
+export async function getCampaignVariantStats(
+  campaignId: string,
+): Promise<CampaignVariantStat[] | null> {
+  const { workspace } = await requireActiveWorkspace();
+  const campaign = await db.campaign.findFirst({
+    where: { id: campaignId, workspaceId: workspace.id },
+    select: { id: true },
+  });
+  if (!campaign) return null;
+
+  const drafts = await db.commentDraft.findMany({
+    where: { workspaceId: workspace.id, campaignId: campaign.id },
+    select: {
+      variant: true,
+      status: true,
+      action: { select: { status: true } },
+    },
+  });
+
+  const byVariant = new Map<string, CampaignVariantStat>();
+  for (const draft of drafts) {
+    const key = draft.variant?.trim() || "—";
+    const row = byVariant.get(key) || { variant: key, drafts: 0, approved: 0, sent: 0 };
+    row.drafts += 1;
+    if (draft.status === "approved" || draft.status === "sent") row.approved += 1;
+    if (draft.action?.status === "sent" || draft.status === "sent") row.sent += 1;
+    byVariant.set(key, row);
+  }
+  return [...byVariant.values()].sort((a, b) => a.variant.localeCompare(b.variant));
+}
+
+/** Assign an A/B variant label to a draft of this workspace's campaign. */
+export async function setDraftVariant(input: { draftId: string; variant: string }) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertWorkspacePermission(workspace, "campaigns.manage");
+
+  const variant = input.variant.trim().slice(0, 12).toUpperCase();
+  if (!variant) throw new Error("Variant label is required (e.g. A, B)");
+
+  const draft = await db.commentDraft.findFirst({
+    where: { id: input.draftId, workspaceId: workspace.id },
+    select: { id: true, campaignId: true, variant: true },
+  });
+  if (!draft) throw new Error("Draft not found");
+
+  const updated = await db.commentDraft.update({
+    where: { id: draft.id },
+    data: { variant },
+  });
+
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "campaign.draft_variant_set",
+    resourceType: "comment_draft",
+    resourceId: updated.id,
+    metadata: { campaignId: draft.campaignId, from: draft.variant, to: variant },
+  });
+
+  if (draft.campaignId) revalidatePath(`/app/campaigns/${draft.campaignId}`);
+  return updated;
+}
+
+/**
+ * Save a campaign's configuration as a reusable comment template.
+ * Uses the goal as the template body (or falls back to a summary), since
+ * Campaign has no free-form copy field of its own.
+ */
+export async function saveCampaignAsTemplate(input: {
+  campaignId: string;
+  name?: string;
+  category?: string;
+}) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertWorkspacePermission(workspace, "campaigns.manage");
+
+  const campaign = await db.campaign.findFirst({
+    where: { id: input.campaignId, workspaceId: workspace.id },
+    select: { id: true, name: true, goal: true, platform: true },
+  });
+  if (!campaign) throw new Error("Campaign not found");
+
+  const { parseVariables } = await import("@/lib/template-engine");
+  const body =
+    campaign.goal?.trim() ||
+    `Campaign "${campaign.name}" (${campaign.platform}) — edit this copy before reuse.`;
+  const name = (input.name?.trim() || `From campaign: ${campaign.name}`).slice(0, 120);
+
+  const template = await db.commentTemplate.create({
+    data: {
+      workspaceId: workspace.id,
+      name,
+      body,
+      category: input.category?.trim() || "general",
+      variables: parseVariables(body),
+      isActive: true,
+    },
+  });
+
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "template.created_from_campaign",
+    resourceType: "comment_template",
+    resourceId: template.id,
+    metadata: { campaignId: campaign.id, name },
+  });
+
+  revalidatePath("/app/templates");
+  revalidatePath(`/app/campaigns/${campaign.id}`);
+  return template;
 }

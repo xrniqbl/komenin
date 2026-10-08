@@ -109,11 +109,11 @@ export function ApiKeysManager({ initial }: { initial: Key[] }) {
               <code className="flex-1 overflow-x-auto rounded-lg border bg-background px-3 py-2 font-mono text-xs">
                 {lastCreated.raw}
               </code>
-              <Button size="sm" variant="outline" onClick={() => navigator.clipboard.writeText(lastCreated.raw)}>
+              <Button size="sm" variant="glass" onClick={() => navigator.clipboard.writeText(lastCreated.raw)}>
                 Copy
               </Button>
             </div>
-            <Button size="sm" variant="ghost" onClick={() => setLastCreated(null)}>
+            <Button size="sm" variant="glass" onClick={() => setLastCreated(null)}>
               Dismiss
             </Button>
           </CardContent>
@@ -222,7 +222,7 @@ export function ApiKeysManager({ initial }: { initial: Key[] }) {
                         confirmLabel="Revoke key"
                         destructive
                         disabled={pending}
-                        trigger={<Button size="sm" variant="outline">Revoke</Button>}
+                        trigger={<Button size="sm" variant="glass">Revoke</Button>}
                         onConfirm={() => handleRevoke(k.id)}
                       />
                     ) : null}
@@ -232,7 +232,7 @@ export function ApiKeysManager({ initial }: { initial: Key[] }) {
                       confirmLabel="Delete key"
                       destructive
                       disabled={pending}
-                      trigger={<Button size="sm" variant="ghost">Delete</Button>}
+                      trigger={<Button size="sm" variant="glass">Delete</Button>}
                       onConfirm={() => handleDelete(k.id)}
                     />
                   </div>

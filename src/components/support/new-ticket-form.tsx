@@ -108,7 +108,7 @@ export function NewTicketForm({
       </div>
 
       <div>
-        <Button type="submit" disabled={pending}>
+        <Button variant="electric" type="submit" disabled={pending}>
           {pending ? "Submitting..." : "Submit ticket"}
         </Button>
       </div>

@@ -7,6 +7,8 @@ import {
   type PublishPayload as ConnectorPublishPayload,
 } from "@/lib/connectors";
 import { getRuntimeModeLabel } from "@/lib/runtime-mode";
+import { db } from "@/lib/db";
+import { decryptSecret } from "@/lib/encryption";
 
 export type PublishTarget = {
   platform: "instagram" | "threads" | "tiktok" | string;
@@ -112,9 +114,6 @@ export async function resolveOfficialConfigForPublish(input: {
 
   if (input.workspaceId) {
     try {
-      const { resolveOfficialCredential } = await import(
-        "@/server/connector-credentials"
-      );
       const vault = await resolveOfficialCredential({
         workspaceId: input.workspaceId,
         provider: (input.platform || "instagram").toLowerCase(),
@@ -210,3 +209,56 @@ export async function publishSocialPost(input: {
   };
 }
 
+
+/**
+ * Decrypt active official credentials for connector runtime.
+ *
+ * NOTE: sengaja ditaruh di modul ini (bukan di "use server") — fungsi ini
+ * menerima workspaceId dari caller dan MENGEMBALIKAN access token terdekripsi.
+ * Kalau berada di modul "use server", satu import dari client component saja
+ * sudah cukup untuk mengeksposnya sebagai server action tanpa auth dan membuka
+ * celah exfiltrasi token antar-tenant. Semua caller saat ini server-side dan
+ * mewariskan workspaceId yang di-derive dari session/DB, bukan dari input user.
+ */
+export async function resolveOfficialCredential(input: {
+  workspaceId: string;
+  provider: string;
+  socialAccountId?: string | null;
+}): Promise<{
+  provider: string;
+  accessToken: string;
+  apiBaseUrl: string | null;
+  credentialId: string;
+} | null> {
+  const provider = input.provider.trim().toLowerCase();
+  const rows = await db.connectorCredential.findMany({
+    where: {
+      workspaceId: input.workspaceId,
+      provider,
+      isActive: true,
+      OR: [
+        input.socialAccountId ? { socialAccountId: input.socialAccountId } : undefined,
+        { socialAccountId: null },
+      ].filter(Boolean) as object[],
+    },
+    orderBy: [{ socialAccountId: "desc" }, { updatedAt: "desc" }],
+    take: 5,
+  });
+
+  const row =
+    rows.find((r) => r.socialAccountId && r.socialAccountId === input.socialAccountId) ||
+    rows.find((r) => r.socialAccountId == null) ||
+    rows[0];
+  if (!row) return null;
+
+  try {
+    return {
+      provider: row.provider,
+      accessToken: decryptSecret(row.accessTokenEnc),
+      apiBaseUrl: row.apiBaseUrl,
+      credentialId: row.id,
+    };
+  } catch {
+    return null;
+  }
+}

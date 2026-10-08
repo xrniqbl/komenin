@@ -104,7 +104,7 @@ export function TemplateEditor({
                   key={v}
                   type="button"
                   size="xs"
-                  variant="outline"
+                  variant="glass"
                   className="rounded-full"
                   onClick={() => insertVar(v)}
                 >

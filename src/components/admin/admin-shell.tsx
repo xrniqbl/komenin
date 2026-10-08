@@ -2,23 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
-import {
-  ArrowLeft,
-  Building2,
-  CreditCard,
-  Flag,
-  Globe2,
-  KeyRound,
-  LayoutDashboard,
-  LifeBuoy,
-  ScrollText,
-  ServerCog,
-  Sparkles,
-  TicketPercent,
-  Users,
-  Workflow,
-} from "lucide-react";
+import type { ComponentType } from "react";
+import AccountTreeRoundedIcon from '@mui/icons-material/AccountTreeRounded';
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
+import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
+import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
+import ConfirmationNumberRoundedIcon from '@mui/icons-material/ConfirmationNumberRounded';
+import CreditCardRoundedIcon from '@mui/icons-material/CreditCardRounded';
+import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
+import DnsRoundedIcon from '@mui/icons-material/DnsRounded';
+import FlagRoundedIcon from '@mui/icons-material/FlagRounded';
+import GroupRoundedIcon from '@mui/icons-material/GroupRounded';
+import KeyRoundedIcon from '@mui/icons-material/KeyRounded';
+import LanguageRoundedIcon from '@mui/icons-material/LanguageRounded';
+import ReceiptLongRoundedIcon from '@mui/icons-material/ReceiptLongRounded';
+import SupportRoundedIcon from '@mui/icons-material/SupportRounded';
+
+
 import {
   Sidebar,
   SidebarContent,
@@ -36,33 +36,33 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 
-const links: Array<{ href: string; label: string; icon: LucideIcon }> = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/workspaces", label: "Workspaces", icon: Building2 },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/billing", label: "Billing", icon: CreditCard },
-  { href: "/admin/ai", label: "AI Monetization", icon: Sparkles },
-  { href: "/admin/vouchers", label: "Vouchers", icon: TicketPercent },
-  { href: "/admin/connectors", label: "Connectors", icon: Workflow },
-  { href: "/admin/jobs", label: "Jobs", icon: ServerCog },
-  { href: "/admin/support", label: "Support", icon: LifeBuoy },
-  { href: "/admin/sso", label: "SSO", icon: KeyRound },
-  { href: "/admin/regions", label: "Regions", icon: Globe2 },
-  { href: "/admin/flags", label: "Flags", icon: Flag },
-  { href: "/admin/audit", label: "Audit", icon: ScrollText },
+const links: Array<{ href: string; label: string; icon: ComponentType<{ className?: string }> }> = [
+  { href: "/admin", label: "Overview", icon: DashboardRoundedIcon },
+  { href: "/admin/workspaces", label: "Workspaces", icon: BusinessRoundedIcon },
+  { href: "/admin/users", label: "Users", icon: GroupRoundedIcon },
+  { href: "/admin/billing", label: "Billing", icon: CreditCardRoundedIcon },
+  { href: "/admin/ai", label: "AI Monetization", icon: AutoAwesomeRoundedIcon },
+  { href: "/admin/vouchers", label: "Vouchers", icon: ConfirmationNumberRoundedIcon },
+  { href: "/admin/connectors", label: "Connectors", icon: AccountTreeRoundedIcon },
+  { href: "/admin/jobs", label: "Jobs", icon: DnsRoundedIcon },
+  { href: "/admin/support", label: "Support", icon: SupportRoundedIcon },
+  { href: "/admin/sso", label: "SSO", icon: KeyRoundedIcon },
+  { href: "/admin/regions", label: "Regions", icon: LanguageRoundedIcon },
+  { href: "/admin/flags", label: "Flags", icon: FlagRoundedIcon },
+  { href: "/admin/audit", label: "Audit", icon: ReceiptLongRoundedIcon },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <SidebarProvider>
-      <Sidebar collapsible="icon">
-        <SidebarHeader className="border-b border-sidebar-border">
+    <SidebarProvider className="bg-marketing text-neutral-100">
+      <Sidebar collapsible="icon" className="text-neutral-200 [&_[data-sidebar=sidebar-inner]]:border-white/10 [&_[data-sidebar=sidebar-inner]]:bg-[#0a0f1e]/80 [&_[data-sidebar=sidebar-inner]]:backdrop-blur-xl">
+        <SidebarHeader className="border-b border-white/10">
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" tooltip="Komenin Admin" render={<Link href="/admin" />}>
-                <LayoutDashboard className="size-4" />
+                <DashboardRoundedIcon className="size-4" />
                 <span className="text-sm font-semibold tracking-tight">Komenin Admin</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -99,7 +99,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton tooltip="Back to app" render={<Link href="/app" />}>
-                <ArrowLeft className="size-4" />
+                <ArrowBackRoundedIcon className="size-4" />
                 <span>Back to app</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -107,8 +107,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
-      <SidebarInset>
-        <header className="flex h-14 items-center gap-2 border-b px-4">
+      <SidebarInset className="bg-transparent">
+        <header className="flex h-14 items-center gap-2 border-b border-white/10 bg-[#0a0f1e]/60 px-4 backdrop-blur-xl">
           <SidebarTrigger className="-ms-1" />
           <Separator orientation="vertical" className="mr-1 h-4" />
           <div className="text-sm font-medium">Platform control plane</div>

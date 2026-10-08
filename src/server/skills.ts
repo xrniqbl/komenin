@@ -71,6 +71,153 @@ export async function listSkills() {
   }));
 }
 
+export async function getSkill(id: string) {
+  const { workspace } = await requireActiveWorkspace();
+  await ensureBuiltinSkills(workspace.id);
+  const row = await db.skill.findFirst({
+    where: { id, workspaceId: workspace.id },
+    include: {
+      triggers: true,
+      _count: { select: { runs: true } },
+    },
+  });
+  if (!row) return null;
+  return { ...row, configJson: redactSkillConfig(row.configJson) };
+}
+
+export async function updateSkill(
+  id: string,
+  input: {
+    name?: string;
+    description?: string;
+    executor?: "builtin" | "webhook";
+    highRisk?: boolean;
+    isActive?: boolean;
+    triggers?: string[];
+    configJson?: Record<string, unknown>;
+  },
+) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertWorkspacePermission(workspace, "skills.manage");
+
+  const existing = await db.skill.findFirst({
+    where: { id, workspaceId: workspace.id },
+  });
+  if (!existing) throw new Error("Skill not found");
+
+  const executor = input.executor || existing.executor;
+  const configJson =
+    input.configJson !== undefined
+      ? input.configJson
+      : (existing.configJson as Record<string, unknown> | null) || {};
+  assertSkillWebhookConfig(executor, configJson);
+  const sealedConfig = sealSkillConfig(executor, configJson);
+  // Preserve the stored token when the editor omits it (it is redacted
+  // from list/detail payloads, so a round-trip would otherwise wipe it).
+  if (
+    executor === "webhook" &&
+    input.configJson !== undefined &&
+    typeof input.configJson.token !== "string" &&
+    !input.configJson.tokenEnc &&
+    typeof (existing.configJson as Record<string, unknown> | null)
+      ?.tokenEnc === "string"
+  ) {
+    sealedConfig.tokenEnc = (
+      existing.configJson as Record<string, unknown>
+    ).tokenEnc;
+    sealedConfig.hasToken = true;
+  }
+
+  const data: Record<string, unknown> = {
+    version: { increment: 1 },
+  };
+  if (input.name !== undefined) {
+    const name = input.name.trim();
+    if (!name) throw new Error("Skill name required");
+    data.name = name;
+  }
+  if (input.description !== undefined) {
+    data.description = input.description.trim() || null;
+  }
+  if (input.executor !== undefined) data.executor = input.executor;
+  if (input.highRisk !== undefined) data.highRisk = Boolean(input.highRisk);
+  if (input.isActive !== undefined) data.isActive = Boolean(input.isActive);
+  if (input.configJson !== undefined) {
+    data.configJson = sealedConfig as Prisma.InputJsonValue;
+  }
+
+  const triggers =
+    input.triggers !== undefined
+      ? input.triggers.map((pattern) => pattern.trim()).filter(Boolean)
+      : undefined;
+
+  const updated = await db.$transaction(async (tx) => {
+    const skill = await tx.skill.update({ where: { id }, data });
+    if (triggers !== undefined) {
+      await tx.skillTrigger.deleteMany({ where: { skillId: id } });
+      if (triggers.length > 0) {
+        await tx.skillTrigger.createMany({
+          data: triggers.map((pattern) => ({ skillId: id, pattern })),
+        });
+      }
+    }
+    return skill;
+  });
+
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "skill.updated",
+    resourceType: "skill",
+    resourceId: id,
+    metadata: { version: updated.version },
+  });
+
+  revalidatePath("/app/skills");
+  revalidatePath(`/app/skills/${id}`);
+  return updated;
+}
+
+export async function deleteSkill(id: string) {
+  const { userId, workspace } = await requireActiveWorkspace();
+  assertWorkspacePermission(workspace, "skills.manage");
+
+  const existing = await db.skill.findFirst({
+    where: { id, workspaceId: workspace.id },
+    include: {
+      _count: { select: { runs: true } },
+    },
+  });
+  if (!existing) throw new Error("Skill not found");
+
+  const activeRuns = await db.skillRun.count({
+    where: {
+      skillId: id,
+      workspaceId: workspace.id,
+      status: { in: ["pending", "running"] },
+    },
+  });
+  if (activeRuns > 0) {
+    throw new Error(
+      `Cannot delete skill with ${activeRuns} active run(s). Wait for them to finish first.`,
+    );
+  }
+
+  await db.skill.delete({ where: { id } });
+
+  await writeAuditLog({
+    workspaceId: workspace.id,
+    actorUserId: userId,
+    action: "skill.deleted",
+    resourceType: "skill",
+    resourceId: id,
+    metadata: { slug: existing.slug, pastRuns: existing._count.runs },
+  });
+
+  revalidatePath("/app/skills");
+  return { ok: true };
+}
+
 export async function createSkill(input: {
   name: string;
   slug: string;

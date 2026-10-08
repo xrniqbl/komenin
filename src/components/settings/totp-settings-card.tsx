@@ -130,7 +130,7 @@ export function TotpSettingsCard() {
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
               />
             </div>
-            <Button type="submit" variant="outline" disabled={busy || code.length !== 6}>
+            <Button type="submit" variant="glass" disabled={busy || code.length !== 6}>
               {busy ? copy.totpProcessing : copy.totpDeactivate}
             </Button>
           </form>
@@ -157,7 +157,7 @@ export function TotpSettingsCard() {
               </div>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={start} disabled={busy}>
+              <Button type="button" variant="glass" onClick={start} disabled={busy}>
                 {enrollment ? copy.totpNewKey : copy.totpRestart}
               </Button>
             </div>
@@ -173,7 +173,7 @@ export function TotpSettingsCard() {
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                 />
               </div>
-              <Button type="submit" disabled={busy || code.length !== 6}>
+              <Button variant="electric" type="submit" disabled={busy || code.length !== 6}>
                 {busy ? copy.verifying : copy.totpActivate}
               </Button>
             </form>

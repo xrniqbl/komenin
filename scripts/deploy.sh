@@ -72,9 +72,15 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check docker-compose is installed
-    if ! command -v docker-compose &> /dev/null; then
-        log_error "Docker Compose is not installed"
+    # Check node is installed (runs scripts/preflight-deploy.mjs)
+    if ! command -v node &> /dev/null; then
+        log_error "Node.js is not installed (required for pre-flight checks)"
+        exit 1
+    fi
+
+    # Check docker compose (v2) is available
+    if ! docker compose version &> /dev/null; then
+        log_error "Docker Compose v2 (docker compose) is not available"
         exit 1
     fi
 
@@ -112,8 +118,10 @@ run_health_checks() {
     while [ $retry_count -lt $max_retries ]; do
         sleep 5
 
-        # Check app container
-        if curl -sf http://localhost:3000/api/health >/dev/null 2>&1; then
+        # Check app container from inside it: port 3000 is not published to
+        # the host, so exec into the container. The runner image has no
+        # wget/curl (bookworm-slim), but node with global fetch is present.
+        if sudo docker compose exec -T app node -e "fetch('http://localhost:3000/api/status').then((r) => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1));" >/dev/null 2>&1; then
             log_success "Health check passed"
             return 0
         fi
@@ -129,18 +137,42 @@ run_health_checks() {
 rollback() {
     log_warning "Initiating rollback..."
 
-    local latest_backup=$(ls -t "${BACKUP_DIR}"/pre_deploy_*.tar.gz 2>/dev/null | head -1)
+    # backup_current_version saves the pre-deploy image as pre_deploy_*_image.tar
+    local latest_backup
+    latest_backup=$(ls -t "${BACKUP_DIR}"/pre_deploy_*_image.tar 2>/dev/null | head -1)
 
     if [ -z "$latest_backup" ]; then
-        log_error "No backup found for rollback"
+        log_error "No pre-deploy image backup found in ${BACKUP_DIR} — cannot roll back automatically"
         exit 1
     fi
 
-    log_info "Restoring from: $(basename "$latest_backup")"
+    log_info "Restoring previous image from: $(basename "$latest_backup")"
+    cd "$DEPLOY_DIR"
 
-    # Restore would go here - implement based on your backup strategy
+    log_info "Stopping failed containers..."
+    sudo docker compose down
 
-    log_success "Rollback completed"
+    log_info "Loading pre-deploy image..."
+    sudo docker load -i "$latest_backup"
+
+    # The backup was saved as komenin:latest; retag it to the image compose
+    # actually runs when KOMENIN_IMAGE pins a registry tag.
+    if [ -n "${KOMENIN_IMAGE:-}" ]; then
+        sudo docker tag "${PROJECT_NAME}:latest" "$KOMENIN_IMAGE" || {
+            log_error "Failed to retag restored image to ${KOMENIN_IMAGE}"
+            exit 1
+        }
+    fi
+
+    log_info "Starting previous version..."
+    sudo docker compose up -d
+
+    if run_health_checks; then
+        log_success "Rollback completed — previous version is serving"
+    else
+        log_error "Rollback containers failed health checks — manual intervention required"
+        exit 1
+    fi
 }
 
 deploy() {
@@ -154,6 +186,13 @@ deploy() {
 
     cd "$DEPLOY_DIR"
 
+    # Pre-flight: validate env/config before touching anything; aborts the deploy on failure.
+    log_info "Running pre-flight deploy checks..."
+    if ! node scripts/preflight-deploy.mjs; then
+        log_error "Pre-flight checks failed — aborting deploy"
+        exit 1
+    fi
+
     # Pull latest code
     git pull origin main 2>/dev/null || {
         log_warning "Not a git repository, skipping pull"
@@ -161,13 +200,13 @@ deploy() {
 
     # Build and start
     log_info "Building Docker image..."
-    sudo docker-compose build --no-cache
+    sudo docker compose build --no-cache
 
     log_info "Stopping old containers..."
-    sudo docker-compose down
+    sudo docker compose down
 
     log_info "Starting new containers..."
-    sudo docker-compose up -d
+    sudo docker compose up -d
 
     # Run health checks
     if run_health_checks; then

@@ -1,5 +1,6 @@
 ﻿import { Prisma } from "@prisma/client";
-import { dailyActionIncrementData, effectiveActionsToday } from "@/lib/account-quota";
+import { effectiveActionsToday, recordDailyAccountAction } from "@/lib/account-quota";
+import { reportError } from "@/lib/error-reporting";
 import { FREE_ENTITLEMENTS } from "@/lib/billing/entitlements";
 import { db } from "@/lib/db";
 import { generateContextualCommentHybrid, pickDelaySeconds } from "@/lib/comment-engine";
@@ -14,10 +15,12 @@ import { hourInTimezone, isInQuietHours } from "@/lib/workspace-time";
 import {
   claimCommentAction,
   claimContentCampaign,
-  claimContentDraft,
   claimKnowledgeDocument,
   claimMention,
   claimTargetPost,
+  heartbeatCommentActions,
+  heartbeatContentDrafts,
+  heartbeatMentions,
   releaseStaleClaims,
 } from "@/lib/worker-claims";
 import {
@@ -36,13 +39,13 @@ export type WorkerJobName =
   | "session.health_check"
   | "proxy.rotate"
   | "listener.poll"
+  | "listener.autopoll"
   | "comment.generate"
   | "comment.send"
   | "mention.process"
   | "content.generate"
   | "content.publish"
   | "knowledge.ingest"
-  | "skill.execute"
   | "usage.rollup"
   | "notify.dispatch"
   | "digest.approvals"
@@ -310,25 +313,33 @@ async function runSessionHealthChecks(limit = 20): Promise<WorkerJobResult> {
         ? `${details}. Open the account page → re-import session cookies, then run a health check.`
         : details;
 
-      await createNotification({
-        workspaceId: account.workspaceId,
-        title,
-        body,
-        href: `/app/accounts/${account.id}`,
+      // Dedup: at most one health alert per account per day (was every tick).
+      const healthMarker = `account-health:${account.id}:${new Date().toISOString().slice(0, 10)}`;
+      const alreadyAlerted = await db.notification.findFirst({
+        where: { workspaceId: account.workspaceId, body: { contains: healthMarker } },
+        select: { id: true },
       });
-      try {
-        const { dispatchExternal } = await import("@/lib/notify/dispatcher");
-        await dispatchExternal(
-          needsReauth ? "account.reauth_required" : "account.degraded",
-          account.workspaceId,
-          {
-            title: `${title} — ${status}`,
-            body,
-            href: `/app/accounts/${account.id}`,
-          },
-        );
-      } catch {
-        // non-fatal
+      if (!alreadyAlerted) {
+        await createNotification({
+          workspaceId: account.workspaceId,
+          title,
+          body: `${body} [${healthMarker}] [webhook-sent]`,
+          href: `/app/accounts/${account.id}`,
+        });
+        try {
+          const { dispatchExternal } = await import("@/lib/notify/dispatcher");
+          await dispatchExternal(
+            needsReauth ? "account.reauth_required" : "account.degraded",
+            account.workspaceId,
+            {
+              title: `${title} — ${status}`,
+              body,
+              href: `/app/accounts/${account.id}`,
+            },
+          );
+        } catch {
+          // non-fatal
+        }
       }
       if (needsReauth) reauthNotified += 1;
     }
@@ -412,17 +423,25 @@ async function runProxyRotate(limit = 10): Promise<WorkerJobResult> {
   };
 }
 
-async function runListenerPolls(limit = 10): Promise<WorkerJobResult> {
-  const listeners = await db.listener.findMany({
-    where: { isActive: true },
-    orderBy: { updatedAt: "asc" },
-    take: limit,
+/**
+ * Poll a single listener by id: discover posts via the connector, upsert them
+ * as TargetPosts, write a delivery log, and refresh `lastPolledAt` (even on an
+ * empty poll so the autopoll due-check advances). Returns the number of newly
+ * created posts. Throws on unexpected failures — callers isolate per-listener
+ * errors so one bad listener cannot fail the batch.
+ *
+ * Shared by `listener.poll` (worker.tick fan-out), `listener.autopoll`
+ * (per-listener cadence), and the manual `pollListener` server action path.
+ */
+async function pollOneListener(listenerId: string): Promise<number> {
+  const listener = await db.listener.findFirst({
+    where: { id: listenerId, isActive: true },
   });
+  if (!listener) throw new Error("Listener not found");
 
   const mode = getRuntimeModeLabel();
   let created = 0;
-  for (const listener of listeners) {
-    try {
+  try {
     // Native Instagram hashtag discovery needs the platform-side account id
     // (SocialAccount.externalId); resolve any active account on the platform.
     const discoveryAccount = await db.socialAccount.findFirst({
@@ -518,7 +537,7 @@ async function runListenerPolls(limit = 10): Promise<WorkerJobResult> {
           },
         },
       });
-      continue;
+      return created;
     }
 
     // Simulator only: seed demo posts when the connector returns nothing so the
@@ -588,6 +607,31 @@ async function runListenerPolls(limit = 10): Promise<WorkerJobResult> {
         },
       },
     });
+    return created;
+  } finally {
+    // Advance the autopoll clock on every attempt (success or empty), but not
+    // on unexpected throws — those keep the listener due so the next tick
+    // retries instead of silently skipping a broken listener forever.
+    await db.listener
+      .update({
+        where: { id: listener.id },
+        data: { lastPolledAt: new Date() },
+      })
+      .catch(() => null);
+  }
+}
+
+async function runListenerPolls(limit = 10): Promise<WorkerJobResult> {
+  const listeners = await db.listener.findMany({
+    where: { isActive: true },
+    orderBy: { updatedAt: "asc" },
+    take: limit,
+  });
+
+  let created = 0;
+  for (const listener of listeners) {
+    try {
+      created += await pollOneListener(listener.id);
     } catch (error) {
       await createNotification({
         workspaceId: listener.workspaceId,
@@ -597,7 +641,12 @@ async function runListenerPolls(limit = 10): Promise<WorkerJobResult> {
             ? error.message
             : "Unexpected listener poll failure",
         href: "/app/listeners",
-      }).catch(() => undefined);
+      }).catch((error) =>
+        reportError(error, {
+          scope: "worker:listener_poll_notify",
+          workspaceId: listener.workspaceId,
+        }),
+      );
     }
   }
 
@@ -606,6 +655,85 @@ async function runListenerPolls(limit = 10): Promise<WorkerJobResult> {
     ok: true,
     message: `Discovered ${created} posts`,
     count: created,
+  };
+}
+
+/**
+ * Scheduled auto-poll for listeners with a configured cadence
+ * (`pollIntervalMinutes`). Only active listeners whose last poll is older than
+ * their interval (or never polled) are picked up, so a dedicated cron cadence
+ * (e.g. `?job=listener.autopoll` every 15 min) drives per-listener schedules
+ * without hammering manual-only listeners.
+ *
+ * Each poll reuses the same discovery/upsert path as `listener.poll`
+ * (pollOneListener) and refreshes `lastPolledAt` on every attempt — including
+ * failed ones — so a broken listener cannot spin the job every tick.
+ * Intentionally NOT part of the worker.tick fan-out: tick already polls active
+ * listeners on its own cadence, and running both would double-poll.
+ */
+async function runListenerAutopoll(limit = 10): Promise<WorkerJobResult> {
+  const now = Date.now();
+  // Different cadence values mean a fixed over-fetch can hide due listeners
+  // behind arbitrarily many not-due listeners. Page until we fill the batch
+  // or exhaust the active set, using a stable tie-breaker for equal timestamps.
+  const due: Awaited<ReturnType<typeof db.listener.findMany>> = [];
+  const pageSize = Math.max(limit * 3, 30);
+  for (let skip = 0; due.length < limit; skip += pageSize) {
+    const candidates = await db.listener.findMany({
+      where: { isActive: true, pollIntervalMinutes: { not: null } },
+      orderBy: [{ lastPolledAt: "asc" }, { id: "asc" }],
+      skip,
+      take: pageSize,
+    });
+    due.push(...candidates.filter((listener) => {
+      const interval = listener.pollIntervalMinutes;
+      return Boolean(interval && interval > 0 &&
+        (!listener.lastPolledAt || now - listener.lastPolledAt.getTime() >= interval * 60 * 1000));
+    }).slice(0, limit - due.length));
+    if (candidates.length < pageSize) break;
+  }
+
+  let created = 0;
+  let polled = 0;
+  for (const listener of due) {
+    // Atomically advance the poll clock before the connector call. Concurrent
+    // cron invocations with different JobRun rows must not both poll this row.
+    const claimed = await db.listener.updateMany({
+      where: { id: listener.id, isActive: true, lastPolledAt: listener.lastPolledAt },
+      data: { lastPolledAt: new Date(now) },
+    });
+    if (claimed.count !== 1) continue;
+    try {
+      created += await pollOneListener(listener.id);
+      polled += 1;
+    } catch (error) {
+      await db.listener
+        .update({
+          where: { id: listener.id },
+          data: { lastPolledAt: new Date() },
+        })
+        .catch(() => null);
+      await createNotification({
+        workspaceId: listener.workspaceId,
+        title: "Listener auto-poll error",
+        body:
+          error instanceof Error ? error.message : "Unexpected autopoll failure",
+        href: "/app/listeners",
+      }).catch((notifyError) =>
+        reportError(notifyError, {
+          scope: "worker:listener_autopoll_notify",
+          workspaceId: listener.workspaceId,
+        }),
+      );
+    }
+  }
+
+  return {
+    job: "listener.autopoll",
+    ok: true,
+    message: `Auto-polled ${polled} listeners, discovered ${created} posts`,
+    count: created,
+    details: { polled },
   };
 }
 
@@ -919,11 +1047,18 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
   let sent = 0;
   let failed = 0;
   let blockedPreflight = 0;
+  // Heartbeat so a long batch is never mistaken for a dead worker by
+  // releaseStaleClaims (which would re-queue in-flight rows -> duplicates).
+  const inFlightCommentIds: string[] = [];
   for (const action of due) {
     // Atomic claim before any side effect: overlapping cron ticks must not
     // deliver the same comment twice.
     const claimed = await claimCommentAction(action.id);
     if (!claimed) continue;
+    inFlightCommentIds.push(action.id);
+    if (inFlightCommentIds.length % 10 === 0) {
+      await heartbeatCommentActions(inFlightCommentIds);
+    }
     const attempt = action.attemptCount;
 
     const workspace = await db.workspace.findUnique({
@@ -1286,16 +1421,16 @@ async function runCommentSend(limit = 20): Promise<WorkerJobResult> {
         });
       }
       if (result.ok && action.socialAccountId && action.socialAccount) {
-        await tx.socialAccount.update({
-          where: { id: action.socialAccountId },
-          data: {
-            ...dailyActionIncrementData(action.socialAccount),
-            currentIp:
-              result.mode === "simulator"
-                ? simulateIp(`${action.socialAccountId}:${Date.now()}`)
-                : undefined,
-          },
-        });
+        // Atomic UTC-day reset + increment (race-safe at midnight boundary).
+        await recordDailyAccountAction(tx, action.socialAccountId);
+        if (result.mode === "simulator") {
+          await tx.socialAccount.update({
+            where: { id: action.socialAccountId },
+            data: {
+              currentIp: simulateIp(`${action.socialAccountId}:${Date.now()}`),
+            },
+          });
+        }
       }
       await tx.deliveryLog.create({
         data: {
@@ -1359,10 +1494,16 @@ async function runMentionProcess(limit = 20): Promise<WorkerJobResult> {
   let failed = 0;
   let quotaFailed = 0;
 
+  // Heartbeat so a long batch is never mistaken for a dead worker.
+  const inFlightMentionIds: string[] = [];
   for (const mention of mentions) {
     // Atomic claim: overlapping ticks must not generate two replies.
     const claimed = await claimMention(mention.id);
     if (!claimed) continue;
+    inFlightMentionIds.push(mention.id);
+    if (inFlightMentionIds.length % 10 === 0) {
+      await heartbeatMentions(inFlightMentionIds);
+    }
 
     try {
       const settings = await db.autoReplySettings.findUnique({
@@ -1722,7 +1863,12 @@ async function runMentionProcess(limit = 20): Promise<WorkerJobResult> {
           where: { id: mention.id, status: "generating" },
           data: { status: "failed", processedAt: new Date() },
         })
-        .catch(() => undefined);
+        .catch((dbError) =>
+          reportError(dbError, {
+            scope: "worker:mention_fail_mark",
+            workspaceId: mention.workspaceId,
+          }),
+        );
       await db.deliveryLog
         .create({
           data: {
@@ -1736,7 +1882,12 @@ async function runMentionProcess(limit = 20): Promise<WorkerJobResult> {
             payload: { stage: "mention_process_throw", mentionId: mention.id } as Prisma.InputJsonValue,
           },
         })
-        .catch(() => undefined);
+        .catch((dbError) =>
+          reportError(dbError, {
+            scope: "worker:mention_fail_log",
+            workspaceId: mention.workspaceId,
+          }),
+        );
       failed += 1;
     }
   }
@@ -1871,6 +2022,7 @@ async function runContentPublish(limit = 30): Promise<WorkerJobResult> {
     where: {
       status: "scheduled",
       scheduledFor: { lte: new Date() },
+      contentCampaign: { status: "active" },
     },
     include: {
       contentCampaign: true,
@@ -1883,11 +2035,21 @@ async function runContentPublish(limit = 30): Promise<WorkerJobResult> {
   let published = 0;
   let failed = 0;
   const paceLib = await import("@/lib/platform-rate-limits");
+  // Heartbeat so a long batch is never mistaken for a dead worker.
+  const inFlightDraftIds: string[] = [];
   for (const draft of due) {
-    // Atomic claim before publishing: overlapping ticks must not publish the
-    // same draft twice.
-    const claimed = await claimContentDraft(draft.id);
-    if (!claimed) continue;
+    // A campaign may have been paused after the due-list snapshot. Refuse to
+    // claim or publish it even when its draft is still scheduled.
+    if (draft.contentCampaign?.status !== "active") continue;
+    const claimed = await db.contentDraft.updateMany({
+      where: { id: draft.id, status: "scheduled", contentCampaign: { status: "active" } },
+      data: { status: "publishing" },
+    });
+    if (claimed.count !== 1) continue;
+    inFlightDraftIds.push(draft.id);
+    if (inFlightDraftIds.length % 10 === 0) {
+      await heartbeatContentDrafts(inFlightDraftIds);
+    }
 
     // Publish pace guard: posts are heavier than comments — defer (not fail)
     // when the account already hit its safe hourly window or min interval.
@@ -2107,35 +2269,6 @@ async function runKnowledgeIngest(limit = 10): Promise<WorkerJobResult> {
   };
 }
 
-async function runSkillExecute(limit = 10): Promise<WorkerJobResult> {
-  const pending = await db.skillRun.findMany({
-    where: { status: "pending" },
-    include: { skill: { include: { triggers: true } } },
-    orderBy: { createdAt: "asc" },
-    take: limit,
-  });
-
-  let executed = 0;
-  for (const run of pending) {
-    const result = await runSkill({
-      workspaceId: run.workspaceId,
-      skill: run.skill,
-      agentId: run.agentId || undefined,
-      inputText: String((run.inputJson as { text?: string } | null)?.text || ""),
-      existingRunId: run.id,
-    });
-    if (result.ok) executed += 1;
-    await bumpUsage(run.workspaceId, "skillRuns", 1);
-  }
-
-  return {
-    job: "skill.execute",
-    ok: true,
-    message: `Executed ${executed} skill runs`,
-    count: executed,
-  };
-}
-
 async function runUsageRollup(): Promise<WorkerJobResult> {
   const workspaces = await db.workspace.findMany({
     where: { status: "active" },
@@ -2246,11 +2379,18 @@ async function runNotifyDispatch(limit = 20): Promise<WorkerJobResult> {
       take: 20,
     });
     for (const approval of staleApprovals) {
+      // Dedup: notify once per stale approval, not every tick (was ~288/day).
+      const timeoutMarker = `approval-timeout:${approval.id}`;
+      const alreadyNotified = await db.notification.findFirst({
+        where: { workspaceId: approval.workspaceId, body: { contains: timeoutMarker } },
+        select: { id: true },
+      });
+      if (alreadyNotified) continue;
       await db.notification.create({
         data: {
           workspaceId: approval.workspaceId,
           title: `Approval pending for 24h: ${approval.targetPost?.authorHandle || "unknown"}`,
-          body: `Post "${(approval.targetPost?.content || "").slice(0, 80)}" has been waiting for approval >24h.`,
+          body: `Post "${(approval.targetPost?.content || "").slice(0, 80)}" has been waiting for approval >24h. [${timeoutMarker}]`,
           href: "/app/approvals",
         },
       });
@@ -2261,7 +2401,12 @@ async function runNotifyDispatch(limit = 20): Promise<WorkerJobResult> {
           body: `Pending >24h — campaign needs attention.`,
           href: "/app/approvals",
         });
-      } catch {}
+      } catch (notifyError) {
+        await reportError(notifyError, {
+          scope: "worker:approval_timeout_notify",
+          workspaceId: approval.workspaceId,
+        });
+      }
     }
 
     return {
@@ -2530,6 +2675,9 @@ export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult>
       case "listener.poll":
         result = await runListenerPolls();
         break;
+      case "listener.autopoll":
+        result = await runListenerAutopoll();
+        break;
       case "comment.generate":
         result = await runCommentGenerate();
         break;
@@ -2547,9 +2695,6 @@ export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult>
         break;
       case "knowledge.ingest":
         result = await runKnowledgeIngest();
-        break;
-      case "skill.execute":
-        result = await runSkillExecute();
         break;
       case "usage.rollup":
         result = await runUsageRollup();
@@ -2591,7 +2736,6 @@ export async function runWorkerJob(job: WorkerJobName): Promise<WorkerJobResult>
           runCommentSend(),
           runContentGenerate(),
           runContentPublish(),
-          runSkillExecute(),
           runUsageRollup(),
           runNotifyDispatch(),
           runBillingExpire(),
@@ -2650,13 +2794,13 @@ export const WORKER_JOBS: WorkerJobName[] = [
   "session.health_check",
   "proxy.rotate",
   "listener.poll",
+  "listener.autopoll",
   "comment.generate",
   "comment.send",
   "mention.process",
   "content.generate",
   "content.publish",
   "knowledge.ingest",
-  "skill.execute",
   "usage.rollup",
   "notify.dispatch",
   "digest.approvals",

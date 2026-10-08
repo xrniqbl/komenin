@@ -73,13 +73,13 @@ export function ReimportSessionForm({
         />
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" size="sm" disabled={pending}>
+        <Button variant="electric" type="submit" size="sm" disabled={pending}>
           {pending ? "Importing..." : "Re-import session"}
         </Button>
         <Button
           type="button"
           size="sm"
-          variant="outline"
+          variant="glass"
           onClick={() => window.open(loginUrlForPlatform(platform), "_blank", "noopener,noreferrer")}
         >
           Buka login {platform}

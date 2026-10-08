@@ -59,7 +59,7 @@ export function TotpGateForm() {
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             />
           </div>
-          <Button type="submit" className="w-full" disabled={busy || code.length !== 6}>
+          <Button variant="electric" type="submit" className="w-full" disabled={busy || code.length !== 6}>
             {busy ? copy.verifying : copy.totpVerify}
           </Button>
           {error ? <p className="text-xs text-destructive">{error}</p> : null}

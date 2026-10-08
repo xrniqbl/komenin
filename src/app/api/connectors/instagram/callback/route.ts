@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiError } from "@/lib/api-errors";
 import {
   instagramOAuthCallbackUrl,
   isInstagramOAuthConfigured,
@@ -97,12 +98,10 @@ export async function GET(request: Request) {
 
   if (!isInstagramOAuthConfigured()) {
     if (isProductionRuntime()) {
-      return NextResponse.json(
-        {
-          error:
-            "instagram OAuth callback is not configured. Set INSTAGRAM_APP_ID, INSTAGRAM_APP_SECRET, APP_URL.",
-        },
-        { status: 501 },
+      return apiError(
+        "NOT_CONFIGURED",
+        501,
+        "Instagram OAuth callback is not configured. Set INSTAGRAM_APP_ID, INSTAGRAM_APP_SECRET, APP_URL.",
       );
     }
     return NextResponse.redirect(
@@ -114,21 +113,27 @@ export async function GET(request: Request) {
   }
 
   if (!code) {
-    return NextResponse.json({ error: "missing code" }, { status: 400 });
+    return apiError("MISSING_CODE", 400);
   }
 
   // Rate limit: prevent spam to provider API quota. consumeRateLimit reports
   // exhaustion via { ok: false } rather than throwing, so ok must be checked.
+  // failClosed: an Upstash outage must not open a quota-spam / nonce-probing
+  // window (consistent with the platform webhook handler).
   const rate = await consumeRateLimit({
     key: getRequestRateKey(request, "oauth:instagram"),
     limit: OAUTH_CALLBACK_RATE_LIMIT,
     windowMs: OAUTH_CALLBACK_WINDOW_MS,
+    failClosed: true,
   });
   if (!rate.ok) {
-    return NextResponse.json(
-      { error: "Too many attempts, please try again later" },
-      { status: 429 }
-    );
+    return apiError("RATE_LIMITED", 429);
+  }
+
+  // Auth check BEFORE consuming nonce - prevents nonce-burning attacks
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   // M5: state is claimed atomically in the DB — a replayed callback URL
@@ -141,11 +146,6 @@ export async function GET(request: Request) {
         request.url,
       ),
     );
-  }
-
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   try {

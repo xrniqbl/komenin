@@ -127,7 +127,7 @@ export function ApprovalCard({
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="glass"
                   className="min-h-11 flex-1 sm:min-h-9"
                   onClick={handleReject}
                   disabled={pending}

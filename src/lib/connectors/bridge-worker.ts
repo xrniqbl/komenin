@@ -59,7 +59,7 @@ export class BridgeWorker {
 
   private async execute(
     action: BridgeAction,
-    payload: any,
+    payload: Record<string, unknown>,
     idempotencyKey?: string
   ) {
     let lastError: Error | null = null;
@@ -92,7 +92,7 @@ export class BridgeWorker {
     throw lastError || new Error('Bridge execution failed after retries');
   }
 
-  private async callBridge(action: BridgeAction, payload: any, idempotencyKey?: string) {
+  private async callBridge(action: BridgeAction, payload: Record<string, unknown>, idempotencyKey?: string) {
     if (this.config.mode === 'mock') {
       // Delegate to the shared contract handler so mock responses match the
       // real bridge shape (e.g. discoverPosts returns a posts array, healthProbe
@@ -107,7 +107,7 @@ export class BridgeWorker {
     }
 
     // Live mode
-    const result = await this.client.call(action, payload.platform || 'unknown', payload, idempotencyKey);
+    const result = await this.client.call(action, (typeof payload.platform === 'string' && payload.platform) || 'unknown', payload, idempotencyKey);
     return {
       ok: result.status === 200,
       ...result.body

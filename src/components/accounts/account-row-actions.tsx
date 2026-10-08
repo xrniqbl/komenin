@@ -1,6 +1,7 @@
 ﻿"use client";
 
-import { MoreHorizontalIcon } from "lucide-react";
+import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
+
 import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,7 +61,7 @@ export function AccountRowActions({ accountId }: { accountId: string }) {
                 className="inline-flex"
                 render={
                   <Button
-                    variant="outline"
+                    variant="glass"
                     size="icon-sm"
                     disabled={pending}
                     aria-label="Account actions"
@@ -69,7 +70,7 @@ export function AccountRowActions({ accountId }: { accountId: string }) {
               />
             }
           >
-            {pending ? <Spinner className="size-4" /> : <MoreHorizontalIcon className="size-4" />}
+            {pending ? <Spinner className="size-4" /> : <MoreHorizRoundedIcon className="size-4" />}
           </TooltipTrigger>
           <TooltipPopup>Account actions</TooltipPopup>
         </Tooltip>

@@ -80,7 +80,7 @@ export default async function AccountDetailPage({
                   await runAccountHealthCheck(account.id);
                 }}
               >
-                <Button variant="outline" type="submit">
+                <Button variant="glass" type="submit">
                   Run health probe
                 </Button>
               </form>
@@ -90,7 +90,7 @@ export default async function AccountDetailPage({
                   await rotateAccountIp(account.id, "detail_manual_rotate");
                 }}
               >
-                <Button variant="default" type="submit">
+                <Button variant="electric" type="submit">
                   Rotate IP
                 </Button>
               </form>

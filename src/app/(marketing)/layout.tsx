@@ -16,7 +16,7 @@ export default function MarketingLayout({
   return (
     <>
       <JsonLd data={[organizationJsonLd(), websiteJsonLd(), softwareApplicationJsonLd()]} />
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="bg-marketing min-h-screen text-foreground">
         <HomeSectionScroll />
         <SiteHeader />
         <main className="flex-1">{children}</main>

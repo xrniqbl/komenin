@@ -1,6 +1,8 @@
 ﻿"use client";
 
-import { Search, X } from "lucide-react";
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -59,8 +61,12 @@ export function FilterBar({
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
+    setQ(searchParams.get(queryParam) ?? "");
+  }, [searchParams, queryParam]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
-      if (q === defaultQ) return;
+      if (q === (searchParams.get(queryParam) ?? "")) return;
       startTransition(() => {
         const params = new URLSearchParams(searchParams.toString());
         if (q) params.set(queryParam, q);
@@ -70,8 +76,7 @@ export function FilterBar({
       });
     }, 300);
     return () => clearTimeout(timer);
-    // Debounced on `q` only; router/searchParams/pathname are read fresh inside
-    // the timeout and must not retrigger the debounce.
+    // Debounced on `q` only; URL state is read when the timer fires.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
@@ -101,7 +106,7 @@ export function FilterBar({
           align="inline-start"
           className="pointer-events-none h-full shrink-0 self-stretch ps-2.5 pe-0 text-muted-foreground"
         >
-          <Search className="size-3.5 shrink-0 opacity-80" aria-hidden="true" />
+          <SearchRoundedIcon className="size-3.5 shrink-0 opacity-80" aria-hidden="true" />
         </InputGroupAddon>
         <InputGroupInput
           placeholder={placeholder}
@@ -155,13 +160,13 @@ export function FilterBar({
       ) : null}
 
       <Popover>
-        <PopoverTrigger render={<Button size="sm" variant="ghost" className="h-8" />}>
+        <PopoverTrigger render={<Button size="sm" variant="glass" className="h-8" />}>
           Tips
         </PopoverTrigger>
         <PopoverPopup className="w-72 p-4" align="end">
           <PopoverTitle className="text-sm">Filter tips</PopoverTitle>
           <PopoverDescription className="mt-2 space-y-1 text-xs">
-            <div>Search updates as you type.</div>
+            <div>SearchRoundedIcon updates as you type.</div>
             <div>Status/platform filters reset pagination to page 1.</div>
             <div>Use Clear to remove all active filters.</div>
           </PopoverDescription>
@@ -169,8 +174,8 @@ export function FilterBar({
       </Popover>
 
       {hasFilters ? (
-        <Button size="sm" variant="ghost" className="h-8 gap-1" onClick={clearAll}>
-          <X className="size-3.5 shrink-0" />
+        <Button size="sm" variant="glass" className="h-8 gap-1" onClick={clearAll}>
+          <CloseRoundedIcon className="size-3.5 shrink-0" />
           Clear
         </Button>
       ) : null}

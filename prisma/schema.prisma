@@ -53,34 +53,36 @@ model User {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
-  accounts           Account[]
-  sessions           Session[]
-  memberships        Membership[]
-  sentInvites        Invite[]            @relation("InviteSender")
-  auditLogs          AuditLog[]
-  voucherRedemptions VoucherRedemption[]
-  subscriptionOrders SubscriptionOrder[]
-  supportTickets     SupportTicket[]
-  loginSessions      LoginSession[]
+  accounts            Account[]
+  sessions            Session[]
+  memberships         Membership[]
+  sentInvites         Invite[]            @relation("InviteSender")
+  auditLogs           AuditLog[]
+  assignedMentions    Mention[]           @relation("MentionAssignee")
+  assignedTargetPosts TargetPost[]        @relation("TargetPostAssignee")
+  voucherRedemptions  VoucherRedemption[]
+  subscriptionOrders  SubscriptionOrder[]
+  supportTickets      SupportTicket[]
+  loginSessions       LoginSession[]
 }
 
 /// One row per issued login-token family (JWT jti). Lets the user list and
 /// revoke signed-in devices; revocation is enforced in the Node jwt callback.
 model LoginSession {
-  id         String    @id @default(cuid())
-  userId     String
-  jti        String    @unique
-  provider   String?
-  userAgent  String?
-  ip         String?
-  createdAt  DateTime  @default(now())
-  lastSeenAt DateTime  @default(now())
-  revokedAt  DateTime?
+  id             String    @id @default(cuid())
+  userId         String
+  jti            String    @unique
+  provider       String?
+  userAgent      String?
+  ip             String?
+  createdAt      DateTime  @default(now())
+  lastSeenAt     DateTime  @default(now())
+  revokedAt      DateTime?
   /// Set when the TOTP challenge is passed for this device session. The JWT
   /// `totpGate` flag is cleared only when this row says so — never from a
   /// client-supplied session value (see jwt callback in src/lib/auth.ts).
   totpVerifiedAt DateTime?
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt])
 }
@@ -276,7 +278,7 @@ model Invite {
   createdAt   DateTime      @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  invitedBy User?     @relation("InviteSender", fields: [invitedById], references: [id])
+  invitedBy User?     @relation("InviteSender", fields: [invitedById], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, email])
 }
@@ -610,7 +612,7 @@ model WorkspaceAiSubscription {
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
 
   @@index([workspaceId, status])
   @@index([quotaPeriodEnd])
@@ -640,7 +642,7 @@ model AiCreditLedger {
   expiresAt     DateTime?
   createdAt     DateTime         @default(now())
 
-  workspace  Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace  Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   usageEvent AiUsageEvent? @relation(fields: [usageEventId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, createdAt])
@@ -662,7 +664,7 @@ model WorkspaceAiBalance {
   quotaPeriodStart DateTime?
   updatedAt        DateTime  @updatedAt
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
 }
 
 /// Satu baris per AI call (BYOK tercatat dengan creditsUsed=0 untuk analitik).
@@ -683,7 +685,7 @@ model AiUsageEvent {
   refId        String?
   createdAt    DateTime        @default(now())
 
-  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   ledgerEntry AiCreditLedger?
 
   @@index([workspaceId, createdAt])
@@ -751,21 +753,27 @@ model CampaignAccount {
 }
 
 model Listener {
-  id          String       @id @default(cuid())
-  workspaceId String
-  campaignId  String?
-  platform    Platform
-  type        ListenerType
-  query       String
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id                  String       @id @default(cuid())
+  workspaceId         String
+  campaignId          String?
+  platform            Platform
+  type                ListenerType
+  query               String
+  isActive            Boolean      @default(true)
+  /// Auto-poll cadence in minutes; null = manual polling only. Consumed by the
+  /// `listener.autopoll` worker job (dedicated cron, not worker.tick).
+  pollIntervalMinutes Int?
+  /// Last time this listener was polled (manual poll, tick poll, or autopoll).
+  lastPolledAt        DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   campaign  Campaign?    @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   posts     TargetPost[]
 
   @@index([workspaceId, isActive])
+  @@index([workspaceId, isActive, lastPolledAt])
 }
 
 model TargetPost {
@@ -779,6 +787,8 @@ model TargetPost {
   content      String           @db.Text
   url          String?
   status       TargetPostStatus @default(new)
+  /// Operator owner (User.id) for daily triage; nullable + SetNull on delete.
+  assigneeId   String?
   discoveredAt DateTime         @default(now())
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
@@ -786,6 +796,7 @@ model TargetPost {
   workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   campaign  Campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   listener  Listener?        @relation(fields: [listenerId], references: [id], onDelete: SetNull)
+  assignee  User?            @relation("TargetPostAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   drafts    CommentDraft[]
   actions   CommentAction[]
   approvals Approval[]
@@ -793,6 +804,7 @@ model TargetPost {
 
   @@unique([workspaceId, platform, externalId])
   @@index([workspaceId, status, discoveredAt(sort: Desc)])
+  @@index([assigneeId])
 }
 
 model CommentDraft {
@@ -806,7 +818,9 @@ model CommentDraft {
   providerId   String?
   model        String?
   riskFlags    String[]
-  mentionId    String?     @unique
+  mentionId    String?
+  /// A/B copy variant label (e.g. "A", "B"). Null = control / unassigned.
+  variant      String?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -814,11 +828,12 @@ model CommentDraft {
   campaign   Campaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   targetPost TargetPost     @relation(fields: [targetPostId], references: [id], onDelete: Cascade)
   agent      Agent?         @relation(fields: [agentId], references: [id], onDelete: SetNull)
-  mention    Mention?       @relation(fields: [mentionId], references: [id], onDelete: SetNull)
+  mention    Mention?       @relation("MentionDrafts", fields: [mentionId], references: [id], onDelete: SetNull)
   approval   Approval?
   action     CommentAction?
 
   @@index([workspaceId, status, createdAt(sort: Desc)])
+  @@index([mentionId, createdAt(sort: Desc)])
 }
 
 model Approval {
@@ -904,6 +919,8 @@ model Mention {
   content          String        @db.Text
   url              String?
   status           MentionStatus @default(new)
+  /// Operator owner (User.id) for daily triage; nullable + SetNull on delete.
+  assigneeId       String?
   /// Raw webhook/ingest payload for debugging (delivery webhook style)
   rawPayload       Json?
   receivedAt       DateTime      @default(now())
@@ -913,12 +930,16 @@ model Mention {
 
   workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   socialAccount SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
-  draft         CommentDraft?
+  assignee      User?          @relation("MentionAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  /// All reply drafts for this mention (newest first in queries). Kept as a
+  /// list so operators can compare variants; approval still picks one.
+  drafts        CommentDraft[] @relation("MentionDrafts")
   action        CommentAction?
 
   @@unique([workspaceId, platform, externalId])
   @@index([workspaceId, status, receivedAt(sort: Desc)])
   @@index([socialAccountId, receivedAt(sort: Desc)])
+  @@index([assigneeId])
 }
 
 /// Per-workspace auto-reply configuration for incoming mentions.
@@ -1300,6 +1321,8 @@ model Skill {
   configJson  Json?
   highRisk    Boolean       @default(false)
   isActive    Boolean       @default(true)
+  /// Incremented on every edit via updateSkill; surfaced in list/detail UIs.
+  version     Int           @default(1)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -1477,12 +1500,13 @@ model SubscriptionOrder {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   plan              Plan               @relation(fields: [planId], references: [id], onDelete: Restrict)
   user              User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
   subscription      Subscription?      @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   voucher           Voucher?           @relation(fields: [voucherId], references: [id], onDelete: SetNull)
   paymentEvents     PaymentEvent[]
+  refundReconciliations RefundReconciliation[]
   voucherRedemption VoucherRedemption?
 
   @@index([workspaceId, status, createdAt(sort: Desc)])
@@ -1501,6 +1525,40 @@ model PaymentEvent {
   order SubscriptionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId, createdAt(sort: Desc)])
+}
+
+model BridgeIdempotency {
+  key         String   @id
+  payloadHash String
+  status      String
+  httpStatus  Int?
+  response    Json?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model RefundReconciliation {
+  id                String    @id @default(cuid())
+  eventKey          String    @unique
+  orderId           String?
+  transactionStatus String
+  refundAmountIdr   Int?
+  payload           Json
+  state             String    @default("pending")
+  reason            String?
+  attemptCount      Int       @default(0)
+  reviewedById      String?
+  reviewedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  order SubscriptionOrder? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([state, createdAt])
+  @@index([orderId, createdAt])
 }
 
 model Voucher {
@@ -1801,4 +1859,17 @@ enum SupportTicketAuthorRole {
   reporter
   cs
   system
+}
+
+// Idempotency outcomes for the connector bridge server (dev/test tooling).
+// Persisted so a bridge restart cannot turn a redelivery into a duplicate
+// post — the in-memory Map in bridge-server.ts is only a hot cache.
+model BridgeIdempotencyKey {
+  key       String   @id
+  status    Int
+  body      Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
 }

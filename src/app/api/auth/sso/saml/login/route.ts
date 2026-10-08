@@ -1,22 +1,33 @@
 import { NextResponse } from "next/server";
 import { assertSafeOutboundUrl, UnsafeUrlError } from "@/lib/url-safety";
+import { apiError } from "@/lib/api-errors";
 import { getSsoLoginTarget } from "@/server/sso-service";
+import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  // Per-IP rate limit (auth-adjacent endpoint, fail-closed): prevents
+  // enumeration/probing of SSO-enabled domains.
+  const ipRate = await consumeRateLimit({
+    key: getRequestRateKey(request, "auth:sso:login:ip"),
+    limit: 20,
+    windowMs: 60_000,
+    failClosed: true,
+  });
+  if (!ipRate.ok) {
+    return apiError("RATE_LIMITED", 429);
+  }
+
   const { searchParams } = new URL(request.url);
   const email = (searchParams.get("email") || "").trim().toLowerCase();
   if (!email || !email.includes("@")) {
-    return NextResponse.json({ error: "Valid email required" }, { status: 400 });
+    return apiError("INVALID_INPUT", 400, "Valid email required");
   }
 
   const config = await getSsoLoginTarget(email);
   if (!config) {
-    return NextResponse.json(
-      { error: "No active SSO config for this email domain" },
-      { status: 404 },
-    );
+    return apiError("NOT_FOUND", 404, "No active SSO config for this email domain");
   }
 
   // Validate stored entryPoint again at redirect time (defense in depth / legacy rows).
@@ -27,14 +38,12 @@ export async function GET(request: Request) {
     // Never reflect stored admin config (IdP URL / validation detail) to an
     // unauthenticated caller — log full, return generic.
     console.error("[sso-login] entry point validation failed", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof UnsafeUrlError
-            ? "Configured IdP entry point is not allowed"
-            : "Configured IdP entry point is invalid",
-      },
-      { status: 400 },
+    return apiError(
+      "INVALID_INPUT",
+      400,
+      error instanceof UnsafeUrlError
+        ? "Configured IdP entry point is not allowed"
+        : "Configured IdP entry point is invalid",
     );
   }
 

@@ -1,21 +1,76 @@
 "use client";
 
 import { useCallback, useState, useTransition } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Globe,
-  Loader2,
-  MessageSquare,
-  Rocket,
-  Shield,
-  Sparkles,
-  UserPlus,
-  Zap,
-} from "lucide-react";
+import Image from "next/image";
+import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
+import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
+import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
+import BoltRoundedIcon from "@mui/icons-material/BoltRounded";
+import CampaignRoundedIcon from "@mui/icons-material/CampaignRounded";
+import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
+import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
+import LoopRoundedIcon from "@mui/icons-material/LoopRounded";
+import MessageRoundedIcon from "@mui/icons-material/MessageRounded";
+import MusicNoteRoundedIcon from "@mui/icons-material/MusicNoteRounded";
+import PersonAddRoundedIcon from "@mui/icons-material/PersonAddRounded";
+import PublicRoundedIcon from "@mui/icons-material/PublicRounded";
+import RocketLaunchRoundedIcon from "@mui/icons-material/RocketLaunchRounded";
+import SearchRoundedIcon from "@mui/icons-material/SearchRounded";
+import ShieldRoundedIcon from "@mui/icons-material/ShieldRounded";
+import StarRoundedIcon from "@mui/icons-material/StarRounded";
+import SupportRoundedIcon from "@mui/icons-material/SupportRounded";
+import TrackChangesRoundedIcon from "@mui/icons-material/TrackChangesRounded";
+import TrendingUpRoundedIcon from "@mui/icons-material/TrendingUpRounded";
+import { createSvgIcon } from "@mui/material/utils";
+import type { TemplateIconName } from "@/data/onboarding-templates";
+
+// ---------------------------------------------------------------------------
+// Brand icons (MUI SvgIcon via createSvgIcon — theme-aware, inherits color)
+// ---------------------------------------------------------------------------
+
+const InstagramIcon = createSvgIcon(
+  <>
+    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </>,
+  "Instagram",
+);
+
+const TiktokIcon = createSvgIcon(
+  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" />,
+  "Tiktok",
+);
+
+const ThreadsIcon = createSvgIcon(
+  <path d="M6.321 6.016c-.27-.18-1.166-.802-1.166-.802.756-1.081 1.753-1.502 3.132-1.502.975 0 1.803.327 2.394.948s.928 1.509 1.005 2.644q.492.207.905.484c1.109.745 1.719 1.86 1.719 3.137 0 2.716-2.226 5.075-6.256 5.075C4.594 16 1 13.987 1 7.994 1 2.034 4.482 0 8.044 0 9.69 0 13.55.243 15 5.036l-1.36.353C12.516 1.974 10.163 1.43 8.006 1.43c-3.565 0-5.582 2.171-5.582 6.79 0 4.143 2.254 6.343 5.63 6.343 2.777 0 4.847-1.443 4.847-3.556 0-1.438-1.208-2.127-1.27-2.127-.236 1.234-.868 3.31-3.644 3.31-1.618 0-3.013-1.118-3.013-2.582 0-2.09 1.984-2.847 3.55-2.847.586 0 1.294.04 1.663.114 0-.637-.54-1.728-1.9-1.728-1.25 0-1.566.405-1.967.868ZM8.716 8.19c-2.04 0-2.304.87-2.304 1.416 0 .878 1.043 1.168 1.6 1.168 1.02 0 2.067-.282 2.232-2.423a6.2 6.2 0 0 0-1.528-.161" />,
+  "Threads",
+);
+
+// Map template icon names (from @/data/onboarding-templates) to MUI Rounded icons
+function TemplateIcon({ name, className }: { name: TemplateIconName; className?: string }) {
+  const cls = className ?? "size-5";
+  switch (name) {
+    case "MessageSquare":
+      return <MessageRoundedIcon className={cls} />;
+    case "Target":
+      return <TrackChangesRoundedIcon className={cls} />;
+    case "Megaphone":
+      return <CampaignRoundedIcon className={cls} />;
+    case "LifeBuoy":
+      return <SupportRoundedIcon className={cls} />;
+    case "Music":
+      return <MusicNoteRoundedIcon className={cls} />;
+    case "Search":
+      return <SearchRoundedIcon className={cls} />;
+    case "Threads":
+      return <ThreadsIcon className={cls} />;
+    case "Sparkles":
+      return <AutoAwesomeRoundedIcon className={cls} />;
+    default:
+      return <AutoAwesomeRoundedIcon className={cls} />;
+  }
+}
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,27 +116,27 @@ const STEP_META: Record<
   welcome: {
     title: "Welcome",
     description: "Let's get started",
-    icon: <Sparkles className="size-4" />,
+    icon: <AutoAwesomeRoundedIcon className="size-4" />,
   },
   workspace: {
     title: "Workspace",
     description: "Set up your space",
-    icon: <Globe className="size-4" />,
+    icon: <PublicRoundedIcon className="size-4" />,
   },
   goals: {
     title: "Goals",
     description: "What are you here for?",
-    icon: <Zap className="size-4" />,
+    icon: <BoltRoundedIcon className="size-4" />,
   },
   template: {
     title: "Template",
     description: "Pick a campaign",
-    icon: <MessageSquare className="size-4" />,
+    icon: <MessageRoundedIcon className="size-4" />,
   },
   launch: {
     title: "Launch",
     description: "You're all set",
-    icon: <Rocket className="size-4" />,
+    icon: <RocketLaunchRoundedIcon className="size-4" />,
   },
 };
 
@@ -95,6 +150,15 @@ type Platform = "instagram" | "tiktok" | "threads";
 export type OnboardingWizardProps = {
   userName?: string;
   completeOnboarding: (formData: FormData) => Promise<void>;
+  initialStep?: OnboardingStep;
+  urlData?: {
+    workspaceName: string;
+    timezone: string;
+    invites: string;
+    goals: string;
+    platforms: string;
+    templateId: string;
+  };
 };
 
 // ---------------------------------------------------------------------------
@@ -104,20 +168,36 @@ export type OnboardingWizardProps = {
 export function OnboardingWizard({
   userName,
   completeOnboarding,
+  initialStep = "welcome",
+  urlData,
 }: OnboardingWizardProps) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [currentStep, setCurrentStep] = useState<OnboardingStep>("welcome");
+  const [currentStep, setCurrentStep] = useState<OnboardingStep>(initialStep);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
 
-  // Form state
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [timezone, setTimezone] = useState("Asia/Jakarta");
-  const [invites, setInvites] = useState("");
-  const [selectedGoals, setSelectedGoals] = useState<UserGoal[]>([]);
-  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
+  // Form state (diisi dari URL params untuk navigasi tanpa JS)
+  const [workspaceName, setWorkspaceName] = useState(urlData?.workspaceName ?? "");
+  const [timezone, setTimezone] = useState(urlData?.timezone ?? "Asia/Jakarta");
+  const [invites, setInvites] = useState(urlData?.invites ?? "");
+  const [selectedGoals, setSelectedGoals] = useState<UserGoal[]>(() =>
+    (urlData?.goals ? urlData.goals.split(",") : []).filter(
+      (g): g is UserGoal =>
+        g === "engagement" || g === "leads" || g === "brand" || g === "support",
+    ),
+  );
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(() =>
+    (urlData?.platforms ? urlData.platforms.split(",") : []).filter(
+      (p): p is Platform =>
+        p === "instagram" || p === "tiktok" || p === "threads",
+    ),
+  );
   const [selectedTemplate, setSelectedTemplate] =
-    useState<CampaignTemplate | null>(null);
+    useState<CampaignTemplate | null>(() => {
+      if (!urlData?.templateId) return null;
+      return (
+        CAMPAIGN_TEMPLATES.find((t) => t.id === urlData.templateId) ?? null
+      );
+    });
 
   const currentIndex = STEPS.indexOf(currentStep);
   const progressPercent = ((currentIndex + 1) / STEPS.length) * 100;
@@ -202,14 +282,25 @@ export function OnboardingWizard({
     filteredTemplates.length > 0 ? filteredTemplates : allTemplatesForPlatforms;
 
   return (
-    <div className="relative mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-8">
+    <div className="bg-marketing relative flex min-h-screen flex-col overflow-hidden px-4 py-8 text-neutral-100">
+      {/* Ambient glows ala landing */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-32 left-1/2 h-96 w-[60rem] -translate-x-1/2 rounded-full bg-electric-600/15 blur-3xl" />
+        <div className="absolute top-1/3 -left-32 h-80 w-80 rounded-full bg-electric-500/10 blur-3xl" />
+        <div className="absolute -right-32 bottom-0 h-80 w-80 rounded-full bg-electric-400/10 blur-3xl" />
+      </div>
+      <div className="relative mx-auto flex w-full max-w-2xl flex-1 flex-col">
       {/* Progress header */}
       <div className="mb-8">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-neutral-900 text-white">
-              <Sparkles className="size-4" />
-            </div>
+            <Image
+              src="/brand/komenin-welcome-256.png"
+              alt="Komenin"
+              width={32}
+              height={32}
+              className="size-8 object-contain"
+            />
             <span className="font-semibold text-lg">Komenin</span>
           </div>
           <span className="text-sm text-muted-foreground tabular-nums">
@@ -219,8 +310,8 @@ export function OnboardingWizard({
 
         {/* Step indicator bar */}
         <Progress value={progressPercent}>
-          <ProgressTrack className="h-1.5 bg-neutral-100">
-            <ProgressIndicator className="bg-neutral-900 transition-all duration-500 ease-out" />
+          <ProgressTrack className="h-1.5 bg-white/10">
+            <ProgressIndicator className="bg-electric-500 transition-all duration-500 ease-out" />
           </ProgressTrack>
         </Progress>
 
@@ -235,23 +326,23 @@ export function OnboardingWizard({
                 key={step}
                 className={`flex items-center gap-1.5 text-xs transition-colors duration-300 ${
                   isActive
-                    ? "font-medium text-neutral-900"
+                    ? "font-medium text-foreground"
                     : isCompleted
-                      ? "text-neutral-500"
-                      : "text-neutral-300"
+                      ? "text-muted-foreground"
+                      : "text-muted-foreground/60"
                 }`}
               >
                 <span
                   className={`flex size-5 items-center justify-center rounded-full text-[10px] transition-all duration-300 ${
                     isActive
-                      ? "bg-neutral-900 text-white shadow-md"
+                      ? "bg-electric-500 text-white shadow-md"
                       : isCompleted
-                        ? "bg-neutral-200 text-neutral-600"
-                        : "bg-neutral-100 text-neutral-400"
+                        ? "bg-muted text-muted-foreground"
+                        : "bg-muted text-muted-foreground/60"
                   }`}
                 >
                   {isCompleted ? (
-                    <Check className="size-3" />
+                    <CheckRoundedIcon className="size-3" />
                   ) : (
                     <span>{index + 1}</span>
                   )}
@@ -313,43 +404,47 @@ export function OnboardingWizard({
       {currentStep !== "welcome" && (
         <div className="mt-8 flex items-center justify-between border-t pt-4">
           <Button
-            variant="ghost"
+            variant="glass"
             onClick={goBack}
             disabled={isPending}
           >
-            <ArrowLeft className="size-4" />
+            <ArrowBackRoundedIcon className="size-4" />
             Back
           </Button>
           {currentStep === "launch" ? (
             <Button
+              variant="electric"
               onClick={handleLaunch}
               disabled={isPending || !canGoNext()}
               size="lg"
+              className="rounded-full"
             >
               {isPending ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" />
+                  <LoopRoundedIcon className="size-4 animate-spin" />
                   Launching…
                 </>
               ) : (
                 <>
-                  <Rocket className="size-4" />
+                  <RocketLaunchRoundedIcon className="size-4" />
                   Launch command center
                 </>
               )}
             </Button>
           ) : (
             <Button
+              variant="electric"
               onClick={goNext}
               disabled={!canGoNext() || isPending}
             >
               Continue
-              <ArrowRight className="size-4" />
+              <ArrowForwardRoundedIcon className="size-4" />
             </Button>
           )}
         </div>
       )}
 
+      </div>
       {/* Animations */}
       <style>{`
         @keyframes slideInRight {
@@ -369,9 +464,9 @@ export function OnboardingWizard({
           to   { opacity: 1; transform: scale(1); }
         }
         @keyframes pulse-ring {
-          0%   { box-shadow: 0 0 0 0 rgba(23,23,23,0.2); }
-          70%  { box-shadow: 0 0 0 8px rgba(23,23,23,0); }
-          100% { box-shadow: 0 0 0 0 rgba(23,23,23,0); }
+          0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 20%, transparent); }
+          70%  { box-shadow: 0 0 0 8px transparent; }
+          100% { box-shadow: 0 0 0 0 transparent; }
         }
       `}</style>
     </div>
@@ -389,15 +484,22 @@ function WelcomeStep({
   userName?: string;
   onContinue: () => void;
 }) {
-  const greeting = userName ? `Hi ${userName.split(" ")[0]}! 👋` : "Welcome! 👋";
+  const greeting = userName ? `Hi ${userName.split(" ")[0]}!` : "Welcome!";
 
   return (
     <div className="flex flex-col items-center justify-center pt-8 text-center">
       <div
-        className="mb-6 flex size-20 items-center justify-center rounded-2xl bg-neutral-900 text-white shadow-lg"
+        className="mb-6"
         style={{ animation: "scaleIn 0.5s ease-out" }}
       >
-        <Sparkles className="size-8" />
+        <Image
+          src="/brand/komenin-welcome-512.png"
+          alt="Komenin welcome"
+          width={160}
+          height={160}
+          priority
+          className="size-32 object-contain md:size-36"
+        />
       </div>
       <h1
         className="mb-3 text-3xl font-bold tracking-tight md:text-4xl"
@@ -416,9 +518,9 @@ function WelcomeStep({
         style={{ animation: "fadeInUp 0.5s ease-out 0.3s both" }}
       >
         {[
-          { icon: <Shield className="size-3" />, label: "Approval-safe" },
-          { icon: <Zap className="size-3" />, label: "AI-powered" },
-          { icon: <MessageSquare className="size-3" />, label: "Multi-platform" },
+          { icon: <ShieldRoundedIcon className="size-3" />, label: "Approval-safe" },
+          { icon: <BoltRoundedIcon className="size-3" />, label: "AI-powered" },
+          { icon: <MessageRoundedIcon className="size-3" />, label: "Multi-platform" },
         ].map((feature) => (
           <Badge key={feature.label} variant="secondary" className="gap-1 px-3 py-1.5">
             {feature.icon}
@@ -427,9 +529,9 @@ function WelcomeStep({
         ))}
       </div>
       <div style={{ animation: "fadeInUp 0.5s ease-out 0.4s both" }}>
-        <Button size="lg" onClick={onContinue} className="gap-2">
+        <Button size="lg" variant="electric" onClick={onContinue} className="gap-2 rounded-full">
           Get started
-          <ArrowRight className="size-4" />
+          <ArrowForwardRoundedIcon className="size-4" />
         </Button>
       </div>
       <p
@@ -510,7 +612,7 @@ function WorkspaceStep({
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <UserPlus className="size-4 text-muted-foreground" />
+              <PersonAddRoundedIcon className="size-4 text-muted-foreground" />
               <CardTitle className="text-base">
                 Invite teammates
                 <Badge variant="secondary" className="ml-2">
@@ -548,60 +650,60 @@ const GOAL_OPTIONS: {
   value: UserGoal;
   label: string;
   description: string;
-  icon: string;
+  icon: React.ReactNode;
 }[] = [
   {
     value: "engagement",
     label: "Boost Engagement",
     description:
       "Increase likes, comments, and followers through strategic commenting",
-    icon: "💬",
+    icon: <FavoriteRoundedIcon className="size-5" />,
   },
   {
     value: "leads",
     label: "Generate Leads",
     description:
       "Capture potential customers through intent-based comment targeting",
-    icon: "🎯",
+    icon: <TrackChangesRoundedIcon className="size-5" />,
   },
   {
     value: "brand",
     label: "Build Brand Awareness",
     description:
       "Strengthen your brand presence through consistent engagement",
-    icon: "📢",
+    icon: <CampaignRoundedIcon className="size-5" />,
   },
   {
     value: "support",
     label: "Customer Support",
     description:
       "Respond quickly to brand mentions and customer inquiries",
-    icon: "🛟",
+    icon: <SupportRoundedIcon className="size-5" />,
   },
 ];
 
 const PLATFORM_OPTIONS: {
   value: Platform;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   color: string;
 }[] = [
   {
     value: "instagram",
     label: "Instagram",
-    icon: "📸",
+    icon: <InstagramIcon className="size-7" />,
     color: "from-purple-500/10 to-pink-500/10",
   },
   {
     value: "tiktok",
     label: "TikTok",
-    icon: "🎵",
+    icon: <TiktokIcon className="size-7" />,
     color: "from-cyan-500/10 to-neutral-500/10",
   },
   {
     value: "threads",
     label: "Threads",
-    icon: "🧵",
+    icon: <ThreadsIcon className="size-7" />,
     color: "from-neutral-500/10 to-neutral-300/10",
   },
 ];
@@ -643,8 +745,8 @@ function GoalsStep({
                 onClick={() => toggleGoal(goal.value)}
                 className={`group relative flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all duration-200 ${
                   isSelected
-                    ? "border-neutral-900 bg-neutral-900/[0.03] shadow-sm"
-                    : "border-neutral-200 hover:border-neutral-400 hover:shadow-sm"
+                    ? "border-electric-500/50 bg-electric-500/10 shadow-sm"
+                    : "border-border hover:border-electric-500/40 hover:shadow-sm"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${index * 0.05}s both`,
@@ -654,15 +756,15 @@ function GoalsStep({
                 <span
                   className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs transition-all duration-200 ${
                     isSelected
-                      ? "bg-neutral-900 text-white"
-                      : "border border-neutral-300 bg-white"
+                      ? "bg-electric-500 text-white"
+                      : "border border-input bg-muted"
                   }`}
                 >
-                  {isSelected && <Check className="size-3" />}
+                  {isSelected && <CheckRoundedIcon className="size-3" />}
                 </span>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">{goal.icon}</span>
+                    <span className="flex shrink-0">{goal.icon}</span>
                     <span className="text-sm font-semibold">{goal.label}</span>
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
@@ -690,8 +792,8 @@ function GoalsStep({
                 onClick={() => togglePlatform(platform.value)}
                 className={`group relative flex flex-col items-center gap-2 rounded-xl border-2 px-4 py-5 transition-all duration-200 ${
                   isSelected
-                    ? "border-neutral-900 bg-neutral-900/[0.03] shadow-sm"
-                    : "border-neutral-200 hover:border-neutral-400 hover:shadow-sm"
+                    ? "border-electric-500/50 bg-electric-500/10 shadow-sm"
+                    : "border-border hover:border-electric-500/40 hover:shadow-sm"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${(index + 4) * 0.05}s both`,
@@ -700,13 +802,13 @@ function GoalsStep({
                 <span
                   className={`absolute right-2 top-2 flex size-4 items-center justify-center rounded-full text-[10px] transition-all duration-200 ${
                     isSelected
-                      ? "bg-neutral-900 text-white"
-                      : "border border-neutral-300 bg-white"
+                      ? "bg-electric-500 text-white"
+                      : "border border-input bg-muted"
                   }`}
                 >
-                  {isSelected && <Check className="size-2.5" />}
+                  {isSelected && <CheckRoundedIcon className="size-2.5" />}
                 </span>
-                <span className="text-2xl">{platform.icon}</span>
+                <span className="flex shrink-0">{platform.icon}</span>
                 <span className="text-sm font-medium">{platform.label}</span>
               </button>
             );
@@ -744,7 +846,7 @@ function TemplateStep({
       {templates.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center py-12 text-center">
-            <MessageSquare className="mb-3 size-10 text-muted-foreground/40" />
+            <MessageRoundedIcon className="mb-3 size-10 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">
               No templates match your selection. You can create a campaign from scratch after setup.
             </p>
@@ -770,8 +872,8 @@ function TemplateStep({
                 }
                 className={`group relative flex items-start gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${
                   isSelected
-                    ? "border-neutral-900 bg-neutral-900/[0.03] shadow-sm"
-                    : "border-neutral-200 hover:border-neutral-400 hover:shadow-sm"
+                    ? "border-electric-500/50 bg-electric-500/10 shadow-sm"
+                    : "border-border hover:border-electric-500/40 hover:shadow-sm"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${index * 0.05}s both`,
@@ -779,11 +881,11 @@ function TemplateStep({
               >
                 {/* Icon */}
                 <span
-                  className={`flex size-10 shrink-0 items-center justify-center rounded-lg text-xl transition-all ${
-                    isSelected ? "bg-neutral-900 shadow-md" : "bg-neutral-100"
+                  className={`flex size-10 shrink-0 items-center justify-center rounded-lg transition-all ${
+                    isSelected ? "bg-electric-500 text-white shadow-md" : "bg-muted text-foreground"
                   }`}
                 >
-                  {template.icon}
+                  <TemplateIcon name={template.icon} className="size-5" />
                 </span>
 
                 <div className="min-w-0 flex-1">
@@ -796,12 +898,14 @@ function TemplateStep({
                     </Badge>
                     {template.tags.includes("popular") && (
                       <Badge variant="secondary" className="text-[10px]">
-                        ⭐ Popular
+                        <StarRoundedIcon className="size-3" />
+                        Popular
                       </Badge>
                     )}
                     {template.tags.includes("high-roi") && (
                       <Badge variant="secondary" className="text-[10px]">
-                        📈 High ROI
+                        <TrendingUpRoundedIcon className="size-3" />
+                        High ROI
                       </Badge>
                     )}
                   </div>
@@ -810,7 +914,7 @@ function TemplateStep({
                   </p>
                   {isSelected && (
                     <div
-                      className="mt-3 flex flex-wrap gap-4 rounded-lg bg-neutral-50 p-3 text-xs text-muted-foreground"
+                      className="mt-3 flex flex-wrap gap-4 rounded-lg bg-muted p-3 text-xs text-muted-foreground"
                       style={{ animation: "fadeInUp 0.2s ease-out" }}
                     >
                       <span>
@@ -840,11 +944,11 @@ function TemplateStep({
                 <span
                   className={`mt-1 flex size-5 shrink-0 items-center justify-center rounded-full text-xs transition-all duration-200 ${
                     isSelected
-                      ? "bg-neutral-900 text-white"
-                      : "border border-neutral-300 bg-white"
+                      ? "bg-electric-500 text-white"
+                      : "border border-input bg-muted"
                   }`}
                 >
-                  {isSelected && <Check className="size-3" />}
+                  {isSelected && <CheckRoundedIcon className="size-3" />}
                 </span>
               </button>
             );
@@ -891,10 +995,10 @@ function LaunchStep({
     <div>
       <div className="mb-6 text-center">
         <div
-          className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-neutral-900 text-white shadow-lg"
+          className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-electric-500 text-white shadow-lg"
           style={{ animation: "scaleIn 0.5s ease-out" }}
         >
-          <Rocket className="size-7" />
+          <RocketLaunchRoundedIcon className="size-7" />
         </div>
         <h2
           className="text-2xl font-bold tracking-tight"
@@ -958,8 +1062,9 @@ function LaunchStep({
             </div>
             <div className="mt-1 text-sm">
               {selectedTemplate ? (
-                <span className="font-semibold">
-                  {selectedTemplate.icon} {selectedTemplate.name}
+                <span className="inline-flex items-center gap-2 font-semibold">
+                  <TemplateIcon name={selectedTemplate.icon} className="size-4" />
+                  {selectedTemplate.name}
                 </span>
               ) : (
                 <span className="text-muted-foreground">
@@ -984,29 +1089,31 @@ function LaunchStep({
         <CardContent className="space-y-3">
           {[
             {
-              icon: "1️⃣",
+              step: 1,
               text: "Connect your first social account",
             },
             {
-              icon: "2️⃣",
+              step: 2,
               text: "Set up a proxy for session health",
             },
             {
-              icon: "3️⃣",
+              step: 3,
               text: selectedTemplate
                 ? `Launch "${selectedTemplate.name}" campaign`
                 : "Create your first campaign",
             },
             {
-              icon: "4️⃣",
+              step: 4,
               text: "Review and approve AI-generated comments",
             },
           ].map((step) => (
             <div
-              key={step.icon}
+              key={step.step}
               className="flex items-center gap-3 text-sm text-muted-foreground"
             >
-              <span className="text-base">{step.icon}</span>
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">
+                {step.step}
+              </span>
               <span>{step.text}</span>
             </div>
           ))}

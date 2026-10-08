@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiError } from "@/lib/api-errors";
 import { recordPublishDelivery } from "@/lib/publish-delivery-store";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 import { allowDevStubs, isProductionRuntime, safeEqual } from "@/lib/security";
@@ -19,40 +20,38 @@ type WebhookBody = {
 };
 
 export async function POST(request: Request) {
+  // Signature-verified but unauthenticated surface: failClosed so an Upstash
+  // outage cannot be turned into a CPU-burning flood of fake notifications.
   const rate = await consumeRateLimit({
     key: getRequestRateKey(request, "api:publish:webhook"),
     limit: 120,
     windowMs: 60_000,
+    failClosed: true,
   });
   if (!rate.ok) {
-    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+    return apiError("RATE_LIMITED", 429);
   }
   const expected = process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN?.trim();
   // Fail closed: token required unless ALLOW_SECURITY_STUBS=true in non-production.
   if (!expected) {
       if (!allowDevStubs()) {
-      return NextResponse.json(
-        {
-          error:
-            "SOCIAL_PUBLISH_WEBHOOK_TOKEN must be configured (set ALLOW_SECURITY_STUBS=true only for local insecure stubs)",
-        },
-        { status: 503 },
+      return apiError(
+        "NOT_CONFIGURED",
+        503,
+        "SOCIAL_PUBLISH_WEBHOOK_TOKEN must be configured (set ALLOW_SECURITY_STUBS=true only for local insecure stubs)",
       );
     }
   } else {
     const auth = request.headers.get("authorization") || "";
     const token = auth.startsWith("Bearer ") ? auth.slice("Bearer ".length) : "";
     if (!token || !safeEqual(token, expected)) {
-      return NextResponse.json({ error: "Unauthorized webhook token" }, { status: 401 });
+      return apiError("INVALID_CREDENTIALS", 401, "Unauthorized webhook token");
     }
   }
 
   const payload = (await request.json().catch(() => null)) as WebhookBody | null;
   if (!payload || typeof payload.body !== "string" || !payload.body.trim()) {
-    return NextResponse.json(
-      { error: "Invalid payload. Expected JSON with non-empty body." },
-      { status: 400 },
-    );
+    return apiError("INVALID_INPUT", 400, "Invalid payload. Expected JSON with non-empty body.");
   }
 
   // Database is the source of truth (serverless FS is read-only/ephemeral).
@@ -83,10 +82,7 @@ export async function POST(request: Request) {
   } catch (error) {
     // Never acknowledge a delivery we failed to persist.
     console.error("[publish-webhook] failed to persist delivery", error);
-    return NextResponse.json(
-      { error: "Failed to persist delivery" },
-      { status: 500 },
-    );
+    return apiError("INTERNAL_ERROR", 500, "Failed to persist delivery");
   }
 }
 
@@ -95,7 +91,7 @@ export async function GET() {
   // production — the bridge operator already has the contract in
   // docs/BRIDGE-CONTRACT.md. POST behaviour is unchanged.
   if (isProductionRuntime()) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return apiError("NOT_FOUND", 404);
   }
   const tokenConfigured = Boolean(process.env.SOCIAL_PUBLISH_WEBHOOK_TOKEN?.trim());
   return NextResponse.json({

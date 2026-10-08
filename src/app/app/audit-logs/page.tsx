@@ -5,34 +5,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPopup,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Textarea } from "@/components/ui/textarea";
-import { exportAuditLogsCsv } from "@/server/audit-export";
 import { listAuditLogs } from "@/server/audit-logs";
 
 export default async function AuditLogsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; export?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const logs = await listAuditLogs({ q: params.q, limit: 200 });
   const { items, window } = paginateItems(logs, params.page, 20);
-  const exported = params.export === "1" ? await exportAuditLogsCsv(2000) : null;
 
   return (
     <div className="space-y-6">
@@ -42,9 +29,14 @@ export default async function AuditLogsPage({
         action={
           <div className="flex flex-wrap gap-2">
             <Button
-              variant="outline"
+              variant="glass"
               size="sm"
-              render={<a href={`/app/audit-logs?${new URLSearchParams({ ...(params.q ? { q: params.q } : {}), export: "1" }).toString()}`} />}
+              render={
+                <a
+                  href={`/app/audit-logs/export${params.q ? `?q=${encodeURIComponent(params.q)}` : ""}`}
+                  download
+                />
+              }
               nativeButton={false}
             >
               Export CSV
@@ -54,31 +46,6 @@ export default async function AuditLogsPage({
       />
 
       <FilterBar placeholder="Search logs by action or resource..." defaultQ={params.q || ""} />
-
-      {exported ? (
-        <Dialog defaultOpen>
-          <DialogPopup className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Export ready</DialogTitle>
-              <DialogDescription>
-                {exported.count} rows · {exported.filename}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="px-6 pb-2">
-              <Textarea readOnly className="h-56 font-mono text-[11px]" value={exported.csv} />
-              <div className="mt-2 text-xs text-muted-foreground">
-                Copy the CSV contents and save as a file for compliance archives.
-              </div>
-            </div>
-            <DialogFooter>
-              <DialogClose render={<Button variant="outline" />}>Close</DialogClose>
-              <Button render={<a href="/app/audit-logs" />} nativeButton={false}>
-                Back to logs
-              </Button>
-            </DialogFooter>
-          </DialogPopup>
-        </Dialog>
-      ) : null}
 
       <Card className="gap-0 overflow-hidden py-0">
         {items.length === 0 ? (

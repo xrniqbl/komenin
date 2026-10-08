@@ -46,7 +46,7 @@ export function ConfirmAction({
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogClose render={<Button variant="outline" disabled={pending} />}>
+          <AlertDialogClose render={<Button variant="glass" disabled={pending} />}>
             {cancelLabel}
           </AlertDialogClose>
           <Button

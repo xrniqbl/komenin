@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { apiError } from "@/lib/api-errors";
 import { allowDevStubs, isProductionRuntime } from "@/lib/security";
 import {
   completeSsoIdentityLogin,
@@ -17,22 +18,18 @@ export const runtime = "nodejs";
  */
 export async function POST(request: Request) {
   if (isProductionRuntime()) {
-    return NextResponse.json(
-      {
-        error:
-          "SAML ACS signature validation is not implemented for production. Do not enable SSO login yet.",
-      },
-      { status: 501 },
+    return apiError(
+      "NOT_CONFIGURED",
+      501,
+      "SAML ACS signature validation is not implemented for production. Do not enable SSO login yet.",
     );
   }
 
   if (!allowDevStubs()) {
-    return NextResponse.json(
-      {
-        error:
-          "SAML ACS is disabled. Set ALLOW_SECURITY_STUBS=true for local unsigned testing only.",
-      },
-      { status: 501 },
+    return apiError(
+      "NOT_CONFIGURED",
+      501,
+      "SAML ACS is disabled. Set ALLOW_SECURITY_STUBS=true for local unsigned testing only.",
     );
   }
 
@@ -66,7 +63,7 @@ export async function POST(request: Request) {
 
       const email = (body.email || "").trim().toLowerCase();
       if (!email) {
-        return NextResponse.json({ error: "email or SAMLResponse required" }, { status: 400 });
+        return apiError("INVALID_INPUT", 400, "Email or SAMLResponse required");
       }
       const domain = email.split("@")[1];
       const config = await db.ssoConfig.findFirst({
@@ -79,7 +76,7 @@ export async function POST(request: Request) {
         },
       });
       if (!config) {
-        return NextResponse.json({ error: "SSO config not found" }, { status: 404 });
+        return apiError("NOT_FOUND", 404, "SSO config not found");
       }
 
       result = await completeSsoIdentityLogin({
@@ -94,11 +91,11 @@ export async function POST(request: Request) {
 
     const completeUrl = new URL("/api/auth/sso/complete", request.url);
     completeUrl.searchParams.set("ticket", result.ticket);
-    return NextResponse.redirect(completeUrl);
+    return NextResponse.redirect(completeUrl, { status: 303 });
   } catch (error) {
     // Dev-only route, but never reflect internal errors (DB/config details)
     // to the client — log full, return generic.
     console.error("[saml-acs] dev ACS failed", error);
-    return NextResponse.json({ error: "ACS failed" }, { status: 400 });
+    return apiError("INVALID_INPUT", 400, "ACS failed");
   }
 }

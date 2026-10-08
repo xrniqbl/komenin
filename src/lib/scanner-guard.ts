@@ -100,7 +100,7 @@ export function isScannerProbe(pathname: string, search = ""): boolean {
 /**
  * One-line log for probe hits. Deliberately console-only: proxy runs on the
  * Edge runtime where the Sentry reporter (node:crypto) is unavailable; the
- * line is greppable in Vercel logs and cheap to alert on.
+ * line is greppable in server logs and cheap to alert on.
  */
 export function logScannerProbe(input: {
   pathname: string;

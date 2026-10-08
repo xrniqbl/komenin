@@ -172,8 +172,8 @@ export async function resolveAiBilling(input: {
         ok: false,
         reason: "no_source",
         message: paygFallbackEnabled
-          ? "AI credit langganan bulan ini sudah habis. Upgrade tier atau beli kredit pay-as-you-go untuk melanjutkan."
-          : "AI credit langganan bulan ini sudah habis dan fallback pay-as-you-go dimatikan. Upgrade tier, beli kredit, atau aktifkan fallback di Settings → AI.",
+          ? "Monthly subscription AI credits are spent. Upgrade the tier or buy pay-as-you-go credits to continue."
+          : "Monthly subscription AI credits are spent and pay-as-you-go fallback is off. Upgrade the tier, buy credits, or enable fallback in Settings → AI.",
         tier,
       };
     }
@@ -189,7 +189,7 @@ export async function resolveAiBilling(input: {
     return {
       ok: false,
       reason: "no_source",
-      message: "AI credit habis (kuota langganan dan saldo pay-as-you-go). Beli kredit untuk melanjutkan.",
+      message: "AI credits are spent (subscription quota and pay-as-you-go balance). Buy credits to continue.",
       tier,
     };
   }
@@ -198,7 +198,7 @@ export async function resolveAiBilling(input: {
     ok: false,
     reason: "no_source",
     message:
-      "Belum ada sumber AI aktif. Tambahkan API key sendiri di Settings → AI, atau berlangganan Komenin AI.",
+      "No active AI source. Add your own API key in Settings → AI, or subscribe to Komenin AI.",
     tier: "none",
   };
 }
@@ -283,6 +283,41 @@ export async function releaseAiReservation(input: {
   });
 }
 
+/**
+ * Forfeit an open reservation WITHOUT refunding it. Used when metering
+ * failed after the provider already returned a completion: the workspace
+ * received the result, so the estimated reservation stays charged instead
+ * of being released back by `releaseIfUndebited`. Writes the `rls:` marker
+ * with zero credits (no refund) so the reservation can never be released
+ * or double-settled later. Idempotent via the unique operationId.
+ */
+export async function forfeitAiReservation(input: {
+  workspaceId: string;
+  requestId: string;
+}): Promise<void> {
+  const releaseId = `rls:${input.requestId}`;
+  const reservation = await db.aiCreditLedger.findUnique({
+    where: { operationId: `rsv:${input.requestId}` },
+    select: { credits: true, source: true },
+  });
+  if (!reservation) return; // nothing reserved (e.g. own_key)
+  try {
+    await db.aiCreditLedger.create({
+      data: {
+        workspaceId: input.workspaceId,
+        operationId: releaseId,
+        kind: "reservation_release",
+        source: reservation.source,
+        // Zero credits: closes the reservation WITHOUT refunding the
+        // held estimate back to the balance (metering failed, completion kept).
+        credits: 0n,
+      },
+    });
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error; // already forfeited/settled
+  }
+}
+
 /** Current balance for a funding source, reading reservations into account. */
 async function currentSourceBalance(
   tx: DbLike,
@@ -339,14 +374,25 @@ export async function recordAiUsage(input: {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${input.workspaceId}))`;
     }
 
-    // For Komenin-funded calls, clamp the debit to the available balance so the
-    // ledger never goes negative (a runaway estimate can't make us pay upstream
-    // for usage the workspace's balance can't cover). The usage event records
-    // the TRUE tokens (analytics), but creditsUsed reflects what was charged.
+    // The available balance already excludes this call's hold. Add that hold
+    // back before clamping the actual charge; otherwise every reserved call
+    // undercharges whenever its actual usage exceeds the unreserved balance.
+    const reservation = input.source === "own_key" ? null : await tx.aiCreditLedger.findUnique({
+      where: { operationId: `rsv:${requestId}` },
+      select: { credits: true, source: true, workspaceId: true },
+    });
+    const release = reservation ? await tx.aiCreditLedger.findUnique({
+      where: { operationId: `rls:${requestId}` },
+      select: { operationId: true, credits: true },
+    }) : null;
+    if (reservation && (reservation.workspaceId && reservation.workspaceId !== input.workspaceId || reservation.source !== input.source || release)) {
+      throw new Error("AI reservation does not match this usage or is already closed");
+    }
     let chargeable = credits;
     if (input.source !== "own_key") {
       const available = await currentSourceBalance(tx, input.workspaceId, input.source);
-      chargeable = available > 0n ? (credits < available ? credits : available) : 0n;
+      const capacity = available + (reservation ? -reservation.credits : 0n);
+      chargeable = capacity > 0n ? (credits < capacity ? credits : capacity) : 0n;
     }
 
     const event = await tx.aiUsageEvent.create({
@@ -374,26 +420,16 @@ export async function recordAiUsage(input: {
     // Settle the reservation (if one was made) before recording actual usage:
     // release the reserved amount, then debit the real cost. Net effect is the
     // actual charge; any over-reserved amount returns to the balance.
-    const reservation = await tx.aiCreditLedger.findUnique({
-      where: { operationId: `rsv:${requestId}` },
-      select: { credits: true, source: true },
-    });
     if (reservation) {
-      const released = await tx.aiCreditLedger.findUnique({
-        where: { operationId: `rls:${requestId}` },
-        select: { operationId: true },
+      await tx.aiCreditLedger.create({
+        data: {
+          workspaceId: input.workspaceId,
+          operationId: `rls:${requestId}`,
+          kind: "reservation_release",
+          source: reservation.source,
+          credits: -reservation.credits,
+        },
       });
-      if (!released) {
-        await tx.aiCreditLedger.create({
-          data: {
-            workspaceId: input.workspaceId,
-            operationId: `rls:${requestId}`,
-            kind: "reservation_release",
-            source: reservation.source,
-            credits: -reservation.credits,
-          },
-        });
-      }
     }
 
     const kind = input.source === "subscription" ? "subscription_use" : "payg_use";
@@ -763,14 +799,22 @@ export async function refundAiOrder(
     if (!existing) {
       // How much of this grant is still unspent (FIFO allocation across all grants).
       const unspent = await computeUnspentGrantPortion(tx, input.workspaceId, grant);
+      const prior = await tx.aiCreditLedger.aggregate({
+        where: { sourceOrderId: input.orderId, kind: "refund" },
+        _sum: { credits: true },
+      });
+      // computeUnspentGrantPortion accounts for usage, not earlier refund rows.
+      // Full-after-partial must reverse only the remaining grant balance.
+      const remaining = unspent + (prior._sum.credits ?? 0n);
+      const recoverable = remaining > 0n ? remaining : 0n;
 
-      if (unspent > 0n) {
+      if (recoverable > 0n) {
         await tx.aiCreditLedger.create({
           data: {
             workspaceId: input.workspaceId,
             operationId: refundOpId,
             kind: "refund",
-            credits: -unspent,
+            credits: -recoverable,
             refType: "order",
             refId: input.orderId,
             sourceOrderId: input.orderId,
@@ -778,7 +822,7 @@ export async function refundAiOrder(
         });
         await applyPaygBalanceDelta(tx, {
           workspaceId: input.workspaceId,
-          credits: -unspent,
+          credits: -recoverable,
         });
       } else {
         // Mark the refund as processed even when nothing is recoverable.
@@ -863,34 +907,53 @@ export async function refundAiOrderPartial(
 
   // Claw back at most the still-unspent portion of the grant (FIFO allocation).
   const unspent = await computeUnspentGrantPortion(tx, input.workspaceId, grant);
-  const clawback = proportionalCredits < unspent ? proportionalCredits : unspent;
+  const prior = await tx.aiCreditLedger.aggregate({
+    where: { sourceOrderId: input.orderId, kind: "refund" },
+    _sum: { credits: true },
+  });
+  const remaining = unspent + (prior._sum.credits ?? 0n);
+  const recoverable = remaining > 0n ? remaining : 0n;
+  const clawback = proportionalCredits < recoverable ? proportionalCredits : recoverable;
   if (clawback <= 0n) {
     // Record the processed marker even with nothing recoverable (idempotency).
+    try {
+      await tx.aiCreditLedger.create({
+        data: {
+          workspaceId: input.workspaceId,
+          operationId: refundOpId,
+          kind: "refund",
+          credits: 0n,
+          refType: "order",
+          refId: input.orderId,
+          sourceOrderId: input.orderId,
+        },
+      });
+    } catch (error) {
+      // Lost the race with a concurrent refund of the same event:
+      // the other writer already recorded it — treat as processed.
+      if (!isUniqueViolation(error)) throw error;
+    }
+    return { reversed: true, creditsRefunded: 0n };
+  }
+
+  try {
     await tx.aiCreditLedger.create({
       data: {
         workspaceId: input.workspaceId,
         operationId: refundOpId,
         kind: "refund",
-        credits: 0n,
+        credits: -clawback,
         refType: "order",
         refId: input.orderId,
         sourceOrderId: input.orderId,
       },
     });
+  } catch (error) {
+    // Lost the race with a concurrent refund of the same event:
+    // the other writer already reversed it — treat as processed.
+    if (!isUniqueViolation(error)) throw error;
     return { reversed: true, creditsRefunded: 0n };
   }
-
-  await tx.aiCreditLedger.create({
-    data: {
-      workspaceId: input.workspaceId,
-      operationId: refundOpId,
-      kind: "refund",
-      credits: -clawback,
-      refType: "order",
-      refId: input.orderId,
-      sourceOrderId: input.orderId,
-    },
-  });
   await applyPaygBalanceDelta(tx, {
     workspaceId: input.workspaceId,
     credits: -clawback,

@@ -65,7 +65,7 @@ export class WorkerMetrics {
       status: 'success',
     }, 1);
 
-    console.log(`[WORKER] ✓ ${jobName} completed in ${durationMs}ms`);
+    console.log(`[WORKER] OK ${jobName} completed in ${durationMs}ms`);
   }
 
   /**
@@ -85,7 +85,7 @@ export class WorkerMetrics {
       error_type: classifyWorkerError(errorType),
     }, 1);
 
-    console.error(`[WORKER] ✗ ${jobName} failed after ${durationMs}ms - ${errorType}`);
+    console.error(`[WORKER] FAIL ${jobName} failed after ${durationMs}ms - ${errorType}`);
   }
 
   /**

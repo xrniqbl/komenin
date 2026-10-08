@@ -69,6 +69,7 @@ export async function updateWorkspaceSettings(input: {
 export async function createWorkspace(input: { name: string; timezone?: string }) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
+  if (session.user.totpGate) throw new Error("Two-factor verification required");
 
   const name = input.name.trim();
   if (name.length < 2) throw new Error("Workspace name is required");

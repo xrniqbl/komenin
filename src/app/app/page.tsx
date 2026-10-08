@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { EmptyState } from "@/components/app/empty-state";
 import { OnboardingChecklistCard } from "@/components/app/onboarding-checklist";
+import { ActivityChart } from "@/components/app/activity-chart";
 import { PageHeader } from "@/components/app/page-header";
 import {
   WorkspaceHealthScore,
@@ -13,6 +14,7 @@ import { getEntitlementsForPlanCode } from "@/lib/billing/entitlements";
 import { db } from "@/lib/db";
 import { evaluateLiveReadiness, getRuntimeModeLabel } from "@/lib/runtime-mode";
 import { getOnboardingChecklist } from "@/server/onboarding-checklist";
+import { getWeeklyActivity } from "@/server/analytics";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 
 export default async function AppHomePage() {
@@ -21,6 +23,7 @@ export default async function AppHomePage() {
   const readiness = evaluateLiveReadiness();
   const entitlements = getEntitlementsForPlanCode(workspace.planCode);
   const checklist = await getOnboardingChecklist();
+  const weeklyActivity = await getWeeklyActivity();
 
   const [healthyAccounts, proxyCount, sessionCount, pendingApprovals, recentAudits, accountCount, campaignCount] =
     await Promise.all([
@@ -133,7 +136,7 @@ export default async function AppHomePage() {
             <Badge variant={mode === "simulator" ? "secondary" : "default"}>
               {mode} mode
             </Badge>
-            <Button variant="outline" render={<Link href="/app/audit-logs" />} nativeButton={false}>
+            <Button variant="glass" render={<Link href="/app/audit-logs" />} nativeButton={false}>
               Audit trail ({recentAudits})
             </Button>
           </div>
@@ -170,7 +173,7 @@ export default async function AppHomePage() {
             <div className="pt-2">
               <Button
                 size="sm"
-                variant="outline"
+                variant="glass"
                 render={<Link href="/app/settings/publisher" />}
                 nativeButton={false}
               >
@@ -190,6 +193,9 @@ export default async function AppHomePage() {
             </CardHeader>
           </Card>
         ))}
+      </div>
+      <div className="mt-6">
+        <ActivityChart data={weeklyActivity} />
       </div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <EmptyState

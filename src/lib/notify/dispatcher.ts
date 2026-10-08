@@ -131,6 +131,9 @@ export async function dispatchForUnreadNotifications(workspaceId: string, limit 
   });
 
   for (const n of unread) {
+    // Skip notifications already dispatched externally by their creator
+    // (marked [webhook-sent]) — redispatching them would send duplicates.
+    if (n.body.includes("[webhook-sent]")) continue;
     // Map notification title to event heuristic
     const lower = `${n.title} ${n.body}`.toLowerCase();
     let event: NotificationEvent | null = null;

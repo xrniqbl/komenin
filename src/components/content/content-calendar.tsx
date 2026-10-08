@@ -54,6 +54,7 @@ export function ContentCalendar({
   const [view, setView] = useState<CalendarView>("month");
   const [cursor, setCursor] = useState(() => new Date());
   const [dragOver, setDragOver] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const monthMatrix = useMemo(() => getMonthMatrix(cursor), [cursor]);
@@ -75,14 +76,15 @@ export function ContentCalendar({
   const handleDrop = useCallback(
     (targetDate: Date, draggedId: string) => {
       const original = items.find((i) => i.id === draggedId);
-      if (!original) return;
+      if (!original || original.status === "published") return;
+      setSaveError(null);
       const parsed = parseDate(original.scheduledFor);
       const newDate = combineDateAndTime(targetDate, parsed);
       startTransition(async () => {
         try {
           await rescheduleContentDraft({ draftId: draggedId, scheduledFor: newDate });
         } catch {
-          // ignore
+          setSaveError("Could not reschedule this post. Please try again.");
         }
       });
     },
@@ -90,6 +92,10 @@ export function ContentCalendar({
   );
 
   const onDragStart = (e: React.DragEvent, id: string) => {
+    if (items.find((item) => item.id === id)?.status === "published") {
+      e.preventDefault();
+      return;
+    }
     e.dataTransfer.setData("text/plain", id);
     e.dataTransfer.effectAllowed = "move";
   };
@@ -109,21 +115,22 @@ export function ContentCalendar({
           <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
           <Badge variant="outline">{items.length} posts</Badge>
           {pending ? <Badge variant="secondary">Saving...</Badge> : null}
+          {saveError ? <span role="alert" className="text-xs text-destructive">{saveError}</span> : null}
         </div>
 
         <div className="flex items-center gap-1">
           <Button
-            variant="ghost"
+            variant="glass"
             size="sm"
             onClick={() => setCursor((c) => (view === "month" ? addMonths(c, -1) : addDays(c, view === "week" ? -7 : -1)))}
           >
             Prev
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => setCursor(new Date())}>
+          <Button variant="glass" size="sm" onClick={() => setCursor(new Date())}>
             Today
           </Button>
           <Button
-            variant="ghost"
+            variant="glass"
             size="sm"
             onClick={() => setCursor((c) => (view === "month" ? addMonths(c, 1) : addDays(c, view === "week" ? 7 : 1)))}
           >
@@ -183,7 +190,7 @@ export function ContentCalendar({
                 return (
                   <div
                     key={item.id}
-                    draggable
+                    draggable={item.status !== "published"}
                     onDragStart={(e) => onDragStart(e, item.id)}
                     className="flex cursor-grab items-center justify-between gap-2 rounded-lg border bg-card px-3 py-2 text-sm shadow-sm active:cursor-grabbing"
                   >
@@ -262,7 +269,7 @@ export function ContentCalendar({
                       {dayItems.slice(0, 3).map((item) => (
                         <div
                           key={item.id}
-                          draggable
+                          draggable={item.status !== "published"}
                           onDragStart={(e) => onDragStart(e, item.id)}
                           className="flex cursor-grab items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium hover:opacity-80 active:cursor-grabbing"
                         >
@@ -284,7 +291,7 @@ export function ContentCalendar({
                           return (
                             <div
                               key={item.id}
-                              draggable
+                              draggable={item.status !== "published"}
                               onDragStart={(e) => onDragStart(e, item.id)}
                               className="flex cursor-grab items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-muted active:cursor-grabbing"
                             >
@@ -324,7 +331,7 @@ export function ContentCalendar({
             {unscheduled.map((item) => (
               <div
                 key={item.id}
-                draggable
+                draggable={item.status !== "published"}
                 onDragStart={(e) => onDragStart(e, item.id)}
                 className="flex cursor-grab items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs hover:border-foreground/20 active:cursor-grabbing"
               >

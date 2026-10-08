@@ -7,6 +7,8 @@
  * before the current UTC day, the counter starts over. The server runs on UTC
  * hosts, so the UTC day boundary is the single source of truth.
  */
+import type { PrismaClient } from "@prisma/client";
+
 export type DailyQuotaAccount = {
   actionsToday: number;
   dailyQuota: number;
@@ -46,4 +48,36 @@ export function dailyActionIncrementData(
     actionsToday: reset ? 1 : { increment: 1 },
     lastActionAt: now,
   };
+}
+
+/**
+ * Atomically record one account action with a lazy UTC-day reset.
+ *
+ * Unlike `dailyActionIncrementData` (which decides reset-vs-increment from a
+ * possibly stale in-memory row), this issues two conditional UPDATEs so
+ * concurrent actions can neither lose increments nor stack on yesterday's
+ * total at the UTC midnight boundary:
+ * - reset path only matches rows whose lastActionAt is before today (or null)
+ * - increment path only matches same-day rows
+ * Whichever statement wins the race, the counter stays correct.
+ */
+export async function recordDailyAccountAction(
+  tx: Pick<PrismaClient, "socialAccount">,
+  accountId: string,
+  now: Date = new Date(),
+): Promise<void> {
+  const dayStart = startOfUtcDay(now);
+  const reset = await tx.socialAccount.updateMany({
+    where: {
+      id: accountId,
+      OR: [{ lastActionAt: { lt: dayStart } }, { lastActionAt: null }],
+    },
+    data: { actionsToday: 1, lastActionAt: now },
+  });
+  if (reset.count === 0) {
+    await tx.socialAccount.updateMany({
+      where: { id: accountId, lastActionAt: { gte: dayStart } },
+      data: { actionsToday: { increment: 1 }, lastActionAt: now },
+    });
+  }
 }

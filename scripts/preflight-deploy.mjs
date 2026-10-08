@@ -50,7 +50,6 @@ loadDotEnv(".env");
 /** @type {Check[]} */
 const CHECKS = [
   // --- Core runtime ---
-  { name: "DATABASE_URL", required: true },
   {
     name: "DIRECT_DATABASE_URL",
     required: true,
@@ -151,7 +150,7 @@ const CHECKS = [
   {
     name: "CRON_SECRET",
     required: true,
-    note: "Vercel Cron auth",
+    note: "external scheduler auth",
     validate: (v) => (v.length >= 16 ? true : "must be ≥16 chars"),
   },
 
@@ -276,12 +275,17 @@ const CHECKS = [
   },
   {
     name: "DATABASE_URL",
-    required: false,
+    required: true,
     note: "Neon pooler endpoints need connection_limit (warn-only check)",
-    validate: (v) =>
-      /-pooler[.-]/.test(v) && !/[?&]connection_limit=\d+/.test(v)
-        ? "Neon pooler URL without connection_limit — append ?connection_limit=5&pool_timeout=20"
-        : true,
+    validate: (v) => {
+      if (/-pooler[.-]/.test(v) && !/[?&]connection_limit=\d+/.test(v)) {
+        // Warn-only: a pooler URL without connection_limit is not fatal.
+        console.log(
+          `${YELLOW}⚠ warn${RESET}    DATABASE_URL: Neon pooler URL without connection_limit — append ?connection_limit=5&pool_timeout=20`,
+        );
+      }
+      return true;
+    },
   },
 
   // --- AI gateway transport (plaintext HTTP leaks the API key on the wire) ---

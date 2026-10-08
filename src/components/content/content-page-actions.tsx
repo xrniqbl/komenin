@@ -9,7 +9,7 @@ export function ContentPageActions() {
 
   return (
     <Button
-      variant="outline"
+      variant="glass"
       disabled={pending}
       onClick={() => startTransition(async () => { await publishDueContentDrafts(); })}
     >

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { assertSameOrigin } from "@/lib/csrf";
+import { apiError } from "@/lib/api-errors";
 import { contactPayloadSchema, contactWebhookUrl, salesInbox } from "@/lib/contact";
 import { FEATURE_FLAG_KEYS, isFeatureEnabled } from "@/lib/feature-flags";
 import { buildContactNotification, sendEmail } from "@/lib/email";
@@ -30,35 +31,28 @@ export async function POST(request: Request) {
     windowMs: 60_000,
   });
   if (!rate.ok) {
-    return NextResponse.json(
-      { error: "Too many requests. Please try again shortly." },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))),
-        },
+    return apiError("RATE_LIMITED", 429, undefined, {
+      headers: {
+        "Retry-After": String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))),
       },
-    );
+    });
   }
 
   if (!(await isFeatureEnabled(FEATURE_FLAG_KEYS.contactForm))) {
-    return NextResponse.json(
-      { error: "Contact form is temporarily unavailable." },
-      { status: 503 },
-    );
+    return apiError("NOT_CONFIGURED", 503, "Contact form is temporarily unavailable.");
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return apiError("INVALID_JSON", 400);
   }
 
   const parsed = contactPayloadSchema.safeParse(body);
   if (!parsed.success) {
     const first = parsed.error.issues[0]?.message || "Invalid input";
-    return NextResponse.json({ error: first }, { status: 400 });
+    return apiError("INVALID_INPUT", 400, first);
   }
 
   // Honeypot filled → pretend success (bots).
@@ -85,6 +79,12 @@ export async function POST(request: Request) {
       deliveredVia: [] as string[],
     },
   });
+
+  // Contact persistence is the audit row itself — unlike fire-and-forget
+  // audit trails elsewhere, a null here means the submission was NOT stored.
+  if (!audit) {
+    return apiError("SERVICE_UNAVAILABLE", 503);
+  }
 
   const deliveredVia: string[] = ["audit_log"];
   const webhook = contactWebhookUrl();

@@ -122,7 +122,7 @@ export function AdminTicketControls({
           placeholder="Reply to the reporter — sent to their email and shown in the ticket."
         />
         <div>
-          <Button type="submit" disabled={pending || reply.trim().length < 2}>
+          <Button variant="electric" type="submit" disabled={pending || reply.trim().length < 2}>
             {pending ? "Sending..." : "Send reply"}
           </Button>
         </div>

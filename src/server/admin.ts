@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { refundPaidOrderTx } from "@/server/billing";
+import { processRefundReceipt } from "@/server/refund-reconciliation";
 
 export async function requireSuperAdmin() {
   const session = await auth();
@@ -318,7 +319,7 @@ export async function adminCreateVoucher(input: {
       perWorkspaceLimit: input.perWorkspaceLimit ?? 1,
       minSubtotalIdr: input.minSubtotalIdr,
       allowedPlanCodes: input.allowedPlanCodes || [],
-      expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
+      expiresAt: input.expiresAt ? new Date(`${input.expiresAt}T23:59:59.999Z`) : null,
       isActive: true,
     },
   });
@@ -393,7 +394,7 @@ export async function adminUpdateVoucher(input: {
   if (input.minSubtotalIdr !== undefined) data.minSubtotalIdr = input.minSubtotalIdr;
   if (input.allowedPlanCodes) data.allowedPlanCodes = input.allowedPlanCodes;
   if (input.expiresAt !== undefined) {
-    data.expiresAt = input.expiresAt ? new Date(input.expiresAt) : null;
+    data.expiresAt = input.expiresAt ? new Date(`${input.expiresAt}T23:59:59.999Z`) : null;
   }
   if (input.isActive != null) data.isActive = input.isActive;
 
@@ -601,26 +602,14 @@ export async function adminRefundOrder(orderId: string, reason: string) {
   if (!trimmed) {
     throw new Error("Order refund requires a reason");
   }
-  const claimed = await db.subscriptionOrder.updateMany({
-    where: { id: orderId, status: "paid" },
-    data: { status: "refunded" },
+  await db.$transaction(async (tx) => {
+    const claimed = await tx.subscriptionOrder.updateMany({
+      where: { id: orderId, status: "paid" },
+      data: { status: "refunded" },
+    });
+    if (claimed.count === 0) throw new Error("Order not found or not paid");
+    await refundPaidOrderTx(tx, { orderId });
   });
-  if (claimed.count === 0) {
-    throw new Error("Order not found or not paid");
-  }
-  try {
-    await db.$transaction(async (tx) => {
-      await refundPaidOrderTx(tx, { orderId });
-    });
-  } catch (error) {
-    // Reversal failed — restore the paid status so the admin can retry the
-    // whole operation instead of an order stuck refunded with live entitlements.
-    await db.subscriptionOrder.updateMany({
-      where: { id: orderId, status: "refunded" },
-      data: { status: "paid" },
-    });
-    throw error;
-  }
   await db.auditLog.create({
     data: {
       actorUserId: userId,
@@ -635,6 +624,60 @@ export async function adminRefundOrder(orderId: string, reason: string) {
   });
   revalidatePath("/admin/billing");
   revalidatePath("/admin");
+}
+
+export async function listRefundReconciliations() {
+  await requireSuperAdmin();
+  return db.refundReconciliation.findMany({
+    where: { state: { in: ["pending", "needs_review"] } },
+    orderBy: { createdAt: "desc" }, take: 50,
+    include: { order: { select: { orderCode: true, totalIdr: true } } },
+  });
+}
+
+export async function adminReviewRefund(id: string, action: "retry" | "resolve", reason: string) {
+  const { userId } = await requireSuperAdmin();
+  const explanation = reason.trim().slice(0, 500);
+  if (!explanation) throw new Error("Review reason required");
+  if (action !== "retry" && action !== "resolve") throw new Error("Invalid review action");
+  // Retry only replays local ledger reconciliation of a verified, persisted
+  // notification. It NEVER requests money movement from Midtrans.
+  // Check under the same receipt lock used by processRefundReceipt: a replay
+  // cannot apply between the review decision and its audit/update.
+  await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT id FROM "RefundReconciliation" WHERE id = ${id} FOR UPDATE`;
+    const receipt = await tx.refundReconciliation.findUnique({ where: { id } });
+    if (!receipt || !["pending", "needs_review"].includes(receipt.state)) throw new Error("Receipt already reviewed or not found");
+    if (action === "resolve") {
+      await tx.refundReconciliation.update({
+        where: { id }, data: { state: "resolved", reason: explanation, reviewedById: userId, reviewedAt: new Date() },
+      });
+      await tx.auditLog.create({ data: {
+        actorUserId: userId, action: "admin.refund_reconciliation_resolve",
+        resourceType: "refund_reconciliation", resourceId: id,
+        metadata: { reason: explanation, resultingState: "resolved" },
+      } });
+    }
+  });
+  if (action === "retry") {
+    const result = await processRefundReceipt(id);
+    await db.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT id FROM "RefundReconciliation" WHERE id = ${id} FOR UPDATE`;
+      const current = await tx.refundReconciliation.findUniqueOrThrow({ where: { id } });
+      // A concurrent resolve may have won the race before this retry began.
+      if (current.state === "resolved") return;
+      await tx.refundReconciliation.update({ where: { id }, data: {
+        reason: current.state === "needs_review" ? `${current.reason}; ${explanation}` : current.reason,
+        reviewedById: userId, reviewedAt: new Date(),
+      } });
+      await tx.auditLog.create({ data: {
+        actorUserId: userId, action: "admin.refund_reconciliation_retry",
+        resourceType: "refund_reconciliation", resourceId: id,
+        metadata: { reason: explanation, resultingState: current.state, retryResult: result.state },
+      } });
+    });
+  }
+  revalidatePath("/admin/billing");
 }
 
 /** Suspend or reinstate a user account. Suspension blocks new logins and ends existing sessions within ~1 minute. */

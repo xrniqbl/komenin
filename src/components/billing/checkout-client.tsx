@@ -141,7 +141,7 @@ export function CheckoutClient({
           <Button
             key={plan.id}
             type="button"
-            variant="outline"
+            variant="glass"
             onClick={() => {
               setPlanCode(plan.code);
               setDiscountIdr(0);
@@ -188,7 +188,7 @@ export function CheckoutClient({
                 className="flex-1"
                 placeholder="KOMENIN10"
               />
-              <Button type="button" variant="outline" onClick={validateVoucher}>Apply</Button>
+              <Button type="button" variant="glass" onClick={validateVoucher}>Apply</Button>
             </div>
           </div>
           {message ? <div className="rounded-lg bg-muted/40 p-3 text-xs">{message}</div> : null}

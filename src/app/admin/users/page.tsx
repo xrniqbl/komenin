@@ -102,7 +102,7 @@ export default async function AdminUsersPage({
                             { value: "superadmin", label: "superadmin" },
                           ]}
                         />
-                        <Button type="submit" variant="outline" size="sm">
+                        <Button type="submit" variant="glass" size="sm">
                           Update
                         </Button>
                       </form>

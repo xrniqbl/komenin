@@ -215,11 +215,11 @@ export function organizationJsonLd() {
     url: getSiteUrl(),
     logo: {
       "@type": "ImageObject",
-      url: absoluteUrl("/brand/komenin-logo-512.png"),
+      url: absoluteUrl("/brand/komenin-robot-512.png"),
       width: 512,
       height: 512,
     },
-    image: absoluteUrl("/brand/komenin-logo-512.png"),
+    image: absoluteUrl("/brand/komenin-robot-512.png"),
     description: SITE_DESCRIPTION,
     email: SITE_SUPPORT_EMAIL,
     contactPoint: [
@@ -252,7 +252,7 @@ export function websiteJsonLd() {
       name: SITE_NAME,
       logo: {
         "@type": "ImageObject",
-        url: absoluteUrl("/brand/komenin-logo-512.png"),
+        url: absoluteUrl("/brand/komenin-robot-512.png"),
       },
     },
   };
@@ -285,7 +285,7 @@ export function articleJsonLd(input: {
       name: SITE_NAME,
       logo: {
         "@type": "ImageObject",
-        url: absoluteUrl("/brand/komenin-logo-512.png"),
+        url: absoluteUrl("/brand/komenin-robot-512.png"),
       },
     },
     isPartOf: {

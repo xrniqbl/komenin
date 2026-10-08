@@ -233,6 +233,23 @@ describe("recordAiUsage settles the reservation", () => {
     expect(use.data.credits).toBe(-150n); // actual cost only
   });
 
+  it("charges held credits plus unreserved balance without undercharging", async () => {
+    // 100 granted, 80 reserved: current available balance is only 20.
+    mock.__ledgerAggregate.mockResolvedValueOnce({ _sum: { credits: 20n } });
+    mock.__ledgerFindUnique
+      .mockResolvedValueOnce({ credits: -80n, source: "payg" })
+      .mockResolvedValueOnce(null);
+
+    const result = await recordAiUsage({
+      workspaceId: "ws_1", source: "payg", model: "gpt-4o",
+      inputTokens: 70, outputTokens: 20, requestId: "req_reserved",
+    });
+
+    expect(result.creditsUsed).toBe(90n);
+    expect(mock.__usageCreate.mock.calls[0][0].data.creditsUsed).toBe(90n);
+    expect(mock.__ledgerCreate.mock.calls.find((c) => c[0].data.kind === "payg_use")![0].data.credits).toBe(-90n);
+  });
+
   it("is a no-op on a retried call with the same requestId", async () => {
     mock.__usageFindUnique.mockResolvedValueOnce({ id: "evt_existing" });
 

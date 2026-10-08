@@ -233,7 +233,7 @@ export function AiProvidersManager({
             <Button type="button" disabled={pending} onClick={onSaveDefaults}>
               Save defaults
             </Button>
-            <Button type="button" variant="outline" disabled={pending} onClick={() => onTest()}>
+            <Button type="button" variant="glass" disabled={pending} onClick={() => onTest()}>
               Test routing
             </Button>
           </div>
@@ -361,7 +361,7 @@ export function AiProvidersManager({
                   <Button
                     type="button"
                     size="sm"
-                    variant="outline"
+                    variant="glass"
                     disabled={pending}
                     onClick={() => onTest(p.id)}
                   >
@@ -370,7 +370,7 @@ export function AiProvidersManager({
                   <Button
                     type="button"
                     size="sm"
-                    variant="outline"
+                    variant="glass"
                     disabled={pending}
                     onClick={() =>
                       startTransition(async () => {
@@ -391,7 +391,7 @@ export function AiProvidersManager({
                   <Button
                     type="button"
                     size="sm"
-                    variant="ghost"
+                    variant="glass"
                     disabled={pending}
                     onClick={() =>
                       startTransition(async () => {

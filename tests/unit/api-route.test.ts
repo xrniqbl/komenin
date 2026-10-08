@@ -31,6 +31,18 @@ describe("jsonErrorFromUnknown", () => {
   it("maps not-found messages to 404", async () => {
     const response = jsonErrorFromUnknown(new Error("Voucher not found"), "fail");
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({ error: "Voucher not found" });
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Voucher not found",
+      code: "NOT_FOUND",
+    });
+  });
+
+  it("attaches a stable code to generic fallbacks", async () => {
+    const response = jsonErrorFromUnknown(new Error("boom"), "fail", 500);
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "fail",
+      code: "INTERNAL_ERROR",
+    });
   });
 });

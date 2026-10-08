@@ -7,6 +7,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import Link from "next/link";
+import { revalidatePath } from "next/cache";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusPill } from "@/components/session-routing/status-pill";
 import {
@@ -28,7 +29,7 @@ export default async function ProxiesPage() {
         title="Proxies"
         description="Residential/mobile proxy pool with health and assignment visibility."
         action={
-          <Button variant="default" render={<Link href="/app/proxies/new" />} nativeButton={false}>
+          <Button variant="electric" render={<Link href="/app/proxies/new" />} nativeButton={false}>
             Add proxy
           </Button>
         }
@@ -86,9 +87,10 @@ export default async function ProxiesPage() {
                         action={async () => {
                           "use server";
                           await checkProxyHealth(proxy.id);
+                          revalidatePath("/app/proxies");
                         }}
                       >
-                        <Button type="submit" variant="outline" size="sm">
+                        <Button type="submit" variant="glass" size="sm">
                           Check
                         </Button>
                       </form>

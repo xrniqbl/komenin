@@ -108,8 +108,8 @@ describe("sendDailyApprovalDigest", () => {
     expect(call.to).toBe("owner@brand.id");
     expect(call.subject).toContain("5 item");
     expect(call.subject).toContain("Toko Kopi");
-    expect(call.html).toContain("Comment approvals");
-    expect(call.html).toContain("Content drafts");
+    expect(call.html).toContain("Approval komentar");
+    expect(call.html).toContain("Draf konten");
   });
 
   it("skips a workspace already digested today (marker exists)", async () => {

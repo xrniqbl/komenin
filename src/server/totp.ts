@@ -42,7 +42,7 @@ async function enforceTotpAttemptLimit(userId: string): Promise<void> {
     failClosed: true,
   });
   if (!result.ok) {
-    throw new Error("Terlalu banyak percobaan. Tunggu beberapa menit, lalu coba lagi.");
+    throw new Error("Too many attempts. Wait a few minutes, then try again.");
   }
 }
 

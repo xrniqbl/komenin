@@ -1,8 +1,11 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 
+import { apiError } from "@/lib/api-errors";
 import { db } from "@/lib/db";
 import { getEnv } from "@/lib/env";
+import { reportError } from "@/lib/error-reporting";
+import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +28,19 @@ export const dynamic = "force-dynamic";
  */
 
 const PLATFORMS = new Set(["instagram", "threads", "tiktok"]);
+/**
+ * Per-route durable rate limit for the webhook receiver. Webhook endpoints
+ * are unauthenticated by design (platform-signed), so a flood guard here
+ * protects signature-verification CPU and the ingest pipeline.
+ */
+async function webhookRateLimit(request: Request, platform: string) {
+  return consumeRateLimit({
+    key: getRequestRateKey(request, `webhook:${platform}`),
+    limit: 120,
+    windowMs: 60_000,
+    failClosed: true,
+  });
+}
 
 function appSecretFor(platform: string): string | null {
   const env = getEnv();
@@ -119,11 +135,12 @@ type IngestInput = {
 };
 
 /** Normalize a Meta graph changelist entry into an ingest candidate (or null). */
-export function parseMetaChange(entry: {
+export function parseMetaChanges(entry: {
   id?: string;
   time?: number;
   changes?: Array<{ field?: string; value?: Record<string, unknown> }>;
-}): IngestInput | null {
+}): IngestInput[] {
+  const candidates: IngestInput[] = [];
   for (const change of entry.changes || []) {
     if (change.field !== "comments") continue;
     const value = (change.value || {}) as Record<string, unknown>;
@@ -133,7 +150,7 @@ export function parseMetaChange(entry: {
     const mediaId = String(media?.id || value.media_id || "");
     if (!externalId || (!text && !mediaId)) continue;
     const from = (value.from as { username?: string; id?: string }) || {};
-    return {
+    candidates.push({
       platform: "instagram",
       externalId,
       parentExternalId: mediaId || externalId,
@@ -143,9 +160,14 @@ export function parseMetaChange(entry: {
       url: null,
       accountExternalId: entry.id || null,
       raw: { entry, kind: "meta_change" },
-    };
+    });
   }
-  return null;
+  return candidates;
+}
+
+/** Compatibility helper for callers needing only the first comment. */
+export function parseMetaChange(entry: Parameters<typeof parseMetaChanges>[0]): IngestInput | null {
+  return parseMetaChanges(entry)[0] ?? null;
 }
 
 /** Normalize a Threads webhook entry into an ingest candidate (or null). */
@@ -320,7 +342,11 @@ export async function GET(
 ) {
   const { platform } = await params;
   if (!PLATFORMS.has(platform)) {
-    return NextResponse.json({ error: "Unknown platform" }, { status: 404 });
+    return apiError("NOT_FOUND", 404, "Unknown platform");
+  }
+  const rate = await webhookRateLimit(request, platform);
+  if (!rate.ok) {
+    return apiError("RATE_LIMITED", 429);
   }
   const url = new URL(request.url);
   const mode = url.searchParams.get("hub.mode");
@@ -332,13 +358,13 @@ export async function GET(
     // Fail-closed on both sides: without a configured verify token anyone who
     // knows the endpoint URL could complete Meta's subscription handshake.
     if (!expectedToken) {
-      return NextResponse.json(
-        { error: "Webhook verify token not configured" },
-        { status: 503 },
-      );
+      return apiError("NOT_CONFIGURED", 503, "Webhook verify token not configured");
     }
-    if (verifyToken !== expectedToken) {
-      return NextResponse.json({ error: "Verify token mismatch" }, { status: 403 });
+    // Constant-time comparison: never leak token prefix info via timing.
+    const provided = Buffer.from(verifyToken ?? "");
+    const expected = Buffer.from(expectedToken);
+    if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+      return apiError("TOKEN_MISMATCH", 403);
     }
     return new NextResponse(challenge, {
       status: 200,
@@ -354,18 +380,21 @@ export async function POST(
 ) {
   const { platform } = await params;
   if (!PLATFORMS.has(platform)) {
-    return NextResponse.json({ error: "Unknown platform" }, { status: 404 });
+    return apiError("NOT_FOUND", 404, "Unknown platform");
+  }
+  const rate = await webhookRateLimit(request, platform);
+  if (!rate.ok) {
+    return apiError("RATE_LIMITED", 429);
   }
 
   const secret = appSecretFor(platform);
   // Fail-closed: without the platform app secret we cannot verify authenticity,
   // so the payload is rejected rather than trusted.
   if (!secret) {
-    return NextResponse.json(
-      {
-        error: `Webhook secret not configured for ${platform} — set the platform app secret to enable ingestion.`,
-      },
-      { status: 503 },
+    return apiError(
+      "NOT_CONFIGURED",
+      503,
+      `Webhook secret not configured for ${platform} — set the platform app secret to enable ingestion.`,
     );
   }
 
@@ -403,7 +432,7 @@ export async function POST(
         },
       })
       .catch(() => undefined);
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    return apiError("INVALID_SIGNATURE", 401);
   }
 
   let body: {
@@ -416,7 +445,7 @@ export async function POST(
   try {
     body = JSON.parse(rawBody || "{}");
   } catch {
-    return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+    return apiError("INVALID_JSON", 400, "Invalid JSON payload");
   }
 
   const candidates: IngestInput[] = [];
@@ -432,8 +461,7 @@ export async function POST(
           if (parsed) candidates.push(parsed);
         }
       } else {
-        const parsed = parseMetaChange(entry as never);
-        if (parsed) {
+        for (const parsed of parseMetaChanges(entry as never)) {
           if (platform === "tiktok") parsed.platform = "tiktok";
           candidates.push(parsed);
         }
@@ -452,15 +480,31 @@ export async function POST(
   }
 
   let stored = 0;
+  let failed = 0;
   for (const candidate of candidates) {
     try {
       if (await ingestMention(candidate)) stored += 1;
-    } catch {
-      // One bad entry must not fail the batch — platforms retry on 5xx.
+    } catch (error) {
+      // One bad entry must not fail the batch — but failures are counted and
+      // reported so a totally-broken ingest does not silently drop mentions.
+      failed += 1;
+      await reportError(error, {
+        scope: "webhook:mention_ingest",
+        extra: { platform, externalId: candidate.externalId ?? null },
+      });
     }
+  }
+
+  // Any failed insert needs a retry of the whole delivery. Already stored
+  // mentions are upserted on replay, so partial success is safe to redeliver.
+  if (failed > 0) {
+    return NextResponse.json(
+      { ok: false, received: candidates.length, stored, failed },
+      { status: 500 },
+    );
   }
 
   // 200 (not 202) for empty batches: Meta treats non-2xx as delivery failure
   // and eventually disables the subscription; heartbeats must succeed.
-  return NextResponse.json({ ok: true, received: candidates.length, stored });
+  return NextResponse.json({ ok: true, received: candidates.length, stored, failed });
 }

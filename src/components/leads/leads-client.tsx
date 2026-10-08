@@ -256,7 +256,7 @@ export function LeadsClient({
           Due follow-ups
         </Button>
         <Badge variant="secondary">{filtered.length} shown</Badge>
-        <Button size="sm" variant="outline" disabled={pending} onClick={downloadCsv}>
+        <Button size="sm" variant="glass" disabled={pending} onClick={downloadCsv}>
           {pending ? "Exporting…" : "Export CSV"}
         </Button>
       </div>
@@ -344,7 +344,7 @@ export function LeadsClient({
                   </div>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="glass"
                     disabled={pending}
                     onClick={() =>
                       startTransition(async () => {

@@ -7,12 +7,44 @@ import { createWorkspace, listWorkspacesForUser } from "@/server/workspaces";
 import { createCampaign } from "@/server/campaigns";
 import type { Platform } from "@prisma/client";
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    step?: string;
+    workspaceName?: string;
+    timezone?: string;
+    invites?: string;
+    goals?: string | string[];
+    platforms?: string | string[];
+    templateId?: string;
+  }>;
+}) {
   const session = await auth();
-  if (!session?.user) redirect("/login");
+  if (!session?.user?.id) redirect("/login");
 
   const workspaces = await listWorkspacesForUser();
   if (workspaces.length > 0) redirect("/app");
+
+  const params = await searchParams;
+  const validSteps = ["welcome", "workspace", "goals", "template", "launch"];
+  const initialStep = validSteps.includes(params.step ?? "")
+    ? (params.step as "welcome" | "workspace" | "goals" | "template" | "launch")
+    : "welcome";
+
+  // Data dari URL params (untuk navigasi tanpa JS)
+  const urlData = {
+    workspaceName: String(params.workspaceName ?? ""),
+    timezone: String(params.timezone ?? "Asia/Jakarta"),
+    invites: String(params.invites ?? ""),
+    goals: params.goals
+      ? (Array.isArray(params.goals) ? params.goals : [params.goals]).join(",")
+      : "",
+    platforms: params.platforms
+      ? (Array.isArray(params.platforms) ? params.platforms : [params.platforms]).join(",")
+      : "",
+    templateId: String(params.templateId ?? ""),
+  };
 
   async function completeOnboarding(formData: FormData) {
     "use server";
@@ -66,6 +98,8 @@ export default async function OnboardingPage() {
     <OnboardingWizard
       userName={session.user.name ?? undefined}
       completeOnboarding={completeOnboarding}
+      initialStep={initialStep}
+      urlData={urlData}
     />
   );
 }

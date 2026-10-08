@@ -103,7 +103,7 @@ export function evaluateLiveReadiness(): LiveReadiness {
     warnings.push("WORKER_SECRET is empty — worker tick endpoints are unprotected.");
   }
   if (!process.env.CRON_SECRET?.trim()) {
-    warnings.push("CRON_SECRET is empty — Vercel Cron Authorization bearer will not authenticate.");
+    warnings.push("CRON_SECRET is empty — scheduled requests using Authorization bearer will not authenticate.");
   }
 
   return {
