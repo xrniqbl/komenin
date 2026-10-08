@@ -65,7 +65,7 @@ export default async function AdminFlagsPage() {
               enabled
             </Label>
             <div className="md:col-span-3">
-              <Button type="submit">Save flag</Button>
+              <Button variant="electric" type="submit">Save flag</Button>
             </div>
           </form>
         </CardContent>
@@ -87,7 +87,7 @@ export default async function AdminFlagsPage() {
                   <Checkbox name="enabled" defaultChecked={flag.enabled} />
                   enabled
                 </Label>
-                <Button type="submit" size="sm" variant="outline">
+                <Button type="submit" size="sm" variant="glass">
                   Update
                 </Button>
               </form>

@@ -1,20 +1,43 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/app/page-header";
+import { getRequestLocale } from "@/lib/i18n/request-locale";
+import { messages } from "@/lib/i18n/messages";
+import {
+  describePlatformLimits,
+  getPlatformGuardrail,
+  PLATFORM_GUARDRAILS,
+  type PlatformName,
+} from "@/lib/platform-rate-limits";
 import { listAccounts } from "@/server/accounts";
 import { createCampaign } from "@/server/campaigns";
 import { listClients } from "@/server/clients";
+import { getCommentTemplate, listCommentTemplates } from "@/server/templates";
 import type { CampaignMode, Platform } from "@prisma/client";
 
-export default async function NewCampaignPage() {
-  const [accounts, clients] = await Promise.all([listAccounts(), listClients()]);
+const PLATFORM_KEYS = Object.keys(PLATFORM_GUARDRAILS) as PlatformName[];
+
+export default async function NewCampaignPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ templateId?: string; platform?: string }>;
+}) {
+  const params = await searchParams;
+  const locale = await getRequestLocale();
+  const t = messages[locale].campaigns;
+  const [accounts, clients, templates] = await Promise.all([
+    listAccounts(),
+    listClients(),
+    listCommentTemplates({ isActive: true }),
+  ]);
   const activeClients = clients.filter((c) => c.isActive);
+  const pickedTemplate = params.templateId ? await getCommentTemplate(params.templateId) : null;
 
   async function submit(formData: FormData) {
     "use server";
@@ -38,24 +61,69 @@ export default async function NewCampaignPage() {
   return (
     <div>
       <PageHeader
-        title="New campaign"
-        description="Configure intent, mode, and attached social tunnels."
+        title={t.newTitle}
+        description={t.newDescription}
         action={
           <Button variant="link" render={<Link href="/app/campaigns" />} nativeButton={false}>
-            Back
+            {t.back}
           </Button>
         }
       />
+      {templates.length > 0 ? (
+        <Card className="mb-4 max-w-2xl">
+          <CardHeader>
+            <CardTitle className="text-base">{t.startFromTemplate}</CardTitle>
+            <CardDescription>{t.startFromTemplateHint}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form method="get" className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="flex min-w-[220px] flex-1 flex-col gap-2">
+                <Label htmlFor="templateId">{t.templateLabel}</Label>
+                <FormSelect
+                  id="templateId"
+                  name="templateId"
+                  defaultValue={pickedTemplate?.id || ""}
+                  options={[
+                    { value: "", label: t.noTemplate },
+                    ...templates.map((tpl) => ({
+                      value: tpl.id,
+                      label: `${tpl.name} · ${tpl.category}`,
+                    })),
+                  ]}
+                />
+              </div>
+              <Button type="submit" variant="glass">
+                {t.applyTemplate}
+              </Button>
+            </form>
+            {pickedTemplate ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                {t.templateApplied}: <span className="font-medium">{pickedTemplate.name}</span>
+                {" — "}
+                <Link href="/app/campaigns/new" className="text-primary hover:underline">
+                  {t.clearTemplate}
+                </Link>
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
       <Card className="max-w-2xl">
         <CardContent className="pt-6">
           <form action={submit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" required placeholder="Product launch week" />
+              <Label htmlFor="name">{t.nameLabel}</Label>
+              <Input
+                id="name"
+                name="name"
+                required
+                placeholder="Product launch week"
+                defaultValue={pickedTemplate ? pickedTemplate.name : undefined}
+              />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="platform">Platform</Label>
+                <Label htmlFor="platform">{t.platformLabel}</Label>
                 <FormSelect
                   id="platform"
                   name="platform"
@@ -69,7 +137,7 @@ export default async function NewCampaignPage() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="mode">Mode</Label>
+                <Label htmlFor="mode">{t.modeLabel}</Label>
                 <FormSelect
                   id="mode"
                   name="mode"
@@ -84,17 +152,27 @@ export default async function NewCampaignPage() {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="goal">Goal</Label>
-              <Input id="goal" name="goal" placeholder="Tingkatkan awareness produk" />
+              <Label htmlFor="goal">{t.goalLabel}</Label>
+              <Input
+                id="goal"
+                name="goal"
+                placeholder="Tingkatkan awareness produk"
+                defaultValue={pickedTemplate ? pickedTemplate.body.slice(0, 280) : undefined}
+              />
+              {pickedTemplate ? (
+                <p className="text-xs text-muted-foreground">
+                  {t.prefilledFrom}: <span className="font-medium">{pickedTemplate.name}</span>
+                </p>
+              ) : null}
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="clientId">Client (optional)</Label>
+              <Label htmlFor="clientId">{t.clientLabel}</Label>
               <FormSelect
                 id="clientId"
                 name="clientId"
                 defaultValue=""
                 options={[
-                  { value: "", label: "Unassigned" },
+                  { value: "", label: t.unassigned },
                   ...activeClients.map((client) => ({
                     value: client.id,
                     label: client.name,
@@ -102,39 +180,45 @@ export default async function NewCampaignPage() {
                 ]}
               />
               {activeClients.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  No clients yet. Create one under Workspace → Clients.
-                </p>
+                <p className="text-xs text-muted-foreground">{t.noClients}</p>
               ) : null}
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="listenerQuery">Listener keyword</Label>
+              <Label htmlFor="listenerQuery">{t.listenerLabel}</Label>
               <Input id="listenerQuery" name="listenerQuery" placeholder="diskon, tools otomasi" />
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="dailyLimit">Daily limit</Label>
+                <Label htmlFor="dailyLimit">{t.dailyLimitLabel}</Label>
                 <Input id="dailyLimit" name="dailyLimit" type="number" defaultValue={30} />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="minDelaySec">Min delay (sec)</Label>
+                <Label htmlFor="minDelaySec">{t.minDelayLabel}</Label>
                 <Input id="minDelaySec" name="minDelaySec" type="number" defaultValue={180} />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="maxDelaySec">Max delay (sec)</Label>
+                <Label htmlFor="maxDelaySec">{t.maxDelayLabel}</Label>
                 <Input id="maxDelaySec" name="maxDelaySec" type="number" defaultValue={600} />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Batas aman anti-spam: Instagram 12/jam · 50/hari (jeda ≥3 mnt), Threads 10/jam · 40/hari (jeda ≥4 mnt),
-              TikTok 8/jam · 30/hari (jeda ≥5 mnt). Nilai di atasnya ditolak otomatis — detail di /app/rate-limits.
-            </p>
+            <div className="rounded-lg border p-3 text-xs">
+              <div className="font-medium">{t.effectivePacing}</div>
+              <p className="mt-1 text-muted-foreground">{t.effectivePacingHint}</p>
+              <ul className="mt-2 space-y-1 text-muted-foreground">
+                {PLATFORM_KEYS.map((key) => (
+                  <li key={key}>
+                    <span className="font-medium text-foreground">
+                      {getPlatformGuardrail(key).label}:
+                    </span>{" "}
+                    {describePlatformLimits(key)}
+                  </li>
+                ))}
+              </ul>
+            </div>
             <div className="flex flex-col gap-3">
-              <div className="text-sm font-medium">Accounts</div>
+              <div className="text-sm font-medium">{t.accountsLabel}</div>
               {accounts.length === 0 ? (
-                <div className="text-sm text-muted-foreground">
-                  No accounts yet. You can still create campaign and attach later.
-                </div>
+                <div className="text-sm text-muted-foreground">{t.noAccounts}</div>
               ) : (
                 accounts.map((account) => (
                   <Label key={account.id} className="flex items-center gap-2 text-sm font-normal">
@@ -146,8 +230,8 @@ export default async function NewCampaignPage() {
                 ))
               )}
             </div>
-            <Button type="submit" size="lg">
-              Launch campaign
+            <Button variant="electric" type="submit" size="lg">
+              {t.launch}
             </Button>
           </form>
         </CardContent>

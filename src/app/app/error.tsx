@@ -27,7 +27,7 @@ export default function AuthenticatedAppError({
         <Button type="button" onClick={() => reset()}>
           Retry
         </Button>
-        <Button type="button" variant="outline" onClick={() => (window.location.href = "/app")}>
+        <Button type="button" variant="glass" onClick={() => (window.location.href = "/app")}>
           Dashboard
         </Button>
       </div>

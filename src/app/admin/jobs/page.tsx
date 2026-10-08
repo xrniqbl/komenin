@@ -95,7 +95,7 @@ export default async function AdminJobsPage({
                       {row.status === "failed" ? (
                         <form action={retryAction}>
                           <input type="hidden" name="job" value={row.job} />
-                          <Button type="submit" variant="outline" size="sm">
+                          <Button type="submit" variant="glass" size="sm">
                             Jalankan ulang
                           </Button>
                         </form>

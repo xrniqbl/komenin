@@ -4,9 +4,9 @@
  * Backends:
  * - "upstash": durable, shared across instances (serverless-safe). Used when
  *   UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are configured.
- * - "memory": single-process fallback. On Vercel/serverless each function
- *   instance has its own budget, so memory limiting only softens abuse —
- *   configure Upstash for any real protection.
+ * - "memory": single-process fallback. In serverless/multi-instance
+ *   setups each function instance has its own budget, so memory limiting
+ *   only softens abuse — configure Upstash for any real protection.
  *
  * All callers must `await consumeRateLimit(...)`; the async signature lets
  * the durable backend work without changing call sites again.
@@ -140,6 +140,8 @@ async function consumeUpstash(
  *   message (never revealing limiter internals).
  * - failClosed unset/false: degrade to the in-memory bucket with a warning,
  *   preserving availability for non-critical endpoints.
+ * - failClosed: true but no durable backend configured: deny in production
+ *   (NODE_ENV=production), memory fallback only outside production.
  */
 export async function consumeRateLimit(input: {
   key: string;
@@ -169,12 +171,27 @@ export async function consumeRateLimit(input: {
       console.warn("[rate-limit] upstash backend failed, using memory", error);
     }
   } else if (input.failClosed) {
-    // No durable backend configured at all: auth surfaces get real protection
-    // only from the per-instance bucket. Flag loud but still allow memory
-    // accounting so local dev works; preflight --strict requires Upstash so
-    // production without it fails the deploy gate.
+    // No durable backend configured at all.
+    if (process.env.NODE_ENV === "production") {
+      // Fail closed in production: per-instance memory accounting is
+      // bypassable by spreading requests across instances/replicas, so
+      // auth-critical surfaces must not run unprotected without Upstash.
+      console.error(
+        "[rate-limit] failClosed requested but no durable limiter configured (UPSTASH_REDIS_REST_URL/TOKEN missing) — denying traffic in production. Configure Upstash.",
+      );
+      return {
+        ok: false,
+        limit: input.limit,
+        remaining: 0,
+        resetAt: Date.now() + Math.min(input.windowMs, 60_000),
+        backend: "memory",
+        degraded: true,
+      };
+    }
+    // Non-production: allow memory accounting so local dev works without
+    // Upstash; preflight --strict still requires Upstash for deploy.
     console.error(
-      "[rate-limit] failClosed requested but no durable limiter configured (UPSTASH_REDIS_REST_URL/TOKEN missing) — using per-instance memory. Configure Upstash for production.",
+      "[rate-limit] failClosed requested but no durable limiter configured (UPSTASH_REDIS_REST_URL/TOKEN missing) — using per-instance memory (dev only). Configure Upstash for production.",
     );
   }
   const memory = consumeRateLimitMemory(input);

@@ -28,7 +28,7 @@ export class BridgeClient {
   async call(
     action: BridgeAction,
     platform: string,
-    body: any,
+    body: Record<string, unknown>,
     idempotencyKey?: string | null
   ) {
     if (!this.config.baseUrl) {
@@ -80,22 +80,12 @@ export class BridgeClient {
         body: response.data
       };
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        return {
-          status: error.response?.status || 500,
-          body: {
-            ok: false,
-            error: error.response?.data?.error || error.message
-          }
-        };
+      if (axios.isAxiosError(error) && error.response) {
+        return { status: error.response.status, body: error.response.data };
       }
-      return {
-        status: 500,
-        body: {
-          ok: false,
-          error: 'Unknown error'
-        }
-      };
+      // A request without an HTTP response may already have reached the platform.
+      // Do not turn it into a replayable, definitive 500 outcome.
+      throw error;
     }
   }
 

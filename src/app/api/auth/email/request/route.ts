@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { assertSameOrigin } from "@/lib/csrf";
+import { apiError } from "@/lib/api-errors";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
 import { issueEmailOtp, normalizeEmail } from "@/lib/email-otp";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
@@ -39,21 +40,18 @@ export async function POST(request: Request) {
     failClosed: true,
   });
   if (!ipRate.ok) {
-    return NextResponse.json(
-      { error: "Terlalu banyak percobaan. Coba lagi sebentar lagi." },
-      { status: 429 },
-    );
+    return apiError("RATE_LIMITED", 429);
   }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return apiError("INVALID_JSON", 400);
   }
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Alamat email tidak valid." }, { status: 400 });
+    return apiError("INVALID_INPUT", 400, "Invalid email address.");
   }
   const email = normalizeEmail(parsed.data.email);
 
@@ -65,9 +63,10 @@ export async function POST(request: Request) {
     failClosed: true,
   });
   if (!emailRate.ok) {
-    return NextResponse.json(
-      { error: "Kode sudah dikirim baru-baru ini. Periksa email Anda atau coba lagi nanti." },
-      { status: 429 },
+    return apiError(
+      "RATE_LIMITED",
+      429,
+      "A code was sent recently. Check your email or try again later.",
     );
   }
 
@@ -80,9 +79,10 @@ export async function POST(request: Request) {
       if (process.env.NODE_ENV !== "production") {
         return NextResponse.json({ ok: true, devCode: code, delivered: false });
       }
-      return NextResponse.json(
-        { error: "Layanan email belum dikonfigurasi. Hubungi administrator." },
-        { status: 503 },
+      return apiError(
+        "NOT_CONFIGURED",
+        503,
+        "Email service is not configured. Contact the administrator.",
       );
     }
 
@@ -107,14 +107,17 @@ export async function POST(request: Request) {
     });
 
     if (!result.delivered) {
-      return NextResponse.json(
-        { error: "Gagal mengirim email. Coba lagi sebentar lagi." },
-        { status: 502 },
-      );
+      // Dev fallback: surface the code so the OTP flow stays testable when
+      // the email provider is unreachable or misconfigured locally.
+      // Production still returns 502 without leaking the code.
+      if (process.env.NODE_ENV !== "production") {
+        return NextResponse.json({ ok: true, devCode: code, delivered: false });
+      }
+      return apiError("EMAIL_UNAVAILABLE", 502);
     }
 
     return NextResponse.json({ ok: true, delivered: true });
   } catch (error) {
-    return jsonErrorFromUnknown(error, "Gagal memproses permintaan kode.");
+    return jsonErrorFromUnknown(error, "Failed to process the code request.");
   }
 }

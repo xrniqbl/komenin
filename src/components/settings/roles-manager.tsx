@@ -171,7 +171,7 @@ export function RolesManager({
                       confirmLabel="Delete role"
                       destructive
                       disabled={pending}
-                      trigger={<Button size="sm" variant="ghost" className="h-7 text-xs">Delete</Button>}
+                      trigger={<Button size="sm" variant="glass" className="h-7 text-xs">Delete</Button>}
                       onConfirm={() => handleDelete(role.id)}
                     />
                   </div>

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ListPagination, paginateItems } from "@/components/app/list-pagination";
+import { revalidatePath } from "next/cache";
+import { ListPagination, getPageWindow } from "@/components/app/list-pagination";
 import { PageHeader } from "@/components/app/page-header";
 import { FilterBar } from "@/components/app/filter-bar";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/empty";
 import {
   archiveNotification,
-  listNotifications,
+  listNotificationsPage,
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/server/notifications";
@@ -33,12 +34,12 @@ export default async function NotificationsPage({
 }) {
   const params = await searchParams;
   const status = (params.status || "").trim();
-  const notifications = await listNotifications(100, {
+  const requestedPage = Number(params.page);
+  const { items, total } = await listNotificationsPage(requestedPage, 10, {
     status: status || undefined,
     q: params.q,
   });
-  const unreadCount = notifications.filter((n) => n.status === "unread").length;
-  const { items, window } = paginateItems(notifications, params.page, 10);
+  const window = getPageWindow(total, params.page, 10);
 
   const tabHref = (value: string) => {
     const qs = new URLSearchParams();
@@ -51,6 +52,7 @@ export default async function NotificationsPage({
   async function markAll() {
     "use server";
     await markAllNotificationsRead();
+    revalidatePath("/app/notifications");
   }
 
   return (
@@ -60,9 +62,9 @@ export default async function NotificationsPage({
         description="Workspace alerts for approvals, failures, and health events."
         action={
           <div className="flex items-center gap-2">
-            {unreadCount > 0 ? <Badge variant="default">{unreadCount} unread</Badge> : null}
+            {status === "unread" && total > 0 ? <Badge variant="secondary">{total} unread</Badge> : null}
             <form action={markAll}>
-              <Button type="submit" variant="outline">
+              <Button type="submit" variant="glass">
                 Mark all read
               </Button>
             </form>
@@ -116,7 +118,7 @@ export default async function NotificationsPage({
                 <CardHeader>
                   <CardTitle className="flex flex-wrap items-center gap-2 text-base">
                     <span>{item.title}</span>
-                    {item.status === "unread" ? <Badge variant="default">unread</Badge> : null}
+                    {item.status === "unread" ? <Badge variant="secondary">unread</Badge> : null}
                     {item.status === "archived" ? <Badge variant="outline">archived</Badge> : null}
                   </CardTitle>
                   <CardDescription>
@@ -140,7 +142,7 @@ export default async function NotificationsPage({
                           await markNotificationRead(item.id);
                         }}
                       >
-                        <Button type="submit" variant="outline" size="sm">
+                        <Button type="submit" variant="glass" size="sm">
                           Mark read
                         </Button>
                       </form>
@@ -152,7 +154,7 @@ export default async function NotificationsPage({
                           await archiveNotification(item.id);
                         }}
                       >
-                        <Button type="submit" variant="ghost" size="sm">
+                        <Button type="submit" variant="glass" size="sm">
                           Archive
                         </Button>
                       </form>
@@ -162,7 +164,7 @@ export default async function NotificationsPage({
               </Card>
             ))}
             <Card className="gap-0 overflow-hidden py-0">
-              <ListPagination pathname="/app/notifications" window={window} />
+              <ListPagination pathname="/app/notifications" searchParams={{ status: params.status, q: params.q }} window={window} />
             </Card>
           </>
         )}

@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { WORKER_JOBS } from "@/server/worker-jobs";
 import { describeSendResult } from "@/lib/runtime-mode";
 import { classifyWorkerError } from "@/lib/metrics/worker-metrics";
@@ -16,7 +16,6 @@ describe("worker foundation", () => {
         "content.generate",
         "content.publish",
         "knowledge.ingest",
-        "skill.execute",
         "usage.rollup",
         "notify.dispatch",
         "billing.expire",

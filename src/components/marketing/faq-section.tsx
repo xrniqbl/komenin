@@ -13,25 +13,25 @@ export function FaqSection() {
   const { t } = useLocale();
 
   return (
-    <section className="bg-neutral-50 py-16 md:py-24">
+    <section className="py-16 md:py-24" style={{ backgroundColor: "#0A0F1E" }}>
       <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 sm:px-6">
         <div className="flex flex-col items-center gap-3 text-center">
-          <p className="text-sm font-medium text-neutral-500">{t.faq.kicker}</p>
-          <h2 className="text-3xl font-semibold tracking-tight text-neutral-900 md:text-4xl">
+          <p className="text-sm font-medium text-electric-300">{t.faq.kicker}</p>
+          <h2 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">
             {t.faq.title}
           </h2>
-          <p className="max-w-xl text-base text-neutral-600">{t.faq.subtitle}</p>
+          <p className="max-w-xl text-base text-neutral-400">{t.faq.subtitle}</p>
         </div>
 
-        <Card className="border-neutral-200 bg-white shadow-sm">
+        <Card className="glass rounded-2xl">
           <CardContent className="px-4 py-0">
             <Accordion className="w-full">
               {t.faq.items.map((item, index) => (
-                <AccordionItem key={item.q} value={`item-${index}`}>
-                  <AccordionTrigger className="text-left text-neutral-900 hover:no-underline">
+                <AccordionItem key={item.q} value={`item-${index}`} className="border-white/10">
+                  <AccordionTrigger className="text-left text-white hover:no-underline">
                     {item.q}
                   </AccordionTrigger>
-                  <AccordionContent className="text-neutral-600">{item.a}</AccordionContent>
+                  <AccordionContent className="text-neutral-400">{item.a}</AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>

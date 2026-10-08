@@ -1,10 +1,9 @@
 "use client";
 
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ChevronsUpDownIcon,
-} from "lucide-react";
+import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded';
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
+import UnfoldMoreRoundedIcon from '@mui/icons-material/UnfoldMoreRounded';
+
 import type * as React from "react";
 import { DayPicker } from "react-day-picker";
 import { cn } from "@/lib/utils";
@@ -81,7 +80,7 @@ export function Calendar({
     }): React.ReactElement => {
       if (orientation === "left") {
         return (
-          <ChevronLeftIcon
+          <ChevronLeftRoundedIcon
             className={cn(className, "rtl:rotate-180")}
             {...props}
             aria-hidden="true"
@@ -91,7 +90,7 @@ export function Calendar({
 
       if (orientation === "right") {
         return (
-          <ChevronRightIcon
+          <ChevronRightRoundedIcon
             className={cn(className, "rtl:rotate-180")}
             {...props}
             aria-hidden="true"
@@ -100,7 +99,7 @@ export function Calendar({
       }
 
       return (
-        <ChevronsUpDownIcon
+        <UnfoldMoreRoundedIcon
           className={className}
           {...props}
           aria-hidden="true"

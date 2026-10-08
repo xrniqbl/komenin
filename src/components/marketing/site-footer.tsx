@@ -1,131 +1,226 @@
-﻿"use client";
+"use client";
 
+import ArrowForwardIcon from '@mui/icons-material/ArrowForwardRounded';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpwardRounded';
+import AlternateEmailIcon from '@mui/icons-material/AlternateEmailRounded';
+import MenuBookIcon from '@mui/icons-material/MenuBookRounded';
+import PhotoCameraIcon from '@mui/icons-material/PhotoCameraRounded';
+import ForumIcon from '@mui/icons-material/ForumRounded';
+import MusicNoteIcon from '@mui/icons-material/MusicNoteRounded';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUserRounded';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesomeRounded';
+import LocalOfferIcon from '@mui/icons-material/LocalOfferRounded';
 import Image from "next/image";
+import Link from "next/link";
+import * as React from "react";
 import { LocaleLink } from "@/components/i18n/locale-link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { rememberSection, scrollToSection } from "@/lib/scroll-section";
-
-type FooterLink =
-  | { kind: "section"; id: "features" | "pricing"; label: string }
-  | { kind: "route"; href: string; label: string };
+import { Input } from "@/components/ui/input";
+import { scrollToSection } from "@/lib/scroll-section";
 
 export function SiteFooter() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const pathname = usePathname();
   const router = useRouter();
-
-  const columns: Array<{ title: string; links: FooterLink[] }> = [
-    {
-      title: t.footer.product,
-      links: [
-        { kind: "section", id: "features", label: t.footer.features },
-        { kind: "section", id: "pricing", label: t.footer.pricing },
-        { kind: "route", href: "/security", label: t.footer.security },
-        { kind: "route", href: "/integrations", label: t.footer.integrations },
-        { kind: "route", href: "/docs", label: t.footer.docs },
-      ],
-    },
-    {
-      title: t.footer.company,
-      links: [
-        { kind: "route", href: "/about", label: t.footer.about },
-        { kind: "route", href: "/contact", label: t.footer.contact },
-        { kind: "route", href: "/enterprise", label: t.footer.enterprise },
-        { kind: "route", href: "/use-cases", label: t.footer.useCases },
-        { kind: "route", href: "/changelog", label: t.footer.changelog },
-      ],
-    },
-    {
-      title: "Platform",
-      links: [
-        { kind: "route", href: "/platform/instagram", label: "Instagram" },
-        { kind: "route", href: "/platform/tiktok", label: "TikTok" },
-        { kind: "route", href: "/platform/threads", label: "Threads" },
-      ],
-    },
-    {
-      title: t.footer.legal,
-      links: [
-        { kind: "route", href: "/legal/privacy", label: t.footer.privacy },
-        { kind: "route", href: "/legal/terms", label: t.footer.terms },
-        { kind: "route", href: "/legal/aup", label: t.footer.aup },
-      ],
-    },
-  ];
+  const [email, setEmail] = React.useState("");
 
   function goToSection(id: "features" | "pricing") {
-    if (pathname === "/") {
+    if (pathname === "/" || pathname === "/id") {
       scrollToSection(id, "smooth");
       return;
     }
-    rememberSection(id);
-    router.push("/");
+    router.push(`${locale === "id" ? "/id" : "/"}#${id}`);
   }
 
+  function handleSubscribe(event: React.FormEvent) {
+    event.preventDefault();
+    // Newsletter belum ada backend — arahkan ke signup dengan email terisi.
+    const q = email.trim() ? `?email=${encodeURIComponent(email.trim())}` : "";
+    router.push(`${locale === "id" ? "/id" : ""}/signup${q}`);
+  }
+
+  const productLinks = [
+    {
+      label: t.footer.features,
+      icon: AutoAwesomeIcon,
+      onClick: () => goToSection("features"),
+      href: "/features",
+    },
+    {
+      label: t.footer.pricing,
+      icon: LocalOfferIcon,
+      onClick: () => goToSection("pricing"),
+      href: "/pricing",
+    },
+    { label: t.footer.security, icon: VerifiedUserIcon, href: "/security" },
+    { label: t.footer.integrations, icon: ForumIcon, href: "/integrations" },
+    { label: t.footer.docs, icon: MenuBookIcon, href: "/docs" },
+  ];
+
+  const companyLinks = [
+    { label: t.footer.about, href: "/about" },
+    { label: t.footer.contact, href: "/contact" },
+    { label: t.footer.enterprise, href: "/enterprise" },
+    { label: t.footer.useCases, href: "/use-cases" },
+    { label: t.footer.changelog, href: "/changelog" },
+  ];
+
+  const legalLinks = [
+    { label: t.footer.privacy, href: "/legal/privacy" },
+    { label: t.footer.terms, href: "/legal/terms" },
+    { label: t.footer.aup, href: "/legal/aup" },
+  ];
+
   return (
-    <footer className="border-t bg-background">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 md:px-6">
-        <div className="flex flex-col gap-4">
-          <div className="inline-flex items-center gap-2">
-            <Image src="/brand/komenin-mono.svg" alt="Komenin" width={24} height={24} />
-            <span className="text-base font-semibold">Komenin</span>
+    <footer className="relative overflow-hidden border-t border-white/10 bg-ink-950 text-neutral-400">
+      {/* Blue glow ala video */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 left-1/2 h-48 w-[60rem] -translate-x-1/2 rounded-full bg-electric-600/15 blur-3xl"
+      />
+      <div className="relative mx-auto max-w-6xl px-4 py-14 md:px-6">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Account signup */}
+          <div className="flex flex-col gap-4">
+            <div className="inline-flex items-center gap-2">
+              <Image src="/brand/komenin-robot-white.png" alt="Komenin" width={32} height={32} />
+              <span className="text-base font-semibold text-white">Komenin</span>
+            </div>
+            <p className="max-w-xs text-sm text-neutral-500">{t.footer.blurb}</p>
+            <form onSubmit={handleSubscribe} className="flex max-w-xs flex-col gap-2">
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="rounded-full border-white/10 bg-white/5 text-sm text-white placeholder:text-neutral-600"
+              />
+              <button
+                type="submit"
+                style={{ background: "linear-gradient(to right, #2563eb, #2e7cf6)" }}
+                className="inline-flex w-fit items-center gap-2 rounded-full px-5 py-2 text-sm font-medium text-white"
+              >
+                Create an account
+                <ArrowForwardIcon className="size-4" />
+              </button>
+            </form>
           </div>
-          <p className="max-w-xs text-sm text-muted-foreground">{t.footer.blurb}</p>
-        </div>
-        {columns.map((column) => (
-          <div key={column.title} className="flex flex-col gap-3">
-            <div className="text-sm font-semibold">{column.title}</div>
-            <div className="flex flex-col items-start gap-1">
-              {column.links.map((link) =>
-                link.kind === "section" ? (
-                  // Real links (not buttons) so crawlers follow Features/Pricing.
-                  // Clicks on the homepage still smooth-scroll to the section.
-                  <Button
-                    key={link.id}
-                    variant="link"
-                    size="sm"
-                    render={
-                      <LocaleLink
-                        href={link.id === "features" ? "/features" : "/pricing"}
-                        onClick={(event: React.SyntheticEvent) => {
-                          // On the homepage keep the smooth-scroll UX; everywhere
-                          // else follow the real link so both humans and crawlers
-                          // land on the indexable page.
-                          if (pathname === "/") {
-                            event.preventDefault();
-                            goToSection(link.id);
-                          }
-                        }}
-                      />
-                    }
-                    nativeButton={false}
-                    className="h-auto px-0 text-muted-foreground"
-                  >
-                    {link.label}
-                  </Button>
+
+          {/* Product */}
+          <div className="flex flex-col gap-4">
+            <div className="text-base font-semibold text-white">{t.footer.product}</div>
+            <div className="flex flex-col items-start gap-2.5">
+              {productLinks.map((link) => {
+                const Icon = link.icon;
+                const inner = (
+                  <>
+                    <Icon className="size-3.5 text-electric-400" />
+                    <span className="text-sm">{link.label}</span>
+                  </>
+                );
+                const cls =
+                  "inline-flex items-center gap-2 text-neutral-500 hover:text-neutral-200 transition-colors";
+                return link.onClick ? (
+                  <button key={link.label} type="button" onClick={link.onClick} className={cls}>
+                    {inner}
+                  </button>
                 ) : (
-                  <Button
-                    key={link.href}
-                    variant="link"
-                    size="sm"
-                    render={<LocaleLink href={link.href} />}
-                    nativeButton={false}
-                    className="h-auto px-0 text-muted-foreground"
-                  >
-                    {link.label}
-                  </Button>
-                ),
-              )}
+                  <LocaleLink key={link.label} href={link.href!} className={cls}>
+                    {inner}
+                  </LocaleLink>
+                );
+              })}
             </div>
           </div>
-        ))}
-      </div>
-      <Separator />
-      <div className="mx-auto flex max-w-6xl items-center px-4 py-6 text-xs text-muted-foreground md:px-6">
-        <span>{`© ${new Date().getFullYear()} Komenin`}</span>
+
+          {/* Company + Legal */}
+          <div className="flex flex-col gap-4">
+            <div className="text-base font-semibold text-white">{t.footer.company}</div>
+            <div className="flex flex-col items-start gap-2.5">
+              {companyLinks.map((link) => (
+                <LocaleLink
+                  key={link.href}
+                  href={link.href}
+                  className="text-sm text-neutral-500 transition-colors hover:text-neutral-200"
+                >
+                  {link.label}
+                </LocaleLink>
+              ))}
+            </div>
+            <div className="mt-2 text-base font-semibold text-white">{t.footer.legal}</div>
+            <div className="flex flex-col items-start gap-2.5">
+              {legalLinks.map((link) => (
+                <LocaleLink
+                  key={link.href}
+                  href={link.href}
+                  className="text-sm text-neutral-500 transition-colors hover:text-neutral-200"
+                >
+                  {link.label}
+                </LocaleLink>
+              ))}
+            </div>
+          </div>
+
+          {/* Get started */}
+          <div className="flex flex-col gap-4">
+            <div className="text-base font-semibold text-white">Ready to get started?</div>
+            <LocaleLink
+              href="/contact"
+              className="text-sm text-neutral-400 transition-colors hover:text-white"
+            >
+              hello@komenin.id
+            </LocaleLink>
+            <div className="flex items-center gap-3">
+              {[
+                { icon: PhotoCameraIcon, href: "/platform/instagram", label: "Instagram" },
+                { icon: MusicNoteIcon, href: "/platform/tiktok", label: "TikTok" },
+                { icon: AlternateEmailIcon, href: "/platform/threads", label: "Threads" },
+              ].map((s) => {
+                const Icon = s.icon;
+                return (
+                  <LocaleLink
+                    key={s.label}
+                    href={s.href}
+                    aria-label={s.label}
+                    className="flex size-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-neutral-500 transition-colors hover:border-white/25 hover:text-white"
+                  >
+                    <Icon sx={{ fontSize: 15 }} />
+                  </LocaleLink>
+                );
+              })}
+            </div>
+            <Button
+              variant="glass"
+              render={
+                <LocaleLink href="/enterprise" className="inline-flex items-center gap-2" />
+              }
+              nativeButton={false}
+              className="w-fit rounded-full px-5 py-2 text-sm"
+            >
+              {t.footer.enterprise}
+            </Button>
+          </div>
+        </div>
+
+        {/* Bottom bar */}
+        <div className="mt-12 flex items-center justify-between border-t border-white/10 pt-6">
+          {/* Year is time-sensitive: server pre-render and client hydration can
+              straddle midnight, so suppress the hydration warning on this
+              single span rather than hiding real mismatches higher up. */}
+          <span className="text-xs text-neutral-600" suppressHydrationWarning>{`© ${new Date().getFullYear()} Komenin. All rights reserved`}</span>
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="group inline-flex items-center gap-2 text-xs text-neutral-500 transition-colors hover:text-white"
+          >
+            Back to the Top
+            <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-b from-electric-500 to-electric-700 text-white shadow-[0_0_16px_rgba(46,124,246,0.4)] transition-transform group-hover:-translate-y-0.5">
+              <ArrowUpwardIcon className="size-4" />
+            </span>
+          </button>
+        </div>
       </div>
     </footer>
   );

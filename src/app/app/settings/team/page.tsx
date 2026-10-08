@@ -106,7 +106,7 @@ export default async function TeamSettingsPage({
                   <Label htmlFor="email">Email</Label>
                   <Input id="email" name="email" type="email" required placeholder="teammate@company.com" />
                 </div>
-                <Button type="submit">Create invite</Button>
+                <Button variant="electric" type="submit">Create invite</Button>
                 <p className="text-xs text-muted-foreground">
                   In development, invite tokens are returned in-page for testing.
                 </p>

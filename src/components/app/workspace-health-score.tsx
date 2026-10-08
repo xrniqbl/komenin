@@ -2,13 +2,12 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  TrendingUp,
-} from "lucide-react";
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import CancelRoundedIcon from '@mui/icons-material/CancelRounded';
+import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
+import TrendingUpRoundedIcon from '@mui/icons-material/TrendingUpRounded';
+import WarningRoundedIcon from '@mui/icons-material/WarningRounded';
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,7 +69,7 @@ export function WorkspaceHealthScore({ items }: WorkspaceHealthScoreProps) {
     <Card className="mb-6">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <TrendingUp className="size-4 text-muted-foreground" />
+          <TrendingUpRoundedIcon className="size-4 text-muted-foreground" />
           <CardTitle className="text-base">Workspace Health</CardTitle>
         </div>
         <CardDescription>
@@ -122,11 +121,11 @@ export function WorkspaceHealthScore({ items }: WorkspaceHealthScoreProps) {
               >
                 <div className="flex items-center gap-2.5">
                   {item.status === "good" ? (
-                    <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />
+                    <CheckCircleRoundedIcon className="size-4 shrink-0 text-emerald-500" />
                   ) : item.status === "warning" ? (
-                    <AlertTriangle className="size-4 shrink-0 text-amber-500" />
+                    <WarningRoundedIcon className="size-4 shrink-0 text-amber-500" />
                   ) : (
-                    <XCircle className="size-4 shrink-0 text-red-500" />
+                    <CancelRoundedIcon className="size-4 shrink-0 text-red-500" />
                   )}
                   <div>
                     <span className="text-sm font-medium">{item.label}</span>
@@ -137,12 +136,12 @@ export function WorkspaceHealthScore({ items }: WorkspaceHealthScoreProps) {
                 </div>
                 {item.href && item.status !== "good" && (
                   <Button
-                    variant="ghost"
+                    variant="glass"
                     size="icon-xs"
                     render={<Link href={item.href} />}
                     nativeButton={false}
                   >
-                    <ArrowRight className="size-3.5" />
+                    <ArrowForwardRoundedIcon className="size-3.5" />
                   </Button>
                 )}
               </div>

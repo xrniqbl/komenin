@@ -28,7 +28,7 @@ export default function AppError({
         <Button type="button" onClick={() => reset()}>
           Try again
         </Button>
-        <Button type="button" variant="outline" onClick={() => (window.location.href = "/app")}>
+        <Button type="button" variant="glass" onClick={() => (window.location.href = "/app")}>
           Go to app
         </Button>
       </div>

@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { SearchIcon } from "lucide-react";
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -117,26 +118,26 @@ export function AppCommandPalette() {
     <>
       <Button
         type="button"
-        variant="outline"
+        variant="glass"
         size="sm"
         className="hidden min-w-48 justify-between gap-3 text-muted-foreground md:inline-flex"
         onClick={() => setOpen(true)}
       >
         <span className="inline-flex items-center gap-2">
-          <SearchIcon className="size-4" />
+          <SearchRoundedIcon className="size-4" />
           Search…
         </span>
         <Kbd>⌘K</Kbd>
       </Button>
       <Button
         type="button"
-        variant="outline"
+        variant="glass"
         size="icon-sm"
         className="md:hidden"
         aria-label="Open command palette"
         onClick={() => setOpen(true)}
       >
-        <SearchIcon className="size-4" />
+        <SearchRoundedIcon className="size-4" />
       </Button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>

@@ -22,9 +22,20 @@ export default async function AuthErrorPage({
         <p className="mt-2 text-sm text-neutral-400">
           {params.error || "Something went wrong during sign-in."}
         </p>
-        <Link href="/login" className="mt-6 inline-block text-sm font-medium text-electric-400 hover:text-electric-300">
-          Back to login
-        </Link>
+        <div className="mt-6 flex flex-col gap-3">
+          <form method="POST" action="/api/auth/signout">
+            <input type="hidden" name="callbackUrl" value="/login" />
+            <button
+              type="submit"
+              className="inline-block w-full cursor-pointer rounded-full bg-electric-500 px-6 py-2.5 text-sm font-medium text-white hover:bg-electric-600 touch-manipulation"
+            >
+              Sign out and back to login
+            </button>
+          </form>
+          <Link href="/login" className="text-sm font-medium text-electric-400 hover:text-electric-300">
+            Back to login
+          </Link>
+        </div>
       </div>
     </div>
   );

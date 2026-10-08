@@ -158,6 +158,7 @@ function escapeHtml(value: string): string {
 
 /**
  * Send a workspace invitation email with a one-time accept link.
+ * Single default language: Indonesian.
  */
 export async function sendInviteEmail(input: {
   to: string;
@@ -167,38 +168,38 @@ export async function sendInviteEmail(input: {
   inviterName?: string | null;
 }): Promise<{ delivered: boolean }> {
   const acceptUrl = `${appUrl()}/invite/${input.token}`;
-  const inviter = input.inviterName?.trim() || "Your team";
+  const inviter = input.inviterName?.trim() || "Tim Anda";
 
   const html = `
   <div style="font-family:ui-sans-serif,system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px;">
-    <h2 style="color:#0b0f14;">You're invited to ${escapeHtml(input.workspaceName)}</h2>
-    <p style="color:#374151;">${escapeHtml(inviter)} invited you to join the
-    <strong>${escapeHtml(input.workspaceName)}</strong> workspace on Komenin as
+    <h2 style="color:#0b0f14;">Anda diundang ke ${escapeHtml(input.workspaceName)}</h2>
+    <p style="color:#374151;">${escapeHtml(inviter)} mengundang Anda untuk bergabung ke
+    workspace <strong>${escapeHtml(input.workspaceName)}</strong> di Komenin sebagai
     <strong>${escapeHtml(input.role)}</strong>.</p>
     <p style="margin:32px 0;">
       <a href="${acceptUrl}"
          style="background:#0b0f14;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
-        Accept invitation
+        Terima undangan
       </a>
     </p>
     <p style="color:#6b7280;font-size:13px;">
-      This link expires in 7 days. If the button doesn't work, open:
+      Tautan ini kedaluwarsa dalam 7 hari. Jika tombol tidak berfungsi, buka:
       <br><a href="${acceptUrl}" style="color:#2563eb;word-break:break-all;">${acceptUrl}</a>
     </p>
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;" />
     <p style="color:#9ca3af;font-size:12px;">
-      If you weren't expecting this invite, you can ignore this email.
+      Jika Anda tidak merasa menerima undangan ini, abaikan email ini.
     </p>
   </div>`;
 
   const result = await sendEmail({
     to: input.to,
-    subject: `Invite: join ${input.workspaceName} on Komenin`,
+    subject: `Undangan: gabung ${input.workspaceName} di Komenin`,
     html,
     text:
-      `${inviter} invited you to join ${input.workspaceName} on Komenin as ${input.role}.\n\n` +
-      `Accept within 7 days: ${acceptUrl}\n\n` +
-      `If you weren't expecting this invite, ignore this email.`,
+      `${inviter} mengundang Anda untuk bergabung ke ${input.workspaceName} di Komenin sebagai ${input.role}.\n\n` +
+      `Terima dalam 7 hari: ${acceptUrl}\n\n` +
+      `Jika Anda tidak merasa menerima undangan ini, abaikan email ini.`,
   });
 
   return { delivered: result.delivered };
@@ -227,16 +228,16 @@ export function buildContactNotification(input: {
     replyTo: input.email,
     subject: `[Komenin Contact] ${subjectName}`,
     text:
-      `New contact submission (${input.auditId})\n\n` +
-      `Name: ${input.name}\n` +
+      `Pengajuan kontak baru (${input.auditId})\n\n` +
+      `Nama: ${input.name}\n` +
       `Email: ${input.email}\n` +
-      `At: ${input.submittedAt.toISOString()}\n\n` +
+      `Waktu: ${input.submittedAt.toISOString()}\n\n` +
       input.message,
     html: `<div style="font-family:system-ui,sans-serif;max-width:560px">
-  <h2 style="margin:0 0 12px;">New contact submission</h2>
+  <h2 style="margin:0 0 12px;">Pengajuan kontak baru</h2>
   <p style="margin:0 0 12px;color:#374151;">
-    <b>From:</b> ${escapeHtml(input.name)} &lt;${escapeHtml(input.email)}&gt;<br/>
-    <b>At:</b> ${input.submittedAt.toISOString()}<br/>
+    <b>Dari:</b> ${escapeHtml(input.name)} &lt;${escapeHtml(input.email)}&gt;<br/>
+    <b>Waktu:</b> ${input.submittedAt.toISOString()}<br/>
     <b>Audit id:</b> ${escapeHtml(input.auditId)}
   </p>
   <pre style="white-space:pre-wrap;font-family:inherit;background:#f9fafb;padding:12px;border-radius:8px;">${escapeHtml(input.message)}</pre>

@@ -120,7 +120,7 @@ export default async function AdminVouchersPage({
               <Input id="expiresAt" name="expiresAt" type="date" />
             </div>
             <div className="md:col-span-3">
-              <Button type="submit">Create voucher</Button>
+              <Button variant="electric" type="submit">Create voucher</Button>
             </div>
           </form>
         </CardContent>
@@ -185,7 +185,7 @@ export default async function AdminVouchersPage({
                       });
                     }}
                   >
-                    <Button type="submit" variant="outline" size="sm">
+                    <Button type="submit" variant="glass" size="sm">
                       {voucher.isActive ? "Disable" : "Enable"}
                     </Button>
                   </form>

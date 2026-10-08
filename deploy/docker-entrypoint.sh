@@ -8,7 +8,7 @@ echo "[entrypoint] Komenin starting..."
 # error runtime (kolom/tabel hilang) jauh lebih sulit didiagnosis.
 if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
   echo "[entrypoint] Running prisma migrate deploy..."
-  ./node_modules/.bin/prisma migrate deploy || {
+  node ./node_modules/prisma/build/index.js migrate deploy || {
     echo "[entrypoint] FATAL: migrate deploy gagal — cek DATABASE_URL. Server tidak dijalankan."
     exit 1
   }

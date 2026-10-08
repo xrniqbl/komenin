@@ -30,7 +30,7 @@ type SessionUser = { id: string; name?: string | null; email?: string | null };
 
 async function requireUser(): Promise<SessionUser | null> {
   const session = await auth();
-  if (!session?.user?.id) return null;
+  if (!session?.user?.id || session.user.totpGate) return null;
   return { id: session.user.id, name: session.user.name, email: session.user.email };
 }
 
@@ -135,7 +135,10 @@ export async function listMyTickets() {
   const user = await requireUser();
   if (!user) return [];
   return db.supportTicket.findMany({
-    where: { reporterId: user.id },
+    where: {
+      reporterId: user.id,
+      workspace: { memberships: { some: { userId: user.id, status: "active" } } },
+    },
     orderBy: { createdAt: "desc" },
     take: 100,
     include: { _count: { select: { messages: true } } },
@@ -150,6 +153,13 @@ async function loadTicketForReporter(ticketId: string, userId: string) {
     },
   });
   if (!ticket || ticket.reporterId !== userId) return null;
+  if (ticket.workspaceId) {
+    const membership = await db.membership.findFirst({
+      where: { workspaceId: ticket.workspaceId, userId, status: "active" },
+      select: { id: true },
+    });
+    if (!membership) return null;
+  }
   return ticket;
 }
 

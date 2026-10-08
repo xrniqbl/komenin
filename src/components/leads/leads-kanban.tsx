@@ -104,7 +104,7 @@ export function LeadsKanban({ leads }: { leads: LeadRow[] }) {
                           <Button
                             key={target.status}
                             size="sm"
-                            variant="outline"
+                            variant="glass"
                             className="h-7 px-2 text-[11px]"
                             disabled={pending}
                             onClick={() => move(lead.id, target.status)}
@@ -114,7 +114,7 @@ export function LeadsKanban({ leads }: { leads: LeadRow[] }) {
                         ))}
                         <Button
                           size="sm"
-                          variant="ghost"
+                          variant="glass"
                           className="h-7 px-2 text-[11px]"
                           disabled={pending}
                           onClick={() => snooze(lead.id, 3, lead.status)}

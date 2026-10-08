@@ -88,7 +88,7 @@ export default async function ProxyDetailPage({
                 await checkProxyHealth(proxy.id);
               }}
             >
-              <Button type="submit" variant="default">
+              <Button type="submit" variant="electric">
                 Run health check
               </Button>
             </form>

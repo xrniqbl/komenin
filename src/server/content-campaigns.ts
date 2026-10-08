@@ -8,7 +8,7 @@ import { publishSocialPost } from "@/lib/publish-connector";
 import { assertWorkspacePermission } from "@/lib/rbac";
 import { getRuntimeModeLabel } from "@/lib/runtime-mode";
 import { db } from "@/lib/db";
-import { dailyActionIncrementData } from "@/lib/account-quota";
+import { recordDailyAccountAction } from "@/lib/account-quota";
 import { claimContentDraft } from "@/lib/worker-claims";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { ensureDefaultAgent } from "@/server/agents";
@@ -173,8 +173,14 @@ export async function generateContentCampaignDrafts(campaignId: string) {
 
   await db.$transaction(async (tx) => {
     await tx.contentDraft.deleteMany({
-      where: { contentCampaignId: campaign.id, workspaceId: workspace.id },
+      where: { contentCampaignId: campaign.id, workspaceId: workspace.id, status: { in: ["pending", "scheduled", "approved", "rejected", "failed"] } },
     });
+    const lastRetained = await tx.contentDraft.findFirst({
+      where: { contentCampaignId: campaign.id, workspaceId: workspace.id },
+      orderBy: { sequence: "desc" },
+      select: { sequence: true },
+    });
+    const sequenceStart = lastRetained?.sequence ?? 0;
 
     for (const [index, post] of posts.entries()) {
       const initialStatus =
@@ -185,7 +191,7 @@ export async function generateContentCampaignDrafts(campaignId: string) {
           contentCampaignId: campaign.id,
           agentId: campaign.agentId,
           socialAccountId: campaign.socialAccountId,
-          sequence: post.sequence || index + 1,
+          sequence: sequenceStart + index + 1,
           title: post.title,
           body: post.body,
           hashtags: post.hashtags,
@@ -238,32 +244,23 @@ export async function decideContentDraft(input: {
     include: { contentCampaign: true },
   });
   if (!draft) throw new Error("Content draft not found");
-  if (!["pending", "rejected"].includes(draft.status) && input.decision === "approved") {
-    // allow re-approve only from pending/rejected
-  }
-  if (draft.status === "published") {
-    throw new Error("Published drafts cannot be modified");
+  const allowed = input.decision === "approved" ? ["pending", "rejected"] : ["pending", "scheduled", "approved"];
+  if (!allowed.includes(draft.status)) {
+    throw new Error(`Cannot ${input.decision} a ${draft.status} draft`);
   }
 
-  if (input.decision === "rejected") {
-    await db.contentDraft.update({
-      where: { id: draft.id },
-      data: {
-        status: "rejected",
-        resultMessage: "Rejected by operator",
-      },
-    });
-  } else {
-    await db.contentDraft.update({
-      where: { id: draft.id },
-      data: {
-        status: "scheduled",
-        title: input.editedTitle?.trim() || draft.title,
-        body: input.editedBody?.trim() || draft.body,
-        resultMessage: "Approved and scheduled",
-      },
-    });
-  }
+  const changed = await db.contentDraft.updateMany({
+    where: { id: draft.id, workspaceId: workspace.id, status: draft.status },
+    data: input.decision === "rejected"
+      ? { status: "rejected", resultMessage: "Rejected by operator" }
+      : {
+          status: "scheduled",
+          title: input.editedTitle?.trim() || draft.title,
+          body: input.editedBody?.trim() || draft.body,
+          resultMessage: "Approved and scheduled",
+        },
+  });
+  if (changed.count !== 1) throw new Error("Content draft changed; refresh and try again");
 
   await writeAuditLog({
     workspaceId: workspace.id,
@@ -286,6 +283,7 @@ export async function publishDueContentDrafts(limit = 30) {
     where: {
       workspaceId: workspace.id,
       status: "scheduled",
+      contentCampaign: { status: "active" },
       scheduledFor: { lte: new Date() },
     },
     include: {
@@ -301,6 +299,7 @@ export async function publishDueContentDrafts(limit = 30) {
 
   const paceLib = await import("@/lib/platform-rate-limits");
   for (const draft of due) {
+    if (draft.contentCampaign.status !== "active") continue;
     // Atomic claim so the worker cron and this manual trigger cannot publish
     // the same draft twice.
     const claimed = await claimContentDraft(draft.id);
@@ -340,7 +339,14 @@ export async function publishDueContentDrafts(limit = 30) {
       }
     }
 
+    const currentCampaign = await db.contentCampaign.findFirst({ where: { id: draft.contentCampaignId, workspaceId: workspace.id, status: "active" } });
+    if (!currentCampaign) {
+      await db.contentDraft.updateMany({ where: { id: draft.id, status: "publishing" }, data: { status: "scheduled" } });
+      continue;
+    }
+
     const result = await publishSocialPost({
+      idempotencyKey: `content-draft:${draft.id}`,
       target: {
         platform: draft.contentCampaign.platform,
         username: draft.socialAccount?.username,
@@ -374,10 +380,8 @@ export async function publishDueContentDrafts(limit = 30) {
           data: { publishedCount: { increment: 1 } },
         });
         if (draft.socialAccountId && draft.socialAccount) {
-          await tx.socialAccount.update({
-            where: { id: draft.socialAccountId },
-            data: dailyActionIncrementData(draft.socialAccount),
-          });
+          // Atomic UTC-day reset + increment (race-safe at midnight boundary).
+          await recordDailyAccountAction(tx, draft.socialAccountId);
         }
       });
     } else {
@@ -467,28 +471,23 @@ export async function rescheduleContentDraft(input: {
     where: { id: input.draftId, workspaceId: workspace.id },
   });
   if (!draft) throw new Error("Content draft not found");
-  if (draft.status === "published") {
-    throw new Error("Published drafts cannot be rescheduled");
+  if (!["pending", "scheduled", "approved"].includes(draft.status)) {
+    throw new Error(`Cannot reschedule a ${draft.status} draft`);
   }
 
-  const nextStatus =
-    draft.status === "rejected" || draft.status === "failed"
-      ? "scheduled"
-      : draft.status === "pending"
-        ? "pending"
-        : "scheduled";
-
-  const updated = await db.contentDraft.update({
-    where: { id: draft.id },
+  const nextStatus = draft.status === "pending" ? "pending" : "scheduled";
+  const changed = await db.contentDraft.updateMany({
+    where: { id: draft.id, workspaceId: workspace.id, status: draft.status },
     data: {
       scheduledFor: input.scheduledFor,
-      status: nextStatus === "pending" ? "pending" : "scheduled",
-      resultMessage:
-        nextStatus === "pending"
-          ? "Schedule updated (still pending approval)"
-          : "Schedule updated",
+      status: nextStatus,
+      resultMessage: nextStatus === "pending"
+        ? "Schedule updated (still pending approval)"
+        : "Schedule updated",
     },
   });
+  if (changed.count !== 1) throw new Error("Content draft changed; refresh and try again");
+  const updated = await db.contentDraft.findUniqueOrThrow({ where: { id: draft.id } });
 
   await writeAuditLog({
     workspaceId: workspace.id,
@@ -533,10 +532,11 @@ export async function bulkApproveContentDrafts(input: {
     return { approved: 0 };
   }
 
-  await db.contentDraft.updateMany({
+  const changed = await db.contentDraft.updateMany({
     where: {
       id: { in: pending.map((item) => item.id) },
       workspaceId: workspace.id,
+      status: "pending",
     },
     data: {
       status: "scheduled",
@@ -551,13 +551,13 @@ export async function bulkApproveContentDrafts(input: {
     resourceType: "content_campaign",
     resourceId: campaign.id,
     metadata: {
-      approved: pending.length,
+      approved: changed.count,
       draftIds: pending.map((item) => item.id),
     },
   });
 
   revalidateContentPaths(campaign.id);
-  return { approved: pending.length };
+  return { approved: changed.count };
 }
 
 export async function setContentCampaignStatus(input: {

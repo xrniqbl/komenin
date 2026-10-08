@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+
 import { useLocale } from "@/components/i18n/locale-provider";
 import { getDocsSearchIndex } from "@/data/docs";
 import {
@@ -44,10 +45,11 @@ export function DocsSearch() {
           placeholder={t.docsUi.searchPlaceholder}
           size="sm"
           showClear={query.length > 0}
-          startAddon={<Search className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />}
+          startAddon={<SearchRoundedIcon className="size-3.5 shrink-0 text-neutral-500" aria-hidden="true" />}
+          className="rounded-full border-white/10 bg-white/5 text-white backdrop-blur-xl placeholder:text-neutral-500 hover:border-white/20 focus-visible:border-electric-500/50"
         />
-        <AutocompletePopup>
-          <AutocompleteEmpty>{t.docsUi.noMatches}</AutocompleteEmpty>
+        <AutocompletePopup className="border-white/10 bg-[#0A0F1E]/95 text-white shadow-xl shadow-black/40 backdrop-blur-xl">
+          <AutocompleteEmpty className="text-neutral-500">{t.docsUi.noMatches}</AutocompleteEmpty>
           <AutocompleteList>
             {results.map((item) => (
               <AutocompleteItem
@@ -57,10 +59,11 @@ export function DocsSearch() {
                   setQuery("");
                   router.push(item.href);
                 }}
+                className="rounded-lg data-highlighted:bg-white/10 data-highlighted:text-white"
               >
                 <div className="flex min-w-0 flex-col gap-0.5">
-                  <span className="truncate text-sm font-medium">{item.title}</span>
-                  <span className="truncate text-xs text-muted-foreground">
+                  <span className="truncate text-sm font-medium text-white">{item.title}</span>
+                  <span className="truncate text-xs text-neutral-500">
                     {item.group} · {item.description}
                   </span>
                 </div>

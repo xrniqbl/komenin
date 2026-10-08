@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { apiError } from "@/lib/api-errors";
 import { getEnv } from "@/lib/env";
 import { getWorkerMetrics } from "@/lib/metrics/worker-metrics";
 import { isProductionRuntime, safeEqual } from "@/lib/security";
@@ -14,24 +15,25 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Scheduled worker entrypoint for Vercel Cron.
+ * Scheduled worker entrypoint for an external scheduler (systemd timer, cron,
+ * GitHub Actions, cron-job.org, UptimeRobot, etc.).
  *
- * Vercel Cron issues a GET request with `Authorization: Bearer $CRON_SECRET`.
- * We also accept `WORKER_SECRET` (via Bearer or `x-worker-secret`) so the same
- * endpoint can be driven by an external scheduler (GitHub Actions, cron-job.org,
- * UptimeRobot, etc.) when not deploying on Vercel.
+ * The scheduler issues a GET request with `Authorization: Bearer $CRON_SECRET`.
+ * We also accept `WORKER_SECRET` (via Bearer or `x-worker-secret`).
  *
  * The job defaults to `worker.tick`, which fans out to all worker jobs via
  * `Promise.allSettled`. Pass `?job=<name>` to run a single job on its own cadence.
  */
 export async function GET(request: Request) {
-  const env = getEnv();
+  let env;
+  try {
+    env = getEnv();
+  } catch {
+    return apiError("SERVICE_UNAVAILABLE", 503);
+  }
 
   if (!env.CRON_SECRET && !env.WORKER_SECRET) {
-    return NextResponse.json(
-      { error: "CRON_SECRET or WORKER_SECRET must be configured" },
-      { status: 503 },
-    );
+    return apiError("NOT_CONFIGURED", 503, "CRON_SECRET or WORKER_SECRET must be configured");
   }
 
   const authHeader = request.headers.get("authorization") || "";
@@ -45,20 +47,35 @@ export async function GET(request: Request) {
     (!!env.WORKER_SECRET && safeEqual(token, env.WORKER_SECRET));
 
   if (!token || !authorized) {
-    return NextResponse.json({ error: "Unauthorized cron secret" }, { status: 401 });
+    return apiError("INVALID_CREDENTIALS", 401, "Unauthorized cron secret");
   }
 
   const jobParam = new URL(request.url).searchParams.get("job") || "worker.tick";
   const job = jobParam as WorkerJobName;
   if (!WORKER_JOBS.includes(job)) {
-    return NextResponse.json(
-      { error: `Invalid job. Allowed: ${WORKER_JOBS.join(", ")}` },
-      { status: 400 },
-    );
+    return apiError("INVALID_JOB", 400, `Invalid job. Allowed: ${WORKER_JOBS.join(", ")}`);
   }
 
   const startedAt = Date.now();
-  const result = await runWorkerJob(job);
+  // runWorkerJob touches the DB before its internal try/catch (re-entrancy
+  // guard + jobRun row), so a DB blip throws here. Catch so the scheduler
+  // gets a structured JSON failure instead of a 500 HTML page.
+  let result: Awaited<ReturnType<typeof runWorkerJob>>;
+  try {
+    result = await runWorkerJob(job);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        ok: false,
+        job,
+        message: "Service temporarily unavailable",
+        count: 0,
+        details: null,
+        mode: env.SIMULATOR_MODE ? "simulator" : "live",
+      },
+      { status: 503 },
+    );
+  }
   // F4: record job duration/success so failure-rate alerts actually fire.
   const metrics = getWorkerMetrics();
   if (result.ok) {

@@ -56,7 +56,7 @@ export default async function AccountsPage({
         title="Accounts"
         description="Multi-tunnel grid for Instagram, Threads, and TikTok identities."
         action={
-          <Button variant="default" render={<Link href="/app/accounts/new" />} nativeButton={false}>
+          <Button variant="electric" render={<Link href="/app/accounts/new" />} nativeButton={false}>
             Connect account
           </Button>
         }

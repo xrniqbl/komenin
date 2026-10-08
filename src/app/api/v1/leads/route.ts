@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { withApiV1 } from "@/lib/api-v1";
+import { apiError } from "@/lib/api-errors";
 import { FEATURE_FLAG_KEYS, isFeatureEnabled } from "@/lib/feature-flags";
 import { db } from "@/lib/db";
 import { writeAuditLog } from "@/server/audit";
@@ -38,10 +39,7 @@ export async function GET(req: NextRequest) {
   if (!auth.ok) return auth.response;
 
   if (!(await isFeatureEnabled(FEATURE_FLAG_KEYS.leadCapture))) {
-    return NextResponse.json(
-      { error: "Lead capture disabled", code: "FEATURE_DISABLED" },
-      { status: 403 },
-    );
+    return apiError("FEATURE_DISABLED", 403, "Lead capture disabled");
   }
 
   const url = new URL(req.url);
@@ -51,9 +49,10 @@ export async function GET(req: NextRequest) {
     q: url.searchParams.get("q") || undefined,
   });
   if (!queryParsed.success) {
-    return NextResponse.json(
-      { error: queryParsed.error.issues[0]?.message || "Invalid query" },
-      { status: 400 },
+    return apiError(
+      "INVALID_QUERY",
+      400,
+      queryParsed.error.issues[0]?.message || "Invalid query",
     );
   }
   const { status, clientId, q } = queryParsed.data;
@@ -71,15 +70,20 @@ export async function GET(req: NextRequest) {
     ];
   }
 
-  const leads = await db.engagementLead.findMany({
-    where,
-    include: {
-      client: { select: { id: true, name: true, slug: true } },
-      campaign: { select: { id: true, name: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  let leads;
+  try {
+    leads = await db.engagementLead.findMany({
+      where,
+      include: {
+        client: { select: { id: true, name: true, slug: true } },
+        campaign: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+  } catch {
+    return apiError("SERVICE_UNAVAILABLE", 503);
+  }
 
   return NextResponse.json({
     data: leads.map((lead) => ({
@@ -111,84 +115,91 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.response;
 
   if (!(await isFeatureEnabled(FEATURE_FLAG_KEYS.leadCapture))) {
-    return NextResponse.json(
-      { error: "Lead capture disabled", code: "FEATURE_DISABLED" },
-      { status: 403 },
-    );
+    return apiError("FEATURE_DISABLED", 403, "Lead capture disabled");
   }
 
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return apiError("INVALID_JSON", 400);
   }
 
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message || "Invalid payload" },
-      { status: 400 },
+    return apiError(
+      "INVALID_INPUT",
+      400,
+      parsed.error.issues[0]?.message || "Invalid payload",
     );
   }
 
   const input = parsed.data;
   const handle = input.handle.replace(/^@/, "");
 
-  if (input.clientId) {
-    const client = await db.clientProfile.findFirst({
-      where: { id: input.clientId, workspaceId: auth.workspaceId },
-      select: { id: true },
-    });
-    if (!client) {
-      return NextResponse.json({ error: "Client not found" }, { status: 400 });
+  try {
+    if (input.clientId) {
+      const client = await db.clientProfile.findFirst({
+        where: { id: input.clientId, workspaceId: auth.workspaceId },
+        select: { id: true },
+      });
+      if (!client) {
+        return apiError("NOT_FOUND", 404, "Client not found");
+      }
     }
+
+    if (input.campaignId) {
+      const campaign = await db.campaign.findFirst({
+        where: { id: input.campaignId, workspaceId: auth.workspaceId },
+        select: { id: true },
+      });
+      if (!campaign) {
+        return apiError("NOT_FOUND", 404, "Campaign not found");
+      }
+    }
+
+    if (input.targetPostId) {
+      const post = await db.targetPost.findFirst({
+        where: { id: input.targetPostId, workspaceId: auth.workspaceId },
+        select: { id: true },
+      });
+      if (!post) {
+        return apiError("NOT_FOUND", 404, "Target post not found");
+      }
+    }
+  } catch {
+    return apiError("SERVICE_UNAVAILABLE", 503);
   }
 
-  if (input.campaignId) {
-    const campaign = await db.campaign.findFirst({
-      where: { id: input.campaignId, workspaceId: auth.workspaceId },
-      select: { id: true },
+  let lead;
+  try {
+    lead = await db.engagementLead.create({
+      data: {
+        workspaceId: auth.workspaceId,
+        handle,
+        displayName: input.displayName || null,
+        contactEmail: input.contactEmail?.toLowerCase() || null,
+        contactPhone: input.contactPhone || null,
+        platform: input.platform,
+        source: input.source || "api",
+        intent: input.intent || null,
+        notes: input.notes || null,
+        postSnippet: input.postSnippet || null,
+        draftSnippet: input.draftSnippet || null,
+        externalUrl: input.externalUrl || null,
+        targetPostId: input.targetPostId || null,
+        campaignId: input.campaignId || null,
+        clientId: input.clientId || null,
+        status: input.status || "new",
+      },
+      include: {
+        client: { select: { id: true, name: true, slug: true } },
+        campaign: { select: { id: true, name: true } },
+      },
     });
-    if (!campaign) {
-      return NextResponse.json({ error: "Campaign not found" }, { status: 400 });
-    }
+  } catch {
+    return apiError("SERVICE_UNAVAILABLE", 503);
   }
-
-  if (input.targetPostId) {
-    const post = await db.targetPost.findFirst({
-      where: { id: input.targetPostId, workspaceId: auth.workspaceId },
-      select: { id: true },
-    });
-    if (!post) {
-      return NextResponse.json({ error: "Target post not found" }, { status: 400 });
-    }
-  }
-
-  const lead = await db.engagementLead.create({
-    data: {
-      workspaceId: auth.workspaceId,
-      handle,
-      displayName: input.displayName || null,
-      contactEmail: input.contactEmail?.toLowerCase() || null,
-      contactPhone: input.contactPhone || null,
-      platform: input.platform,
-      source: input.source || "api",
-      intent: input.intent || null,
-      notes: input.notes || null,
-      postSnippet: input.postSnippet || null,
-      draftSnippet: input.draftSnippet || null,
-      externalUrl: input.externalUrl || null,
-      targetPostId: input.targetPostId || null,
-      campaignId: input.campaignId || null,
-      clientId: input.clientId || null,
-      status: input.status || "new",
-    },
-    include: {
-      client: { select: { id: true, name: true, slug: true } },
-      campaign: { select: { id: true, name: true } },
-    },
-  });
 
   await writeAuditLog({
     workspaceId: auth.workspaceId,

@@ -80,15 +80,29 @@ export const metadata: Metadata = {
   },
   // Search-console ownership tokens come from env so the repo never bakes a
   // real token into git. Set GOOGLE_SITE_VERIFICATION / BING_SITE_VERIFICATION
-  // when claiming the domain in GSC/Bing Webmaster Tools; empty = tag omitted.
-  ...(process.env.GOOGLE_SITE_VERIFICATION || process.env.BING_SITE_VERIFICATION
+  // / TIKTOK_SITE_VERIFICATION when claiming the domain; empty = tag omitted.
+  ...(process.env.GOOGLE_SITE_VERIFICATION ||
+  process.env.BING_SITE_VERIFICATION ||
+  process.env.TIKTOK_SITE_VERIFICATION
     ? {
         verification: {
           ...(process.env.GOOGLE_SITE_VERIFICATION
             ? { google: process.env.GOOGLE_SITE_VERIFICATION }
             : {}),
-          ...(process.env.BING_SITE_VERIFICATION
-            ? { other: { "msvalidate.01": process.env.BING_SITE_VERIFICATION } }
+          ...(process.env.BING_SITE_VERIFICATION || process.env.TIKTOK_SITE_VERIFICATION
+            ? {
+                other: {
+                  ...(process.env.BING_SITE_VERIFICATION
+                    ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION }
+                    : {}),
+                  ...(process.env.TIKTOK_SITE_VERIFICATION
+                    ? {
+                        "tiktok-developers-site-verification":
+                          process.env.TIKTOK_SITE_VERIFICATION,
+                      }
+                    : {}),
+                },
+              }
             : {}),
         },
       }

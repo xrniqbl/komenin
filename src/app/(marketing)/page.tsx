@@ -3,6 +3,10 @@ import { FaqSection } from "@/components/marketing/faq-section";
 import { HeroSection } from "@/components/marketing/hero-section";
 import { HowItWorksSection } from "@/components/marketing/how-it-works-section";
 import { PillarsSection } from "@/components/marketing/pillars-section";
+import { ProblemSection } from "@/components/marketing/problem-section";
+import { PlatformCarousel } from "@/components/marketing/platform-carousel";
+import { ProductShowcaseSection } from "@/components/marketing/product-showcase-section";
+import { WhyItMatters } from "@/components/marketing/why-it-matters";
 import { PricingTeaserSection } from "@/components/marketing/pricing-teaser-section";
 import { SecuritySection } from "@/components/marketing/security-section";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -38,7 +42,11 @@ export default async function HomePage() {
       />
       <HeroSection />
       <PillarsSection />
+      <ProblemSection />
       <HowItWorksSection />
+      <PlatformCarousel />
+      <ProductShowcaseSection />
+      <WhyItMatters />
       <SecuritySection />
       <PricingTeaserSection />
       <FaqSection />

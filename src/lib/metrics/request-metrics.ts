@@ -10,6 +10,10 @@ export interface MetricOptions {
   status_code: number;
 }
 
+// Upper bound on distinct method:endpoint keys held in memory, so unbounded
+// path cardinality (e.g. ids in URLs) cannot leak memory.
+const MAX_COUNTER_KEYS = 1000;
+
 export class RequestMetrics {
   // In-memory counters for development/testing
   private counters = new Map<string, { count: number; totalLatency: number }>();
@@ -21,6 +25,11 @@ export class RequestMetrics {
     const key = `${method}:${endpoint}`;
 
     if (!this.counters.has(key)) {
+      if (this.counters.size >= MAX_COUNTER_KEYS) {
+        // Drop the oldest key (Map preserves insertion order).
+        const oldest = this.counters.keys().next().value;
+        if (oldest !== undefined) this.counters.delete(oldest);
+      }
       this.counters.set(key, { count: 0, totalLatency: 0 });
     }
 
@@ -87,7 +96,7 @@ export class RequestMetrics {
     let totalRequests = 0;
     let totalErrors = 0;
 
-    for (const [key, data] of this.counters.entries()) {
+    for (const data of this.counters.values()) {
       totalRequests += data.count;
     }
 
@@ -107,6 +116,12 @@ export class RequestMetrics {
     labels: Record<string, string | number>,
     value: number
   ) {
+    // Quiet by default in production; opt in with METRICS_LOG=1 (e.g. when
+    // a log-based collector scrapes stdout).
+    const shouldLog =
+      process.env.METRICS_LOG === '1' || process.env.NODE_ENV !== 'production';
+    if (!shouldLog) return;
+
     // Build label string
     const labelsStr = Object.entries(labels)
       .map(([k, v]) => `${k}="${v}"`)
@@ -114,9 +129,8 @@ export class RequestMetrics {
 
     console.log(`[METRICS] ${metricName}{${labelsStr}} ${value}`);
 
-    // TODO: Send to actual monitoring service
-    // Example for Datadog:
-    // datadogClient.distribution(metricName, value, labels).send();
+    // To ship to a real monitoring service (Datadog/Prometheus), forward
+    // (metricName, value, labels) to its client here.
   }
 
   /**

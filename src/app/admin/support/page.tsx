@@ -123,8 +123,8 @@ function FilterLink({
       className={cn(
         "rounded-full border px-3 py-1 text-sm capitalize",
         active
-          ? "border-neutral-900 bg-neutral-900 text-white"
-          : "border-neutral-200 text-neutral-700 hover:bg-neutral-50",
+          ? "border-electric-500/40 bg-electric-500/20 text-white shadow-[0_0_16px_rgba(46,124,246,0.35)]"
+          : "border-white/10 text-neutral-300 hover:bg-white/5",
       )}
     >
       {label}

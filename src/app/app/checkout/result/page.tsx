@@ -69,7 +69,7 @@ export default async function CheckoutResultPage({
             <Button render={<Link href="/app/settings/billing" />} nativeButton={false}>
               Billing settings
             </Button>
-            <Button variant="outline" render={<Link href="/app/checkout" />} nativeButton={false}>
+            <Button variant="glass" render={<Link href="/app/checkout" />} nativeButton={false}>
               Back to checkout
             </Button>
           </div>

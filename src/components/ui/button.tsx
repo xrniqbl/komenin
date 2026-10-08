@@ -9,18 +9,32 @@ import type React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium transition-all outline-none focus-visible:border-neutral-400 focus-visible:ring-[3px] focus-visible:ring-neutral-400/40 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium transition-all outline-none focus-visible:border-brand-500 focus-visible:ring-[3px] focus-visible:ring-brand-500/40 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        // Use solid utility colors so CTAs remain visible even if CSS vars fail.
-        default: "bg-neutral-900 text-white hover:bg-neutral-800",
-        destructive: "bg-red-600 text-white hover:bg-red-500",
+        // Neutral solid — token-based (light: neutral-950, dark: neutral-900).
+        default:
+          "bg-(--color-bg-primary-solid) text-(--color-text-primary_on-brand) shadow-xs hover:opacity-90",
+        // Brand solid — canonical purple CTA (#7F56D9 → hover #6941C6).
+        brand:
+          "bg-(--color-bg-brand-solid) text-(--color-text-primary_on-brand) shadow-xs hover:bg-(--color-bg-brand-solid_hover)",
+        destructive:
+          "bg-(--color-bg-error-solid) text-white shadow-xs hover:bg-(--color-bg-error-solid_hover)",
         outline:
-          "border border-white/15 bg-transparent text-neutral-200 shadow-xs hover:bg-white/5 hover:text-white",
-        secondary: "bg-white/10 text-white hover:bg-white/15",
-        ghost: "text-neutral-300 hover:bg-white/10 hover:text-white",
-        link: "text-neutral-300 underline-offset-4 hover:text-white hover:underline",
+          "border border-(--color-border-primary) bg-(--color-bg-primary) text-(--color-text-secondary) shadow-xs hover:bg-(--color-bg-primary_hover) hover:text-(--color-text-primary)",
+        secondary:
+          "bg-(--color-bg-secondary) text-(--color-text-secondary) hover:bg-(--color-bg-secondary_hover) hover:text-(--color-text-primary)",
+        ghost:
+          "text-(--color-text-tertiary) hover:bg-(--color-bg-primary_hover) hover:text-(--color-text-primary)",
+        link: "text-(--color-text-brand-tertiary) underline-offset-4 hover:text-(--color-text-brand-secondary_hover) hover:underline",
+        // Marketing dark-glass theme (bg #0A0F1E): primary CTA + glass secondary.
+        // Use these on marketing pages instead of `default`/`outline` so buttons
+        // don't render as flat neutral-900 black against the blue-tinted bg.
+        electric:
+          "bg-electric-600 text-white shadow-[0_0_32px_rgba(46,124,246,0.45)] hover:bg-electric-500",
+        glass:
+          "border border-white/15 bg-white/5 text-neutral-200 shadow-none backdrop-blur-xl hover:border-white/30 hover:bg-white/10 hover:text-white",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",

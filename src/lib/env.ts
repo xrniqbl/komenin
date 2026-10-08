@@ -14,16 +14,49 @@ const envSchema = z.object({
   AUTH_SECRET: z.string().min(16),
   AUTH_GOOGLE_ID: z.string().min(1),
   AUTH_GOOGLE_SECRET: z.string().min(1),
-  APP_URL: z.string().url().default("http://localhost:3000"),
+  // APP_URL builds OAuth redirect_uris and email links. A silent localhost
+  // default in production would boot fine then fail every OAuth handshake —
+  // reject localhost when running in production so misconfig fails at boot.
+  APP_URL: z
+    .string()
+    .url()
+    .default("http://localhost:3000")
+    .refine(
+      (url) => {
+        if (process.env.NODE_ENV !== "production") return true;
+        try {
+          const host = new URL(url).hostname.toLowerCase();
+          return (
+            host !== "localhost" &&
+            host !== "127.0.0.1" &&
+            host !== "0.0.0.0" &&
+            host !== "::1"
+          );
+        } catch {
+          return false;
+        }
+      },
+      {
+        message:
+          "APP_URL must be a public https:// origin in production (localhost breaks OAuth callbacks and email links)",
+      },
+    ),
   ENCRYPTION_KEY: z
     .string()
     .regex(/^[0-9a-fA-F]{64}$/, "ENCRYPTION_KEY must be 64 hex characters"),
+  // Central validation for security-critical secrets that were previously
+  // read via bare process.env at call sites (typo/blank only surfaced at
+  // request time). Optional outside production; required when NODE_ENV=production.
+  OAUTH_STATE_SECRET: z.string().min(16).optional(),
+  SSO_TICKET_SECRET: z.string().min(16).optional(),
+  API_KEY_PEPPER: z.string().min(16).optional(),
+  INSTAGRAM_WEBHOOK_VERIFY_TOKEN: z.string().min(1).optional(),
   SIMULATOR_MODE: z
     .enum(["true", "false"])
     .default("true")
     .transform((value) => value === "true"),
   WORKER_SECRET: z.string().min(16).optional(),
-  // Vercel Cron authenticates scheduled GET requests with `Authorization: Bearer $CRON_SECRET`.
+  // An external scheduler authenticates scheduled GET requests with `Authorization: Bearer $CRON_SECRET`.
   CRON_SECRET: z.string().min(16).optional(),
   AI_GATEWAY_ENABLED: z.enum(["true", "false"]).default("true"),
   AI_GATEWAY_BASE_URL: optionalUrl,
@@ -67,6 +100,10 @@ export function getEnv(): AppEnv {
     AUTH_GOOGLE_SECRET: process.env.AUTH_GOOGLE_SECRET,
     APP_URL: process.env.APP_URL,
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
+    OAUTH_STATE_SECRET: process.env.OAUTH_STATE_SECRET,
+    SSO_TICKET_SECRET: process.env.SSO_TICKET_SECRET,
+    API_KEY_PEPPER: process.env.API_KEY_PEPPER,
+    INSTAGRAM_WEBHOOK_VERIFY_TOKEN: process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN,
     SIMULATOR_MODE: process.env.SIMULATOR_MODE ?? "true",
     WORKER_SECRET: process.env.WORKER_SECRET,
     CRON_SECRET: process.env.CRON_SECRET,

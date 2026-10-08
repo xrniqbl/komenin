@@ -2,7 +2,8 @@
 
 import { NavigationMenu as NavigationMenuPrimitive } from "@base-ui/react/navigation-menu";
 import { cva } from "class-variance-authority";
-import { ChevronDownIcon } from "lucide-react";
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
+
 import type React from "react";
 
 import { cn } from "@/lib/utils";
@@ -61,7 +62,7 @@ function NavigationMenuItem({
 }
 
 const navigationMenuTriggerStyle = cva(
-  "group inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-[color,box-shadow] outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 data-popup-open:bg-accent/50 data-popup-open:text-accent-foreground data-popup-open:hover:bg-accent data-popup-open:focus:bg-accent",
+  "group inline-flex h-9 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-[color,box-shadow] outline-none hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 data-popup-open:bg-accent/50 data-popup-open:text-accent-foreground data-popup-open:hover:bg-accent data-popup-open:focus:bg-accent",
 );
 
 function NavigationMenuTrigger({
@@ -80,7 +81,7 @@ function NavigationMenuTrigger({
         data-slot="navigation-menu-icon"
         className="relative top-px ml-1 size-3 transition duration-300 data-popup-open:rotate-180"
       >
-        <ChevronDownIcon aria-hidden="true" className="size-3" />
+        <KeyboardArrowDownRoundedIcon aria-hidden="true" className="size-3" />
       </NavigationMenuPrimitive.Icon>
     </NavigationMenuPrimitive.Trigger>
   );
@@ -137,7 +138,7 @@ function NavigationMenuPopup({
     <NavigationMenuPrimitive.Popup
       data-slot="navigation-menu-popup"
       className={cn(
-        "relative h-(--popup-height) w-(--popup-width) origin-(--transform-origin) rounded-md border bg-popover text-popover-foreground shadow outline-none transition-[opacity,transform,width,height,scale,translate] duration-200 ease-in-out data-ending-style:scale-90 data-ending-style:opacity-0 data-ending-style:duration-150 data-starting-style:scale-90 data-starting-style:opacity-0",
+        "relative h-(--popup-height) w-(--popup-width) origin-(--transform-origin) rounded-xl border border-(--color-border-secondary) bg-(--color-bg-overlay)/90 text-(--color-text-primary) shadow-2xl backdrop-blur-xl outline-none transition-[opacity,transform,width,height,scale,translate] duration-200 ease-in-out data-ending-style:scale-90 data-ending-style:opacity-0 data-ending-style:duration-150 data-starting-style:scale-90 data-starting-style:opacity-0",
         className,
       )}
       {...props}
@@ -166,7 +167,7 @@ function NavigationMenuLink({
     <NavigationMenuPrimitive.Link
       data-slot="navigation-menu-link"
       className={cn(
-        "flex flex-col gap-1 rounded-sm p-2 text-sm transition-all outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 data-active:bg-accent/50 data-active:text-accent-foreground data-active:hover:bg-accent data-active:focus:bg-accent [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
+        "flex flex-col gap-1 rounded-lg p-2 text-sm text-neutral-300 transition-all outline-none hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 data-active:bg-white/10 data-active:text-white [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground",
         className,
       )}
       {...props}

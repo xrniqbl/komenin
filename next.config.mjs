@@ -1,40 +1,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import crypto from "node:crypto";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isProd = process.env.NODE_ENV === "production";
-
-// Generate nonce for CSP
-function generateNonce() {
-  return crypto.randomBytes(16).toString('base64');
-}
-
-// Store nonces per request (in production, this would be request-scoped)
-// For production, CSP will be handled by middleware with per-request nonces
-// In dev, we can use a static nonce
-const devNonce = generateNonce();
-
-const contentSecurityPolicy = isProd
-  ? // Production: will be set dynamically in middleware
-    ""
-  : // Development: use static nonce for simplicity. CSP nonce sources REQUIRE
-    // the `nonce-` prefix ('nonce-xxx'); without it the browser ignores the
-    // source and the nonce never matches — dev would silently run unprotected.
-    [
-      "default-src 'self'",
-      "base-uri 'self'",
-      "object-src 'none'",
-      "frame-ancestors 'none'",
-      "form-action 'self'",
-      "img-src 'self' data: blob: https:",
-      "font-src 'self' data: https://fonts.gstatic.com",
-      `script-src 'self' 'nonce-${devNonce}'`,
-      `style-src 'self' 'nonce-${devNonce}' https://fonts.googleapis.com`,
-      "connect-src 'self' https: wss:",
-      "worker-src 'self' blob:",
-      "manifest-src 'self'",
-    ].join("; ");
 
 /** @type {import("next").NextConfig} */
 const nextConfig = {
@@ -49,10 +17,15 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   experimental: {
-    optimizePackageImports: ["lucide-react", "@base-ui/react"],
+    optimizePackageImports: ["@mui/icons-material", "@mui/material", "@base-ui/react"],
   },
   async headers() {
     /** @type {{ key: string, value: string }[]} */
+    // NOTE: no enforcing Content-Security-Policy here — the proxy
+    // (src/proxy.ts) owns CSP: enforcing in production, report-only in
+    // dev/preview. An extra header-level enforcing CSP with a static nonce
+    // would block Next.js dev/hydration inline scripts (a static nonce never
+    // matches their per-build hashes) and break all client interactivity.
     const securityHeaders = [
       { key: "X-DNS-Prefetch-Control", value: "on" },
       { key: "X-Frame-Options", value: "DENY" },
@@ -66,11 +39,6 @@ const nextConfig = {
         key: "Cross-Origin-Opener-Policy",
         value: "same-origin",
       },
-      // CSP will be set dynamically in middleware for production
-      ...(isProd ? [] : [{
-        key: "Content-Security-Policy",
-        value: contentSecurityPolicy,
-      }]),
     ];
 
     if (isProd) {

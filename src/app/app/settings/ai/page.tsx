@@ -12,7 +12,12 @@ export default async function AiGatewaySettingsPage() {
   ]);
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6">
+      {/* Ambient glows for glass refraction */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-20 left-1/4 h-64 w-96 rounded-full bg-electric-500/10 blur-[100px]" />
+        <div className="absolute top-40 right-1/4 h-48 w-72 rounded-full bg-purple-500/8 blur-[100px]" />
+      </div>
       <PageHeader
         title="AI providers"
         description="Configure 9Router, OpenAI, Anthropic, or any OpenAI-compatible gateway for social comment bots. Keys are encrypted per workspace."

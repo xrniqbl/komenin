@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { apiError } from "@/lib/api-errors";
 import { getEnv } from "@/lib/env";
 import { reportError } from "@/lib/error-reporting";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
@@ -14,14 +15,16 @@ export async function POST(request: Request) {
     windowMs: 60_000,
   });
   if (!rate.ok) {
-    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+    return apiError("RATE_LIMITED", 429);
   }
-  const env = getEnv();
+  let env;
+  try {
+    env = getEnv();
+  } catch {
+    return apiError("SERVICE_UNAVAILABLE", 503);
+  }
   if (!env.WORKER_SECRET) {
-    return NextResponse.json(
-      { error: "WORKER_SECRET is not configured" },
-      { status: 503 },
-    );
+    return apiError("NOT_CONFIGURED", 503, "WORKER_SECRET is not configured");
   }
 
   const authHeader = request.headers.get("authorization") || "";
@@ -30,16 +33,13 @@ export async function POST(request: Request) {
     : request.headers.get("x-worker-secret") || "";
 
   if (!token || !safeEqual(token, env.WORKER_SECRET)) {
-    return NextResponse.json({ error: "Unauthorized worker secret" }, { status: 401 });
+    return apiError("INVALID_CREDENTIALS", 401, "Unauthorized worker secret");
   }
 
   const body = (await request.json().catch(() => ({}))) as { job?: string };
   const job = (body.job || "worker.tick") as WorkerJobName;
   if (!WORKER_JOBS.includes(job)) {
-    return NextResponse.json(
-      { error: `Invalid job. Allowed: ${WORKER_JOBS.join(", ")}` },
-      { status: 400 },
-    );
+    return apiError("INVALID_JOB", 400, `Invalid job. Allowed: ${WORKER_JOBS.join(", ")}`);
   }
 
   const result = await runWorkerJob(job).catch(async (error) => {
@@ -52,6 +52,8 @@ export async function POST(request: Request) {
       details: null,
     };
   });
+  // writeAuditLog is best-effort (never throws): a logging outage must not
+  // turn a successful job into a 500.
   await writeAuditLog({
     action: `worker.${job}`,
     resourceType: "worker",
@@ -71,21 +73,23 @@ export async function POST(request: Request) {
     count: result.count ?? 0,
     details: result.details ?? null,
     mode: env.SIMULATOR_MODE ? "simulator" : "live",
-  });
+  }, { status: result.ok ? 200 : 500 });
 }
 
 export async function GET(request: Request) {
   // The job catalogue is a recon aid. Hide it in production — operators use
   // the contract in docs/integrators/worker-integration.md. POST runs jobs.
   if (isProductionRuntime()) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return apiError("NOT_FOUND", 404);
   }
-  const env = getEnv();
+  let env;
+  try {
+    env = getEnv();
+  } catch {
+    return apiError("SERVICE_UNAVAILABLE", 503);
+  }
   if (!env.WORKER_SECRET) {
-    return NextResponse.json(
-      { error: "WORKER_SECRET is not configured" },
-      { status: 503 },
-    );
+    return apiError("NOT_CONFIGURED", 503, "WORKER_SECRET is not configured");
   }
 
   const authHeader = request.headers.get("authorization") || "";
@@ -93,7 +97,7 @@ export async function GET(request: Request) {
     ? authHeader.slice("Bearer ".length)
     : request.headers.get("x-worker-secret") || "";
   if (!token || !safeEqual(token, env.WORKER_SECRET)) {
-    return NextResponse.json({ error: "Unauthorized worker secret" }, { status: 401 });
+    return apiError("INVALID_CREDENTIALS", 401, "Unauthorized worker secret");
   }
 
   return NextResponse.json({

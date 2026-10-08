@@ -135,7 +135,7 @@ export default async function NewContentCampaignPage() {
               <Label htmlFor="notes">Notes (optional)</Label>
               <Textarea id="notes" name="notes" className="min-h-20" placeholder="CTA, banned claims, brand voice..." />
             </div>
-            <Button type="submit" size="lg">
+            <Button variant="electric" type="submit" size="lg">
               Generate posts
             </Button>
           </form>

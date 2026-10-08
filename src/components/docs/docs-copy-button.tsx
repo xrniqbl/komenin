@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Check, Copy } from "lucide-react";
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
+import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
+
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 
@@ -82,8 +84,14 @@ export function DocsCopyButton({
   }
 
   return (
-    <Button type="button" variant="outline" size="sm" onClick={onCopy}>
-      {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+    <Button
+      type="button"
+      variant="glass"
+      size="sm"
+      onClick={onCopy}
+      className="rounded-full border-white/15 bg-white/5 text-white backdrop-blur-xl hover:border-white/30 hover:bg-white/10 hover:text-white"
+    >
+      {copied ? <CheckRoundedIcon className="size-4" /> : <ContentCopyRoundedIcon className="size-4" />}
       {copied ? t.docsUi.copied : t.docsUi.copyPage}
     </Button>
   );

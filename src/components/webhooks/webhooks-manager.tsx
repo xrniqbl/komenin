@@ -224,7 +224,7 @@ export function WebhooksManager({ initial }: { initial: Endpoint[] }) {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" disabled={pending} onClick={() => handleTest(ep.id)}>
+                    <Button size="sm" variant="glass" disabled={pending} onClick={() => handleTest(ep.id)}>
                       Test
                     </Button>
                     <Label className="flex items-center gap-2 text-xs font-normal text-muted-foreground">
@@ -242,7 +242,7 @@ export function WebhooksManager({ initial }: { initial: Endpoint[] }) {
                       confirmLabel="Delete webhook"
                       destructive
                       disabled={pending}
-                      trigger={<Button size="sm" variant="ghost">Delete</Button>}
+                      trigger={<Button size="sm" variant="glass">Delete</Button>}
                       onConfirm={() => handleDelete(ep.id)}
                     />
                   </div>

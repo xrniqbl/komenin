@@ -1,7 +1,10 @@
 "use client";
 
 import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
-import { ChevronsUpDownIcon, XIcon } from "lucide-react";
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import UnfoldMoreRoundedIcon from '@mui/icons-material/UnfoldMoreRounded';
+
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -116,7 +119,7 @@ export function ComboboxInput({
           {...triggerProps}
         >
           <ComboboxPrimitive.Icon data-slot="combobox-icon">
-            <ChevronsUpDownIcon />
+            <UnfoldMoreRoundedIcon />
           </ComboboxPrimitive.Icon>
         </ComboboxTrigger>
       )}
@@ -128,7 +131,7 @@ export function ComboboxInput({
           )}
           {...clearProps}
         >
-          <XIcon />
+          <CloseRoundedIcon />
         </ComboboxClear>
       )}
     </ComboboxPrimitive.InputGroup>
@@ -217,20 +220,7 @@ export function ComboboxItem({
       {...props}
     >
       <ComboboxPrimitive.ItemIndicator className="col-start-1">
-        <svg
-          aria-hidden="true"
-          fill="none"
-          height="24"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-          width="24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path d="M5.252 12.7 10.2 18.63 18.748 5.37" />
-        </svg>
+        <CheckRoundedIcon />
       </ComboboxPrimitive.ItemIndicator>
       <div className="col-start-2">{children}</div>
     </ComboboxPrimitive.Item>
@@ -424,7 +414,7 @@ export function ComboboxChipRemove(
       data-slot="combobox-chip-remove"
       {...props}
     >
-      <XIcon />
+      <CloseRoundedIcon />
     </ComboboxPrimitive.ChipRemove>
   );
 }

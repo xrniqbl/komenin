@@ -95,7 +95,7 @@ export default async function AdminWorkspacesPage({
                     <Input id={`homeRegion-${ws.id}`} name="homeRegion" defaultValue={ws.homeRegion} />
                   </div>
                 </div>
-                <Button type="submit" size="sm">
+                <Button variant="electric" type="submit" size="sm">
                   Save
                 </Button>
               </form>

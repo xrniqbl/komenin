@@ -5,6 +5,9 @@ export function scrollToSection(
   id: "features" | "pricing" | string,
   behavior: ScrollBehavior = "smooth",
 ) {
+  if (typeof document === "undefined" || typeof window === "undefined") {
+    return false;
+  }
   const el = document.getElementById(id);
   if (!el) return false;
   const top = el.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;

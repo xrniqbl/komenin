@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { withApiV1 } from "@/lib/api-v1";
+import { apiError } from "@/lib/api-errors";
 import { db } from "@/lib/db";
 
 const listQuerySchema = z.object({
@@ -39,9 +40,10 @@ export async function GET(req: NextRequest) {
     q: url.searchParams.get("q") || undefined,
   });
   if (!queryParsed.success) {
-    return NextResponse.json(
-      { error: queryParsed.error.issues[0]?.message || "Invalid query" },
-      { status: 400 },
+    return apiError(
+      "INVALID_QUERY",
+      400,
+      queryParsed.error.issues[0]?.message || "Invalid query",
     );
   }
   const { status, clientId, q } = queryParsed.data;
@@ -51,15 +53,20 @@ export async function GET(req: NextRequest) {
   if (clientId) where.clientId = clientId;
   if (q) where.name = { contains: q, mode: "insensitive" };
 
-  const campaigns = await db.campaign.findMany({
-    where,
-    include: {
-      agent: { select: { id: true, name: true } },
-      client: { select: { id: true, name: true, slug: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
+  let campaigns;
+  try {
+    campaigns = await db.campaign.findMany({
+      where,
+      include: {
+        agent: { select: { id: true, name: true } },
+        client: { select: { id: true, name: true, slug: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+  } catch {
+    return apiError("SERVICE_UNAVAILABLE", 503);
+  }
 
   return NextResponse.json({
     data: campaigns,
@@ -77,36 +84,43 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    return apiError("INVALID_JSON", 400);
   }
 
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: parsed.error.issues[0]?.message || "Invalid payload" },
-      { status: 400 },
+    return apiError(
+      "INVALID_INPUT",
+      400,
+      parsed.error.issues[0]?.message || "Invalid payload",
     );
   }
   const input = parsed.data;
 
-  if (input.agentId) {
-    const agent = await db.agent.findFirst({
-      where: { id: input.agentId, workspaceId: auth.workspaceId },
-      select: { id: true },
-    });
-    if (!agent) {
-      return NextResponse.json({ error: "Agent not found" }, { status: 400 });
+  // Reference lookups: 404 when the id is valid but not in this workspace,
+  // 503 when the database itself is unreachable.
+  try {
+    if (input.agentId) {
+      const agent = await db.agent.findFirst({
+        where: { id: input.agentId, workspaceId: auth.workspaceId },
+        select: { id: true },
+      });
+      if (!agent) {
+        return apiError("NOT_FOUND", 404, "Agent not found");
+      }
     }
-  }
 
-  if (input.clientId) {
-    const client = await db.clientProfile.findFirst({
-      where: { id: input.clientId, workspaceId: auth.workspaceId },
-      select: { id: true },
-    });
-    if (!client) {
-      return NextResponse.json({ error: "Client not found" }, { status: 400 });
+    if (input.clientId) {
+      const client = await db.clientProfile.findFirst({
+        where: { id: input.clientId, workspaceId: auth.workspaceId },
+        select: { id: true },
+      });
+      if (!client) {
+        return apiError("NOT_FOUND", 404, "Client not found");
+      }
     }
+  } catch {
+    return apiError("SERVICE_UNAVAILABLE", 503);
   }
 
   const { getPlatformGuardrail, validateCampaignPacing } = await import("@/lib/platform-rate-limits");
@@ -118,7 +132,7 @@ export async function POST(req: NextRequest) {
     maxDelaySec: input.maxDelaySec,
   });
   if (pacing.errors.length > 0) {
-    return NextResponse.json({ error: pacing.errors.join("; ") }, { status: 400 });
+    return apiError("INVALID_INPUT", 400, pacing.errors.join("; "));
   }
 
   const campaign = await db.campaign.create({
@@ -135,7 +149,11 @@ export async function POST(req: NextRequest) {
       maxDelaySec: Math.max(input.maxDelaySec ?? 600, input.minDelaySec ?? 180, delayFloor),
       goal: input.goal,
     },
-  });
+  }).catch(() => null);
+
+  if (!campaign) {
+    return apiError("SERVICE_UNAVAILABLE", 503);
+  }
 
   return NextResponse.json(
     {

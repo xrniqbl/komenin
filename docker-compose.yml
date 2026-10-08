@@ -79,11 +79,22 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Diwariskan ke ARG NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION di Dockerfile
+        # (nilai ini di-inline ke client bundle saat build).
+        NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION: ${MIDTRANS_IS_PRODUCTION:-false}
     image: ${KOMENIN_IMAGE:-komenin:latest}
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+    # bookworm-slim has no wget/curl; node (with global fetch) is guaranteed present.
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/status').then((r) => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     environment:
       NODE_ENV: production
       PORT: "3000"

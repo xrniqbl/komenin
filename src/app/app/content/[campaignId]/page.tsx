@@ -35,7 +35,7 @@ export default async function ContentCampaignDetailPage({
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={mode === "simulator" ? "secondary" : "default"}>{mode} publisher</Badge>
-            <Button variant="outline" render={<Link href="/app/content" />} nativeButton={false}>
+            <Button variant="glass" render={<Link href="/app/content" />} nativeButton={false}>
               Back
             </Button>
             <ContentCampaignActions campaignId={campaign.id} pendingCount={pendingCount} />

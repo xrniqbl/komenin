@@ -21,6 +21,7 @@ vi.mock("@/lib/db", () => ({
 import { db } from "@/lib/db";
 import {
   GET,
+  POST,
   ingestMention,
   parseMetaChange,
   parseThreadsValue,
@@ -322,6 +323,38 @@ describe("ingestMention", () => {
     } as never);
     expect(stored).toBe(false);
     expect(dbMock.mention.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST Meta batch", () => {
+  const routeParams = { params: Promise.resolve({ platform: "instagram" }) };
+  async function deliver(changes: string[]) {
+    vi.stubEnv("DATABASE_URL", "postgresql://localhost/test");
+    vi.stubEnv("AUTH_SECRET", "test-secret-123456789");
+    vi.stubEnv("AUTH_GOOGLE_ID", "test-id");
+    vi.stubEnv("AUTH_GOOGLE_SECRET", "test-secret");
+    vi.stubEnv("ENCRYPTION_KEY", "a".repeat(64));
+    vi.stubEnv("INSTAGRAM_APP_SECRET", "batch-secret");
+    const body = JSON.stringify({ entry: [{ id: "account-ext", changes: changes.map((id) => ({ field: "comments", value: { id, text: `text ${id}`, from: { username: "fan" }, media: { id: "media" } } })) }] });
+    return POST(new Request("https://app.example/api/connectors/webhooks/instagram", {
+      method: "POST", body, headers: { "x-hub-signature-256": sign("batch-secret", body) },
+    }), routeParams);
+  }
+
+  it("stores every comment change in one Meta entry", async () => {
+    dbMock.socialAccount.findFirst.mockResolvedValue({ id: "account", workspaceId: "workspace" });
+    const response = await deliver(["first", "second"]);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ received: 2, stored: 2 });
+    expect(dbMock.mention.upsert.mock.calls.map(([input]) => input.create.externalId)).toEqual(["first", "second"]);
+  });
+
+  it("returns retryable failure if a later comment fails after an earlier one stored", async () => {
+    dbMock.socialAccount.findFirst.mockResolvedValue({ id: "account", workspaceId: "workspace" });
+    dbMock.mention.upsert.mockResolvedValueOnce({}).mockRejectedValueOnce(new Error("database unavailable"));
+    const response = await deliver(["first", "second"]);
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({ received: 2, stored: 1, failed: 1 });
   });
 });
 

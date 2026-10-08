@@ -2,6 +2,8 @@
 # Khususnya script shell & cron yang dieksekusi di container Linux —
 # CRLF membuat shebang gagal ("bad interpreter") dan crond error.
 * text=auto
+*.ts text eol=lf
+*.tsx text eol=lf
 *.sh text eol=lf
 *.mjs text eol=lf
 *.mts text eol=lf

@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { getPublicStatus } from "@/server/status";
+import { apiError } from "@/lib/api-errors";
 import { evaluateProductionGate } from "@/lib/production-gate";
 import { isProductionRuntime } from "@/lib/security";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
@@ -11,15 +11,11 @@ export async function GET(request: Request) {
     windowMs: 60_000,
   });
   if (!rate.ok) {
-    return NextResponse.json(
-      { error: "Rate limit exceeded" },
-      {
-        status: 429,
-        headers: {
-          "Retry-After": String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))),
-        },
+    return apiError("RATE_LIMITED", 429, undefined, {
+      headers: {
+        "Retry-After": String(Math.max(1, Math.ceil((rate.resetAt - Date.now()) / 1000))),
       },
-    );
+    });
   }
 
   try {
@@ -27,7 +23,7 @@ export async function GET(request: Request) {
     // Gate is evaluated for overall health, but details stay private.
     const gateOk = isProductionRuntime() ? evaluateProductionGate().ok : true;
     const degraded = data.services.some((s) => s.status !== "operational");
-    return NextResponse.json({
+    return Response.json({
       ok: data.incidents.length === 0 && data.uptime.overall >= 95 && gateOk && !degraded,
       checkedAt: data.checkedAt,
       // Coarse public surface only — no job messages, delivery breakdowns, or raw counts.
@@ -41,13 +37,6 @@ export async function GET(request: Request) {
       incidentCount: data.incidents.length,
     });
   } catch {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Status check unavailable",
-        checkedAt: new Date().toISOString(),
-      },
-      { status: 500 },
-    );
+    return apiError("SERVICE_UNAVAILABLE", 503, "Status check unavailable");
   }
 }

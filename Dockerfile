@@ -1,4 +1,4 @@
-﻿# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.7
 
 ##
 ## Komenin — production image (Next.js standalone + Prisma)
@@ -17,10 +17,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 FROM base AS deps
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
+# Install reproduksibel dari lockfile (npm 11 di image mendukung lock v3).
 RUN npm ci
 
 # ---------- Builder ----------
 FROM base AS builder
+# Build-arg dari docker-compose (NEXT_PUBLIC_* di-inline ke client bundle).
+ARG NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION
+ENV NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION=$NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Prisma client

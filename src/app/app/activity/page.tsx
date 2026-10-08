@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -37,9 +38,10 @@ export default async function ActivityPage() {
               action={async () => {
                 "use server";
                 await executeDueSends();
+                revalidatePath("/app/activity");
               }}
             >
-              <Button type="submit">Execute due sends</Button>
+              <Button variant="electric" type="submit">Execute due sends</Button>
             </form>
           </div>
         }

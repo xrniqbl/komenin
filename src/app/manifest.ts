@@ -18,27 +18,27 @@ export default function manifest(): MetadataRoute.Manifest {
     dir: "ltr",
     icons: [
       {
-        src: "/brand/komenin-logo-256.png",
+        src: "/brand/komenin-robot-256.png",
         sizes: "256x256",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/brand/komenin-logo-512.png",
+        src: "/brand/komenin-robot-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/brand/komenin-logo-512.png",
+        src: "/brand/komenin-robot-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
       },
       {
-        src: "/favicon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
+        src: "/favicon-32x32.png",
+        sizes: "32x32",
+        type: "image/png",
         purpose: "any",
       },
     ],

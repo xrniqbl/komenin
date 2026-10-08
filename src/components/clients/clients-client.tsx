@@ -137,7 +137,7 @@ export function ClientsClient({
                 ) : null}
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="glass"
                   disabled={pending}
                   onClick={() =>
                     startTransition(async () => {

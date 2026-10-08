@@ -223,10 +223,47 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           // KEPT and revocation is simply deferred to the next throttle
           // cycle; worst case, a revocation lands one outage + 60s late.
           try {
-            const row = await db.loginSession.findUnique({
+            let row = await db.loginSession.findUnique({
               where: { jti: token.jti },
               select: { revokedAt: true, totpVerifiedAt: true },
             });
+            // Self-heal: if the row is missing but the user is valid and not
+            // suspended, recreate it instead of killing the session. This
+            // handles cases where the row was deleted or never persisted
+            // due to a transient DB issue on login.
+            // Uses upsert to handle race conditions (two concurrent requests
+            // with same jti).
+            if (!row && token.sub) {
+              const dbUser = await db.user.findUnique({
+                where: { id: token.sub },
+                select: { suspendedAt: true },
+              });
+              if (dbUser && !dbUser.suspendedAt) {
+                try {
+                  row = await db.loginSession.upsert({
+                    where: { jti: token.jti as string },
+                    update: {},
+                    create: {
+                      userId: token.sub,
+                      jti: token.jti as string,
+                      provider: null,
+                    },
+                    select: { revokedAt: true, totpVerifiedAt: true },
+                  });
+                } catch {
+                  // If upsert fails, try to read again (another request may
+                  // have created it)
+                  try {
+                    row = await db.loginSession.findUnique({
+                      where: { jti: token.jti as string },
+                      select: { revokedAt: true, totpVerifiedAt: true },
+                    });
+                  } catch {
+                    row = null;
+                  }
+                }
+              }
+            }
             if (!row || row.revokedAt) {
               token.revoked = true;
               delete token.sub;

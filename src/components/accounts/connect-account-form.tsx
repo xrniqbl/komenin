@@ -344,10 +344,10 @@ export function ConnectAccountForm({
           <Button type="button" onClick={generateFromInputs}>
             Generate payload dari cookie
           </Button>
-          <Button type="button" variant="outline" onClick={openPlatformLogin}>
+          <Button type="button" variant="glass" onClick={openPlatformLogin}>
             Buka login {platform}
           </Button>
-          <Button type="button" variant="ghost" onClick={pasteClipboard}>
+          <Button type="button" variant="glass" onClick={pasteClipboard}>
             Tempel clipboard
           </Button>
         </div>
@@ -406,7 +406,7 @@ export function ConnectAccountForm({
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Label htmlFor="sessionPayload">Session payload (JSON)</Label>
-          <Button type="button" size="sm" variant="outline" onClick={generateFromInputs}>
+          <Button type="button" size="sm" variant="glass" onClick={generateFromInputs}>
             Generate payload
           </Button>
         </div>
@@ -427,10 +427,10 @@ export function ConnectAccountForm({
           <AlertDescription className="space-y-2 text-xs">
             <div>{error}</div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" size="sm" variant="outline" onClick={openPlatformLogin}>
+              <Button type="button" size="sm" variant="glass" onClick={openPlatformLogin}>
                 Buka login {platform}
               </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={pasteClipboard}>
+              <Button type="button" size="sm" variant="glass" onClick={pasteClipboard}>
                 Tempel clipboard
               </Button>
             </div>
@@ -438,7 +438,7 @@ export function ConnectAccountForm({
         </Alert>
       ) : null}
 
-      <Button type="submit" size="lg" disabled={pending}>
+      <Button variant="electric" type="submit" size="lg" disabled={pending}>
         {pending ? "Saving..." : "Save account"}
       </Button>
     </form>

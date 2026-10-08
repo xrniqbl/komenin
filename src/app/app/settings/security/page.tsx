@@ -169,7 +169,7 @@ export default async function SecuritySettingsPage() {
                 Require SSO (stored only — not enforced on Google login)
               </Label>
             </Fieldset>
-            <Button type="submit">Save SSO settings (preview)</Button>
+            <Button variant="electric" type="submit">Save SSO settings (preview)</Button>
           </Form>
         </CardContent>
       </Card>

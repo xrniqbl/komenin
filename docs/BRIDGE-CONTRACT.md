@@ -25,7 +25,9 @@ returns contract-v1 JSON.
 - Content type: `application/json`
 - Action header: `x-komenin-action: <action>`
 - Contract header: `x-komenin-contract: v1` (required on request; recommended on response)
-- Idempotency header (mutating actions only): `x-komenin-idempotency-key: <stable-key>`. `sendComment` sends `comment-action:<id>`, `publishPost` sends `content-draft:<id>`. When a redelivery arrives with a key seen in the last 24h, the bridge MUST replay the original response (same HTTP status + body) instead of performing the side effect again — this is what makes a caller crash between the platform call and its local result write safe from double-posting.
+- Idempotency header (mandatory for live `sendComment` and `publishPost`): `x-komenin-idempotency-key: <stable-key>`. `sendComment` sends `comment-action:<id>`, `publishPost` sends `content-draft:<id>`. A missing/blank key returns 400 before platform I/O. Reusing a key with a different JSON payload returns 409. Keep keys stable through retries; never create a new key to bypass a pending outcome.
+- The live bridge atomically claims a key in shared PostgreSQL (`BridgeIdempotency`) **before** platform I/O, and saves the HTTP status and JSON body **before** responding. Completed deliveries replay that status and body across restarts and replicas, including definitive upstream HTTP errors. If upstream times out, disconnects, or otherwise provides no HTTP response after the claim, the outcome remains pending (never saved as a completed 500); the original request and subsequent same-key requests return 503 for manual review without repeating platform I/O. An in-progress/unknown outcome returns 503 and must be reconciled manually, never blindly retried against the platform. A database error also returns 503 without starting new platform I/O. Claims retain a 24-hour expiry marker; do not automatically delete unresolved claims or replay keys after expiry, since an earlier platform side effect may have occurred. Retain completed records for at least the retry window; archive/reconcile before deleting keys.
+- Local mock mode may omit keys; it is not a production delivery guarantee.
 
 ## Actions
 

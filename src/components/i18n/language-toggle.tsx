@@ -1,18 +1,31 @@
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { alternateLocalePath } from "@/lib/i18n/paths";
 import type { Locale } from "@/lib/i18n/messages";
 
-export function LanguageToggle({ className }: { className?: string }) {
-  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
+export function LanguageToggle({
+  className,
+  tone = "dark",
+}: {
+  className?: string;
+  tone?: "dark" | "light";
+}) {
+  const router = useRouter();
+  const pathname = usePathname() || "/";
   const { locale, setLocale, t } = useLocale();
+  const isDark = tone === "dark";
 
   return (
     <div
       className={cn(
-        "glass inline-flex items-center rounded-full border-white/10 p-1",
+        "inline-flex items-center rounded-full border p-1",
+        isDark
+          ? "border-white/10 bg-white/5 backdrop-blur-xl"
+          : "border-neutral-200 bg-white",
         className,
       )}
       role="group"
@@ -20,24 +33,34 @@ export function LanguageToggle({ className }: { className?: string }) {
     >
       {(["en", "id"] as Locale[]).map((code) => {
         const active = locale === code;
-        const href = alternateLocalePath(pathname, code);
         return (
-          <a
+          <Button
             key={code}
-            href={href}
+            type="button"
+            size="xs"
+            variant={isDark ? "ghost" : active ? "default" : "ghost"}
             onClick={() => {
+              // Keep the cookie in sync for client components and the
+              // fallback locale resolution, then move to the localized URL.
               setLocale(code);
+              if (code !== locale) {
+                router.push(alternateLocalePath(pathname, code));
+              } else {
+                router.refresh();
+              }
             }}
             className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-medium touch-manipulation",
-              active
-                ? "bg-electric-500 text-white"
-                : "text-neutral-400 hover:text-white",
+              "rounded-full px-2.5",
+              isDark
+                ? active
+                  ? "bg-white font-semibold text-neutral-950 shadow-sm hover:bg-white hover:text-neutral-950"
+                  : "font-normal text-neutral-400 hover:bg-white/10 hover:text-white"
+                : !active && "text-neutral-600 hover:text-neutral-900",
             )}
             aria-pressed={active}
           >
             {code.toUpperCase()}
-          </a>
+          </Button>
         );
       })}
     </div>

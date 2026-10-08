@@ -81,48 +81,48 @@ export function SessionRoutingMock() {
 
 export function CommentEngineMock() {
   return (
-    <Card className="gap-3 bg-muted/40 py-4">
-      <CardHeader className="px-4 py-0">
+    <div className="gap-3 glass rounded-2xl py-4">
+      <div className="px-4 py-0">
         <div className="flex items-center justify-between">
-          <div className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Approval queue</div>
-          <Badge variant="outline" className="text-[10px]">
+          <div className="text-xs font-semibold tracking-widest text-neutral-500 uppercase">Approval queue</div>
+          <Badge variant="outline" className="border-white/15 text-[10px] text-neutral-400">
             12 pending
           </Badge>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-3 px-4">
-        <Card>
-          <CardHeader className="p-3 pb-1">
+      </div>
+      <div className="space-y-3 px-4 pt-3">
+        <div className="glass rounded-xl">
+          <div className="p-3 pb-1">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xs">Growth Campaign · @techfounder_42</CardTitle>
-              <span className="text-[10px] text-muted-foreground">2m ago</span>
+              <div className="text-xs font-medium text-white">Growth Campaign · @techfounder_42</div>
+              <span className="text-[10px] text-neutral-500">2m ago</span>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-3 p-3 pt-0">
-            <div className="rounded-lg bg-muted p-2 text-[11px] text-muted-foreground">
+          </div>
+          <div className="space-y-3 p-3 pt-0">
+            <div className="rounded-lg bg-white/5 p-2 text-[11px] text-neutral-400">
               &quot;Baru bahas AI infra scaling, ada best practice buat cost control?&quot;
             </div>
-            <div className="rounded-lg border bg-background p-2 text-xs">
+            <div className="rounded-lg border border-electric-500/20 bg-electric-500/5 p-2 text-xs leading-relaxed text-neutral-200">
               Menarik insight soal AI infra. Untuk cost control, pendekatan FinOps bertahap biasanya lebih sustainable -
               mulai dari visibility, lalu guardrail. Happy to share playbook kami.
             </div>
             <div className="flex gap-2">
-              <span className="h-7 flex-1 rounded-md bg-foreground text-center text-[11px] font-medium leading-7 text-background">
+              <span className="h-7 flex-1 rounded-md bg-electric-600 text-center text-[11px] font-medium leading-7 text-white">
                 Approve & schedule
               </span>
-              <span className="h-7 flex-1 rounded-md border bg-background text-center text-[11px] leading-7">Reject</span>
+              <span className="h-7 flex-1 rounded-md border border-white/15 text-center text-[11px] leading-7 text-neutral-300">Reject</span>
             </div>
-          </CardContent>
-        </Card>
-        <div className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-[11px]">
+          </div>
+        </div>
+        <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px]">
           <Dot color="bg-green-500" />
-          <span>Delayed 87s via human-like pacing</span>
-          <Badge variant="outline" className="ml-auto text-[10px]">
+          <span className="text-neutral-300">Delayed 87s via human-like pacing</span>
+          <Badge variant="outline" className="ml-auto border-white/15 text-[10px] text-neutral-400">
             scheduled to sent
           </Badge>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -139,7 +139,7 @@ export function AgentIntelligenceMock() {
         <div className="rounded-xl rounded-bl-sm bg-foreground px-3 py-2 text-xs leading-relaxed text-background">
           System: You are Sales Assist. Tone professional. No spam. Max 3 sentences. Use knowledge if relevant.
         </div>
-        <Card>
+        <Card className="glass rounded-2xl">
           <CardContent className="p-3">
             <div className="mb-2 flex items-center gap-2 text-[10px] text-muted-foreground">
               <Badge variant="secondary" className="text-[9px]">

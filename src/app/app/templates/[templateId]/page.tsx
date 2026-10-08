@@ -23,7 +23,7 @@ export default async function TemplateDetailPage({
         description={`${template.category} · ${template.usageCount} uses · ${template.variables.length} variables`}
         action={
           <div className="flex gap-2">
-            <Button variant="outline" render={<Link href="/app/templates" />} nativeButton={false}>
+            <Button variant="glass" render={<Link href="/app/templates" />} nativeButton={false}>
               Back
             </Button>
             <Badge variant="secondary">{template.isActive ? "active" : "inactive"}</Badge>

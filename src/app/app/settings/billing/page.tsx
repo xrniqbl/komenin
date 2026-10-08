@@ -67,10 +67,10 @@ export default async function BillingSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" render={<Link href="/app/settings/ai" />} nativeButton={false}>
+            <Button size="sm" variant="glass" render={<Link href="/app/settings/ai" />} nativeButton={false}>
               Manage AI billing
             </Button>
-            <Button size="sm" variant="outline" render={<Link href="/app/analytics" />} nativeButton={false}>
+            <Button size="sm" variant="glass" render={<Link href="/app/analytics" />} nativeButton={false}>
               View AI usage
             </Button>
           </CardContent>

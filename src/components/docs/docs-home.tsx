@@ -1,31 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import {
-  BookOpen,
-  Boxes,
-  Bot,
-  Cable,
-  Rocket,
-  Shield,
-  Webhook,
-  Workflow,
-} from "lucide-react";
+import AccountTreeRoundedIcon from '@mui/icons-material/AccountTreeRounded';
+import CableRoundedIcon from '@mui/icons-material/CableRounded';
+import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded';
+import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
+import RocketLaunchRoundedIcon from '@mui/icons-material/RocketLaunchRounded';
+import ShieldRoundedIcon from '@mui/icons-material/ShieldRounded';
+import SmartToyRoundedIcon from '@mui/icons-material/SmartToyRounded';
+import WebhookRoundedIcon from '@mui/icons-material/WebhookRounded';
+
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-const iconByHref: Record<string, typeof Rocket> = {
-  "/docs/tutorial/introduction": Rocket,
-  "/docs/tutorial/connectors": Cable,
-  "/docs/tutorial/campaigns": Workflow,
-  "/docs/tutorial/agents": Bot,
-  "/docs/api": Boxes,
-  "/docs/tutorial/security": Shield,
-  "/docs/tutorial/golden-path": BookOpen,
-  "/docs/tutorial/command-center": Workflow,
-  "/docs/tutorial/troubleshooting": Shield,
-  "/docs/tutorial/faq": BookOpen,
+const iconByHref: Record<string, typeof RocketLaunchRoundedIcon> = {
+  "/docs/tutorial/introduction": RocketLaunchRoundedIcon,
+  "/docs/tutorial/connectors": CableRoundedIcon,
+  "/docs/tutorial/campaigns": AccountTreeRoundedIcon,
+  "/docs/tutorial/agents": SmartToyRoundedIcon,
+  "/docs/api": Inventory2RoundedIcon,
+  "/docs/tutorial/security": ShieldRoundedIcon,
+  "/docs/tutorial/golden-path": MenuBookRoundedIcon,
+  "/docs/tutorial/command-center": AccountTreeRoundedIcon,
+  "/docs/tutorial/troubleshooting": ShieldRoundedIcon,
+  "/docs/tutorial/faq": MenuBookRoundedIcon,
 };
 
 export function DocsHome() {
@@ -36,20 +35,32 @@ export function DocsHome() {
     <div className="min-w-0 flex-1 px-4 py-10 md:px-8 md:py-14">
       <div className="mx-auto max-w-6xl">
         <div className="max-w-3xl">
-          <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">{ui.homeTitle}</h1>
-          <p className="mt-5 text-lg leading-8 text-muted-foreground">{ui.homeSubtitle}</p>
+          <h1 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">{ui.homeTitle}</h1>
+          <p className="mt-5 text-lg leading-8 text-neutral-400">{ui.homeSubtitle}</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button size="lg" render={<Link href="/docs/tutorial/introduction" />} nativeButton={false}>
+            <Button variant="electric"
+              size="lg"
+              render={<Link href="/docs/tutorial/introduction" />}
+              nativeButton={false}
+              className="rounded-full bg-electric-600 text-white shadow-[0_0_32px_rgba(46,124,246,0.45)] hover:bg-electric-500"
+            >
               {ui.getStarted}
             </Button>
-            <Button size="lg" variant="outline" render={<Link href="/docs/api" />} nativeButton={false}>
+            <Button
+              size="lg"
+              variant="glass"
+              render={<Link href="/docs/api" />}
+              nativeButton={false}
+              className="rounded-full border-white/15 bg-white/5 text-white backdrop-blur-xl hover:border-white/30 hover:bg-white/10 hover:text-white"
+            >
               {ui.apiReference}
             </Button>
             <Button
               size="lg"
-              variant="outline"
+              variant="glass"
               render={<Link href="/docs/tutorial/quick-start" />}
               nativeButton={false}
+              className="rounded-full border-white/15 bg-white/5 text-white backdrop-blur-xl hover:border-white/30 hover:bg-white/10 hover:text-white"
             >
               {ui.quickStart}
             </Button>
@@ -58,16 +69,16 @@ export function DocsHome() {
 
         <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {ui.cards.map((card) => {
-            const Icon = iconByHref[card.href] || BookOpen;
+            const Icon = iconByHref[card.href] || MenuBookRoundedIcon;
             return (
               <Link key={card.href} href={card.href} className="group">
-                <Card className="h-full transition-colors group-hover:border-neutral-400">
+                <Card className="h-full transition-colors group-hover:border-electric-500/30">
                   <CardHeader>
-                    <div className="mb-3 inline-flex size-10 items-center justify-center rounded-xl bg-muted">
-                      <Icon className="size-5" />
+                    <div className="mb-3 inline-flex size-10 items-center justify-center rounded-xl border border-electric-500/20 bg-electric-500/10">
+                      <Icon className="size-5 text-electric-400" />
                     </div>
-                    <CardTitle className="text-lg">{card.title}</CardTitle>
-                    <CardDescription className="text-sm leading-6">{card.body}</CardDescription>
+                    <CardTitle className="text-lg text-white">{card.title}</CardTitle>
+                    <CardDescription className="text-sm leading-6 text-neutral-400">{card.body}</CardDescription>
                   </CardHeader>
                   <CardContent />
                 </Card>
@@ -79,28 +90,37 @@ export function DocsHome() {
         <div className="mt-12 grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <div className="mb-2 inline-flex size-10 items-center justify-center rounded-xl bg-muted">
-                <BookOpen className="size-5" />
+              <div className="mb-2 inline-flex size-10 items-center justify-center rounded-xl border border-electric-500/20 bg-electric-500/10">
+                <MenuBookRoundedIcon className="size-5 text-electric-400" />
               </div>
-              <CardTitle className="text-lg">{ui.tutorialPath}</CardTitle>
-              <CardDescription>{ui.tutorialPathBody}</CardDescription>
+              <CardTitle className="text-lg text-white">{ui.tutorialPath}</CardTitle>
+              <CardDescription className="text-neutral-400">{ui.tutorialPathBody}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button render={<Link href="/docs/tutorial/introduction" />} nativeButton={false}>
+              <Button
+                render={<Link href="/docs/tutorial/introduction" />}
+                nativeButton={false}
+                className="rounded-full bg-electric-600 text-white shadow-[0_0_32px_rgba(46,124,246,0.45)] hover:bg-electric-500"
+              >
                 {ui.openTutorial}
               </Button>
             </CardContent>
           </Card>
           <Card>
             <CardHeader>
-              <div className="mb-2 inline-flex size-10 items-center justify-center rounded-xl bg-muted">
-                <Webhook className="size-5" />
+              <div className="mb-2 inline-flex size-10 items-center justify-center rounded-xl border border-electric-500/20 bg-electric-500/10">
+                <WebhookRoundedIcon className="size-5 text-electric-400" />
               </div>
-              <CardTitle className="text-lg">{ui.integrationPath}</CardTitle>
-              <CardDescription>{ui.integrationPathBody}</CardDescription>
+              <CardTitle className="text-lg text-white">{ui.integrationPath}</CardTitle>
+              <CardDescription className="text-neutral-400">{ui.integrationPathBody}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button variant="outline" render={<Link href="/docs/api/worker" />} nativeButton={false}>
+              <Button
+                variant="glass"
+                render={<Link href="/docs/api/worker" />}
+                nativeButton={false}
+                className="rounded-full border-white/15 bg-white/5 text-white backdrop-blur-xl hover:border-white/30 hover:bg-white/10 hover:text-white"
+              >
                 {ui.openWorkerApi}
               </Button>
             </CardContent>

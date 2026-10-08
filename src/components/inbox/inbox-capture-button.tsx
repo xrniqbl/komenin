@@ -10,7 +10,7 @@ export function InboxCaptureButton({ targetPostId }: { targetPostId: string }) {
   return (
     <Button
       size="sm"
-      variant="outline"
+      variant="glass"
       disabled={pending}
       onClick={() =>
         startTransition(async () => {

@@ -1,19 +1,17 @@
 "use client";
 
 import { LocaleLink } from "@/components/i18n/locale-link";
-import {
-  Bot,
-  Cable,
-  Clock,
-  FileText,
-  Globe,
-  Layers,
-  Network,
-  Shield,
-  Sparkles,
-  Workflow,
-  Zap,
-} from "lucide-react";
+import SmartToyIcon from '@mui/icons-material/SmartToyRounded';
+import CableIcon from '@mui/icons-material/CableRounded';
+import ScheduleIcon from '@mui/icons-material/ScheduleRounded';
+import DescriptionIcon from '@mui/icons-material/DescriptionRounded';
+import LanguageIcon from '@mui/icons-material/LanguageRounded';
+import LayersIcon from '@mui/icons-material/LayersRounded';
+import HubIcon from '@mui/icons-material/HubRounded';
+import ShieldIcon from '@mui/icons-material/ShieldRounded';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesomeRounded';
+import AccountTreeIcon from '@mui/icons-material/AccountTreeRounded';
+import BoltIcon from '@mui/icons-material/BoltRounded';
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,11 +25,11 @@ import {
 
 type FeatureDetailKey = "sessionRouting" | "commentEngine" | "agentIntelligence" | "skillExecution";
 
-const KEY_ICONS: Record<FeatureDetailKey, typeof Shield> = {
-  sessionRouting: Network,
-  commentEngine: Workflow,
-  agentIntelligence: Bot,
-  skillExecution: Layers,
+const KEY_ICONS: Record<FeatureDetailKey, typeof ShieldIcon> = {
+  sessionRouting: HubIcon,
+  commentEngine: AccountTreeIcon,
+  agentIntelligence: SmartToyIcon,
+  skillExecution: LayersIcon,
 };
 
 const KEY_STATS: Record<FeatureDetailKey, { label: string; value: string }[]> = {
@@ -80,30 +78,30 @@ const KEY_ARCH: Record<FeatureDetailKey, { title: string; body: string }[]> = {
   ],
 };
 
-const KEY_FEATURES: Record<FeatureDetailKey, { icon: typeof Shield; title: string; body: string }[]> = {
+const KEY_FEATURES: Record<FeatureDetailKey, { icon: typeof ShieldIcon; title: string; body: string }[]> = {
   sessionRouting: [
-    { icon: Shield, title: "Encrypted vault", body: "Session blobs AES-256-GCM, key versioned." },
-    { icon: Globe, title: "Multi-proxy grid", body: "Assign residential/mobile/datacenter per account." },
-    { icon: Clock, title: "IP rotation", body: "Sticky, per-action, or timed rotation with reason log." },
-    { icon: Zap, title: "Health scoring", body: "Score 10-100, auto degrade/ban detection with notifications." },
+    { icon: ShieldIcon, title: "Encrypted vault", body: "Session blobs AES-256-GCM, key versioned." },
+    { icon: LanguageIcon, title: "Multi-proxy grid", body: "Assign residential/mobile/datacenter per account." },
+    { icon: ScheduleIcon, title: "IP rotation", body: "Sticky, per-action, or timed rotation with reason log." },
+    { icon: BoltIcon, title: "Health scoring", body: "Score 10-100, auto degrade/ban detection with notifications." },
   ],
   commentEngine: [
-    { icon: Workflow, title: "Approval-first", body: "Editable drafts, bulk approve/reject, audit trail." },
-    { icon: Clock, title: "Human-like pacing", body: "Platform-aware random delay (IG ≥3m, Threads ≥4m, TikTok ≥5m) configurable per campaign." },
-    { icon: Shield, title: "Rate limits", body: "Per-platform safe caps (IG 50/hari, Threads 40/hari, TikTok 30/hari) + hourly pace + monthly workspace caps." },
-    { icon: Sparkles, title: "AI powered", body: "Gateway routed, fallback local, risk-scanner guarded." },
+    { icon: AccountTreeIcon, title: "Approval-first", body: "Editable drafts, bulk approve/reject, audit trail." },
+    { icon: ScheduleIcon, title: "Human-like pacing", body: "Platform-aware random delay (IG ≥3m, Threads ≥4m, TikTok ≥5m) configurable per campaign." },
+    { icon: ShieldIcon, title: "Rate limits", body: "Per-platform safe caps (IG 50/day, Threads 40/day, TikTok 30/day) + hourly pace + monthly workspace caps." },
+    { icon: AutoAwesomeIcon, title: "AI powered", body: "Gateway routed, fallback local, risk-scanner guarded." },
   ],
   agentIntelligence: [
-    { icon: Bot, title: "Persona", body: "Name, tone, language, system prompt — per agent." },
-    { icon: FileText, title: "Knowledge RAG", body: "Text upload → chunk 500 chars → token overlap ranking." },
-    { icon: Layers, title: "Memory", body: "Fact ledger per entity, confidence scoring." },
-    { icon: Zap, title: "Playground", body: "Test draft instantly with knowledge + skill context." },
+    { icon: SmartToyIcon, title: "Persona", body: "Name, tone, language, system prompt — per agent." },
+    { icon: DescriptionIcon, title: "Knowledge RAG", body: "Text upload → chunk 500 chars → token overlap ranking." },
+    { icon: LayersIcon, title: "Memory", body: "Fact ledger per entity, confidence scoring." },
+    { icon: BoltIcon, title: "Playground", body: "Test draft instantly with knowledge + skill context." },
   ],
   skillExecution: [
-    { icon: Layers, title: "Registry", body: "Slug-unique per workspace, triggers keyword array." },
-    { icon: Cable, title: "Webhook executor", body: "POST skill slug + text, Bearer token, parse text/message." },
-    { icon: Shield, title: "High-risk guard", body: "Forces manual approval even in auto campaign mode." },
-    { icon: Workflow, title: "Run timeline", body: "Ordinal steps persisted, audited per execution." },
+    { icon: LayersIcon, title: "Registry", body: "Slug-unique per workspace, triggers keyword array." },
+    { icon: CableIcon, title: "Webhook executor", body: "POST skill slug + text, Bearer token, parse text/message." },
+    { icon: ShieldIcon, title: "High-risk guard", body: "Forces manual approval even in auto campaign mode." },
+    { icon: AccountTreeIcon, title: "Run timeline", body: "Ordinal steps persisted, audited per execution." },
   ],
 };
 
@@ -189,10 +187,10 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <Button size="lg" render={<LocaleLink href="/signup" />} nativeButton={false}>
+            <Button size="lg" variant="electric" render={<LocaleLink href="/signup" />} nativeButton={false}>
               {copy.cta}
             </Button>
-            <Button size="lg" variant="outline" render={<LocaleLink href="/contact" />} nativeButton={false}>
+            <Button size="lg" variant="glass" render={<LocaleLink href="/contact" />} nativeButton={false}>
               Talk to sales
             </Button>
           </div>
@@ -291,15 +289,15 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
             <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Security & control</div>
             <div className="mt-4 space-y-3 text-sm">
               <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-muted-foreground" />
+                <ShieldIcon className="h-4 w-4 text-muted-foreground" />
                 <span>Encrypted secrets + least-privilege workspace isolation</span>
               </div>
               <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-muted-foreground" />
+                <BoltIcon className="h-4 w-4 text-muted-foreground" />
                 <span>Rate limits and human-like pacing enforced</span>
               </div>
               <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-muted-foreground" />
+                <DescriptionIcon className="h-4 w-4 text-muted-foreground" />
                 <span>Audit logs for every config, approval, and publish action</span>
               </div>
             </div>
@@ -336,7 +334,7 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
       </div>
 
       {/* Final CTA */}
-      <div className="mt-2 rounded-[2rem] bg-neutral-900 px-6 py-10 text-white md:px-10 md:py-12 dark:bg-neutral-800">
+      <div className="glass-blue mt-2 rounded-[2rem] px-6 py-10 text-white md:px-10 md:py-12">
         <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Ready to run {copy.title}?</h2>
@@ -347,7 +345,7 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
           <div className="flex flex-wrap gap-3">
             <Button
               size="lg"
-              className="bg-white text-neutral-900 hover:bg-neutral-100"
+              variant="electric"
               render={<LocaleLink href="/signup" />}
               nativeButton={false}
             >
@@ -355,8 +353,7 @@ export function FeatureDetailPage({ detailKey }: { detailKey: FeatureDetailKey }
             </Button>
             <Button
               size="lg"
-              variant="outline"
-              className="border-neutral-600 bg-transparent text-white hover:bg-neutral-800"
+              variant="glass"
               render={<LocaleLink href="/docs" />}
               nativeButton={false}
             >

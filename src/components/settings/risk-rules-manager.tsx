@@ -221,7 +221,7 @@ export function RiskRulesManager({ rules: initial }: { rules: Rule[] }) {
                       confirmLabel="Delete rule"
                       destructive
                       disabled={pending}
-                      trigger={<Button size="sm" variant="outline">Delete</Button>}
+                      trigger={<Button size="sm" variant="glass">Delete</Button>}
                       onConfirm={() => handleDelete(rule.id)}
                     />
                   </div>

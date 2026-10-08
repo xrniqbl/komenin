@@ -20,7 +20,7 @@ export function ContentCampaignActions({
   return (
     <div className="flex flex-wrap gap-2">
       <Button
-        variant="outline"
+        variant="glass"
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
@@ -31,7 +31,7 @@ export function ContentCampaignActions({
         Regenerate drafts
       </Button>
       <Button
-        variant="outline"
+        variant="glass"
         disabled={pending || pendingCount === 0}
         onClick={() =>
           startTransition(async () => {

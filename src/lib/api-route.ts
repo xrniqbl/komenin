@@ -1,5 +1,6 @@
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { NextResponse } from "next/server";
+import { inferApiCode } from "@/lib/api-errors";
 
 function redirectDestination(error: { digest: string }): string {
   // digest format: NEXT_REDIRECT;{type};{url};{status};
@@ -64,5 +65,5 @@ export function jsonErrorFromUnknown(
           ? 404
           : fallbackStatus;
 
-  return NextResponse.json({ error: message }, { status });
+  return NextResponse.json({ error: message, code: inferApiCode(message, status) }, { status });
 }

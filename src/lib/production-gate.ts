@@ -54,18 +54,14 @@ export function evaluateProductionGate(): ProductionGateResult {
     );
   }
 
-  // Vercel Cron needs CRON_SECRET. External schedulers can use WORKER_SECRET.
-  if (process.env.VERCEL === "1" || process.env.VERCEL_ENV) {
-    if (!env.CRON_SECRET) {
-      errors.push(
-        "CRON_SECRET is required on Vercel so scheduled /api/worker/cron requests authenticate",
-      );
-    }
-  } else if (!env.CRON_SECRET && !env.WORKER_SECRET) {
+  // External schedulers authenticate scheduled /api/worker/cron requests with
+  // either CRON_SECRET (Authorization: Bearer) or WORKER_SECRET (Bearer or
+  // x-worker-secret). At least one of them is required in production.
+  if (!env.CRON_SECRET && !env.WORKER_SECRET) {
     errors.push("CRON_SECRET or WORKER_SECRET is required for scheduled worker auth");
   } else if (!env.CRON_SECRET) {
     warnings.push(
-      "CRON_SECRET is unset — Vercel Cron Authorization: Bearer $CRON_SECRET will fail; WORKER_SECRET can still drive the endpoint",
+      "CRON_SECRET is unset — schedulers sending Authorization: Bearer $CRON_SECRET will fail; WORKER_SECRET can still drive the endpoint",
     );
   }
 

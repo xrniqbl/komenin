@@ -6,18 +6,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { EmailOtpForm } from "@/components/auth/email-otp-form";
 import { auth } from "@/lib/auth";
-import { isSsoLoginEnforced } from "@/lib/sso-policy";
 import { signInWithGoogle } from "@/server/auth-actions";
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sso?: string }>;
+  searchParams: Promise<{ sso?: string; callbackUrl?: string }>;
 }) {
   const session = await auth();
-  if (session?.user) redirect("/app");
   const params = await searchParams;
-  const ssoEnforcedFlag = isSsoLoginEnforced();
+  const callbackUrl = params.callbackUrl?.startsWith("/") && !params.callbackUrl.startsWith("//") && !params.callbackUrl.includes("\\")
+    ? params.callbackUrl
+    : "/onboarding";
+  if (session?.user?.id) redirect(callbackUrl);
 
   return (
     <div className="bg-marketing relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
@@ -56,8 +57,8 @@ export default async function LoginPage({
                   : "SSO ACS completed a dev ticket handoff. If you were not signed in automatically, continue with Google."}
               </p>
             ) : null}
-            <form action={signInWithGoogle.bind(null, "/onboarding")}>
-              <Button
+            <form action={signInWithGoogle.bind(null, callbackUrl)}>
+              <Button variant="electric"
                 type="submit"
                 className="w-full bg-electric-500 text-white shadow-[0_0_24px_rgba(46,124,246,0.35)] hover:bg-electric-600"
                 size="lg"
@@ -68,28 +69,17 @@ export default async function LoginPage({
 
             <div className="my-1 flex items-center gap-3">
               <Separator className="flex-1 bg-white/10" />
-              <span className="text-xs text-neutral-500">atau</span>
+              <span className="text-xs text-neutral-500">or</span>
               <Separator className="flex-1 bg-white/10" />
             </div>
 
-            <EmailOtpForm callbackUrl="/onboarding" />
+            <EmailOtpForm callbackUrl={callbackUrl} />
             <p className="text-center text-xs text-neutral-600">
-              Enterprise SAML SSO is stored as workspace config only
-              {ssoEnforcedFlag ? " (SSO_ENFORCE_LOGIN is set, but ACS session bridge is not shipped)" : ""}
-              . Full SSO login ships after signed ACS + Auth.js session integration.
-            </p>
-            <p className="text-center text-xs text-neutral-600">
-              If the button fails after a hot reload, use{" "}
-              <Link
-                href="/api/auth/signin/google?callbackUrl=%2Fonboarding"
-                className="font-medium text-neutral-300 underline underline-offset-4 hover:text-white"
-              >
-                this direct Google sign-in link
-              </Link>
-              .
+              Enterprise SAML SSO is available for configured workspaces. Contact
+              sales to enable it for your domain.
             </p>
             <Button
-              variant="outline"
+              variant="glass"
               className="w-full"
               render={<Link href="/" />}
               nativeButton={false}

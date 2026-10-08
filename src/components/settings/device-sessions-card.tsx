@@ -94,7 +94,7 @@ export function DeviceSessionsCard() {
           {others > 0 ? (
             <Button
               type="button"
-              variant="outline"
+              variant="glass"
               size="sm"
               onClick={revokeOthers}
               disabled={busy}
@@ -133,7 +133,7 @@ export function DeviceSessionsCard() {
                 </div>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="glass"
                   size="sm"
                   onClick={() => revoke(device.id)}
                   disabled={busy}

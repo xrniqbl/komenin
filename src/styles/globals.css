@@ -514,8 +514,10 @@
 }
 
 @layer base {
-    /* DARK MODE VARIABLES */
+    /* DARK MODE VARIABLES — `.dark` is the active class (see layout.tsx);
+       `.dark-mode` kept as alias for backwards compatibility. */
 
+    .dark,
     .dark-mode {
         --color-alpha-white: rgb(12 14 18);
         --color-alpha-black: rgb(255 255 255);
@@ -724,8 +726,8 @@
         --color-fg-brand-secondary_alt: var(--color-neutral-600);
         --color-fg-brand-secondary_hover: var(--color-neutral-500);
 
-        --color-bg-primary: var(--color-neutral-950);
-        --color-bg-tertiary: var(--color-neutral-800);
+        --color-bg-primary: #0b1322;
+        --color-bg-tertiary: #122036;
         --color-bg-brand-primary: var(--color-brand-500);
         --color-bg-error-secondary: var(--color-red-600);
         --color-bg-warning-primary: var(--color-yellow-950);
@@ -737,14 +739,14 @@
         --color-bg-error-solid: var(--color-red-600);
         --color-bg-warning-solid: var(--color-yellow-600);
         --color-bg-success-solid: var(--color-green-600);
-        --color-bg-secondary_hover: var(--color-neutral-800);
-        --color-bg-primary_hover: var(--color-neutral-900);
-        --color-bg-active: var(--color-neutral-800);
+        --color-bg-secondary_hover: #16263f;
+        --color-bg-primary_hover: #101c33;
+        --color-bg-active: #16263f;
         --color-bg-brand-solid_hover: var(--color-brand-500);
         --color-bg-error-primary: var(--color-red-950);
         --color-bg-brand-secondary: var(--color-brand-600);
-        --color-bg-secondary: var(--color-neutral-900);
-        --color-bg-quaternary: var(--color-neutral-700);
+        --color-bg-secondary: #101d34;
+        --color-bg-quaternary: #1a2b4a;
         --color-bg-primary_alt: var(--color-bg-secondary);
         --color-bg-brand-primary_alt: var(--color-bg-secondary);
         --color-bg-secondary_alt: var(--color-bg-primary);
@@ -1307,7 +1309,7 @@
 @plugin "@tailwindcss/typography";
 @plugin "tailwindcss-animate";
 
-@custom-variant dark (&:where(.dark-mode, .dark-mode *));
+@custom-variant dark (&:where(.dark, .dark-mode, .dark *, .dark-mode *));
 @custom-variant label (& [data-label]);
 @custom-variant focus-input-within (&:has(input:focus));
 
@@ -1577,20 +1579,20 @@ input[type="search"]::-webkit-search-cancel-button {
     --warning-foreground: var(--color-amber-400);
     --accent: --alpha(var(--color-white) / 4%);
     --accent-foreground: var(--color-neutral-100);
-    --background: color-mix(in srgb, var(--color-neutral-950) 95%, var(--color-white));
+    --background: #0b1322;
     --border: --alpha(var(--color-white) / 6%);
-    --card: color-mix(in srgb, var(--background) 98%, var(--color-white));
+    --card: color-mix(in srgb, var(--background) 96%, var(--color-white));
     --card-foreground: var(--color-neutral-100);
     --destructive: color-mix(in srgb, var(--color-red-500) 90%, var(--color-white));
     --foreground: var(--color-neutral-100);
     --input: --alpha(var(--color-white) / 8%);
     --muted: --alpha(var(--color-white) / 4%);
     --muted-foreground: color-mix(in srgb, var(--color-neutral-500) 90%, var(--color-white));
-    --popover: color-mix(in srgb, var(--background) 98%, var(--color-white));
+    --popover: color-mix(in srgb, #131f38 92%, var(--color-white));
     --popover-foreground: var(--color-neutral-100);
-    --primary: var(--color-neutral-100);
-    --primary-foreground: var(--color-neutral-800);
-    --ring: var(--color-neutral-500);
+    --primary: var(--color-electric-500);
+    --primary-foreground: var(--color-white);
+    --ring: var(--color-electric-500);
     --secondary: --alpha(var(--color-white) / 4%);
     --secondary-foreground: var(--color-neutral-100);
     --chart-1: var(--color-blue-700);

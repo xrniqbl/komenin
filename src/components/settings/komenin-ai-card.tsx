@@ -37,7 +37,7 @@ export type AiBillingStatus = {
 };
 
 const TIER_LABEL: Record<string, string> = {
-  none: "BYOK (key sendiri)",
+  none: "BYOK (own key)",
   starter: "Komenin AI Starter",
   pro: "Komenin AI Pro",
   pro_max: "Komenin AI Pro Max",
@@ -75,12 +75,12 @@ export function KomeninAiCard({
       await updateAiPreferOwnKey(next);
       setMessage(
         next
-          ? "Workspace akan memakai API key sendiri dulu (BYOK)."
-          : "Workspace akan memakai kredit Komenin AI dulu.",
+          ? "Workspace will use its own API key first (BYOK)."
+          : "Workspace will use Komenin AI credits first.",
       );
     } catch (error) {
       setPreferOwnKey(!next); // revert
-      setMessage(error instanceof Error ? error.message : "Gagal menyimpan preferensi");
+      setMessage(error instanceof Error ? error.message : "Failed to save preference");
     } finally {
       setPending(false);
     }
@@ -94,12 +94,12 @@ export function KomeninAiCard({
       await updateAiPaygFallback(next);
       setMessage(
         next
-          ? "Saat kuota Pro Max habis, panggilan otomatis lanjut ke saldo pay-as-you-go."
-          : "Saat kuota habis, pemanggilan AI berhenti (fail-closed).",
+          ? "When the Pro Max quota runs out, calls automatically continue on your pay-as-you-go balance."
+          : "When the quota runs out, AI calls stop (fail-closed).",
       );
     } catch (error) {
       setPaygFallback(!next);
-      setMessage(error instanceof Error ? error.message : "Gagal menyimpan preferensi");
+      setMessage(error instanceof Error ? error.message : "Failed to save preference");
     } finally {
       setPending(false);
     }
@@ -119,16 +119,16 @@ export function KomeninAiCard({
         const msg =
           typeof payload?.error === "string" && payload.error
             ? payload.error
-            : "Checkout gagal";
+            : "Checkout failed";
         throw new Error(msg);
       }
       if (payload.redirectUrl) {
         window.location.href = payload.redirectUrl;
         return;
       }
-      setMessage("Order dibuat. Selesaikan pembayaran di halaman checkout.");
+      setMessage("Order created. Complete payment on the checkout page.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Checkout gagal");
+      setMessage(error instanceof Error ? error.message : "Checkout failed");
     } finally {
       setCheckoutLoading(null);
     }
@@ -139,8 +139,8 @@ export function KomeninAiCard({
       <CardHeader>
         <CardTitle>Komenin AI</CardTitle>
         <CardDescription>
-          Pakai AI tanpa API key sendiri — berlangganan kuota bulanan atau beli
-          kredit pay-as-you-go. 1 kredit = 1 token.
+          Use AI without your own API key — subscribe to a monthly quota or buy
+          pay-as-you-go credits. 1 credit = 1 token.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -159,30 +159,30 @@ export function KomeninAiCard({
               <Progress value={quotaPct} />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>
-                  Terpakai {formatCredits(status.usedThisPeriod)} / {formatCredits(status.monthlyCredits)} kredit bulan ini
+                  Used {formatCredits(status.usedThisPeriod)} / {formatCredits(status.monthlyCredits)} credits this month
                 </span>
                 <span>{quotaPct}%</span>
               </div>
             </>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Belum ada langganan Komenin AI aktif.
+              No active Komenin AI subscription.
             </p>
           )}
           <div className="text-sm">
-            Saldo PAYG: <span className="font-medium">{formatCredits(status.paygBalance)}</span> kredit
+            PAYG balance: <span className="font-medium">{formatCredits(status.paygBalance)}</span> credits
           </div>
         </div>
 
         {/* Prefer own key toggle */}
-        <div className="flex items-center justify-between rounded-md border p-3">
+        <div className="glass flex items-center justify-between rounded-xl p-4">
           <div className="space-y-0.5">
             <Label htmlFor="prefer-own-key" className="text-sm font-medium">
-              Utamakan API key sendiri (BYOK)
+              Prefer own API key (BYOK)
             </Label>
             <p className="text-xs text-muted-foreground">
-              Jika aktif dan Anda punya provider sendiri, panggilan AI tidak
-              memotong kredit Komenin.
+              When on and you have your own provider, AI calls do not
+              consume Komenin credits.
             </p>
           </div>
           <Switch
@@ -195,14 +195,14 @@ export function KomeninAiCard({
 
         {/* Pro Max auto-fallback toggle */}
         {status.tier === "pro_max" ? (
-          <div className="flex items-center justify-between rounded-md border p-3">
+          <div className="glass flex items-center justify-between rounded-xl p-4">
             <div className="space-y-0.5">
               <Label htmlFor="payg-fallback" className="text-sm font-medium">
-                Lanjut otomatis ke pay-as-you-go
+                Auto-continue to pay-as-you-go
               </Label>
               <p className="text-xs text-muted-foreground">
-                Khusus Pro Max: saat kuota bulanan habis, panggilan AI memakai
-                saldo kredit prabayar alih-alih berhenti.
+                Pro Max only: when the monthly quota runs out, AI calls use
+                your prepaid credit balance instead of stopping.
               </p>
             </div>
             <Switch
@@ -216,23 +216,23 @@ export function KomeninAiCard({
 
         {/* Subscription options */}
         <div className="space-y-2">
-          <div className="text-sm font-medium">Langganan bulanan</div>
+          <div className="text-sm font-medium">Monthly subscription</div>
           <div className="grid gap-2 sm:grid-cols-3">
             {subscriptions.map((plan) => (
-              <div key={plan.code} className="rounded-md border p-3">
+              <div key={plan.code} className="glass rounded-xl p-4 transition-all hover:border-white/20">
                 <div className="text-sm font-medium">{plan.name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {formatCredits(plan.aiCredits)} kredit/bln
+                  {formatCredits(plan.aiCredits)} credits/mo
                 </div>
                 <div className="mt-1 text-sm">{formatIdr(plan.priceIdr)}</div>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="glass"
                   className="mt-2 w-full"
                   disabled={checkoutLoading !== null}
                   onClick={() => checkout(plan.code)}
                 >
-                  {checkoutLoading === plan.code ? "Memproses…" : "Pilih"}
+                  {checkoutLoading === plan.code ? "Processing…" : "Choose"}
                 </Button>
               </div>
             ))}
@@ -241,23 +241,23 @@ export function KomeninAiCard({
 
         {/* PAYG packs */}
         <div className="space-y-2">
-          <div className="text-sm font-medium">Beli kredit (pay-as-you-go)</div>
+          <div className="text-sm font-medium">Buy credits (pay-as-you-go)</div>
           <div className="grid gap-2 sm:grid-cols-3">
             {paygPacks.map((plan) => (
-              <div key={plan.code} className="rounded-md border p-3">
+              <div key={plan.code} className="glass rounded-xl p-4 transition-all hover:border-white/20">
                 <div className="text-sm font-medium">{plan.name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {formatCredits(plan.aiCredits)} kredit
+                  {formatCredits(plan.aiCredits)} credits
                 </div>
                 <div className="mt-1 text-sm">{formatIdr(plan.priceIdr)}</div>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="glass"
                   className="mt-2 w-full"
                   disabled={checkoutLoading !== null}
                   onClick={() => checkout(plan.code)}
                 >
-                  {checkoutLoading === plan.code ? "Memproses…" : "Beli"}
+                  {checkoutLoading === plan.code ? "Processing…" : "Buy"}
                 </Button>
               </div>
             ))}

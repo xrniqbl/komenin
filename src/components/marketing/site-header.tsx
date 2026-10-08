@@ -1,6 +1,7 @@
 "use client";
 
-import { MenuIcon, XIcon } from "lucide-react";
+import MenuIcon from '@mui/icons-material/MenuRounded';
+import CloseIcon from '@mui/icons-material/CloseRounded';
 import Image from "next/image";
 import Link from "next/link";
 import { LocaleLink } from "@/components/i18n/locale-link";
@@ -26,10 +27,18 @@ type NavItem =
   | { kind: "route"; href: string; label: string };
 
 export function SiteHeader() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [scrolled, setScrolled] = React.useState(false);
+
+  React.useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const links: NavItem[] = [
     { kind: "section", id: "features", label: t.nav.features },
@@ -56,27 +65,44 @@ export function SiteHeader() {
   ];
 
   function goToSection(id: "features" | "pricing") {
-    if (pathname === "/") {
+    if (pathname === "/" || pathname === "/id") {
       scrollToSection(id, "smooth");
       return;
     }
     rememberSection(id);
-    router.push("/");
+    router.push(locale === "id" ? "/id" : "/");
   }
 
   function isRouteActive(href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
+  const headerSolid = scrolled || mobileOpen;
+
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+    <header
+      className={cn(
+        "fixed inset-x-0 top-0 z-40 transition-all duration-300",
+        headerSolid
+          ? "border-b border-white/10 bg-[#0A0F1E]/90 shadow-lg shadow-black/20 backdrop-blur-xl"
+          : "border-b border-transparent bg-transparent",
+      )}
+    >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 md:px-6">
         <LocaleLink href="/" className="inline-flex items-center gap-2">
-          <Image src="/brand/komenin-mono.svg" alt="Komenin" width={28} height={28} />
-          <span className="text-base font-semibold tracking-tight">Komenin</span>
+          <Image src="/brand/komenin-robot-white.png" alt="Komenin" width={40} height={40} />
+          <span className="text-base font-semibold tracking-tight text-white">Komenin</span>
         </LocaleLink>
 
-        <nav className="hidden items-center gap-1 md:flex" aria-label="Primary">
+        <nav
+          className={cn(
+            "hidden items-center gap-1 rounded-full border px-2 py-1.5 backdrop-blur-xl transition-all duration-300 md:flex",
+            scrolled
+              ? "border-white/15 bg-[#0A0F1E]/95 shadow-lg shadow-black/30"
+              : "border-white/10 bg-white/5",
+          )}
+          aria-label="Primary"
+        >
           <Button
             variant="ghost"
             size="sm"
@@ -84,7 +110,7 @@ export function SiteHeader() {
               <LocaleLink
                 href="/features"
                 onClick={(event: React.SyntheticEvent) => {
-                  if (pathname === "/") {
+                  if (pathname === "/" || pathname === "/id") {
                     event.preventDefault();
                     goToSection("features");
                   }
@@ -92,14 +118,14 @@ export function SiteHeader() {
               />
             }
             nativeButton={false}
-            className="text-muted-foreground"
+            className="rounded-full text-neutral-400 hover:bg-white/10 hover:text-white"
           >
             {t.nav.features}
           </Button>
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
-                <NavigationMenuTrigger className="h-8 bg-transparent px-3 text-sm font-normal text-muted-foreground">
+                <NavigationMenuTrigger className="h-8 rounded-full bg-transparent px-3 text-sm font-normal text-neutral-400 hover:bg-white/10 hover:text-white data-popup-open:bg-white/10 data-popup-open:text-white">
                   Platform
                 </NavigationMenuTrigger>
                 <NavigationMenuContent>
@@ -118,60 +144,62 @@ export function SiteHeader() {
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
-          {links
-            .filter((link) => !(link.kind === "section" && link.id === "features"))
-            .map((link) => {
-              // Crawlable-first: Pricing renders as a real link to its
-              // indexable page. The scroll-to-section behavior below only
-              // intercepts clicks when already on the homepage.
-              if (link.kind === "section") {
-                const href = "/pricing";
-                return (
-                  <Button
-                    key={link.id}
-                    variant="ghost"
-                    size="sm"
-                    render={
-                      <LocaleLink
-                        href={href}
-                        onClick={(event: React.SyntheticEvent) => {
-                          if (pathname === "/") {
-                            event.preventDefault();
-                            goToSection(link.id);
-                          }
-                        }}
-                      />
-                    }
-                    nativeButton={false}
-                    className="text-muted-foreground"
-                  >
-                    {link.label}
-                  </Button>
-                );
-              }
-
-              const active = isRouteActive(link.href);
-              return (
-                <Button
-                  key={link.href}
-                  variant="ghost"
-                  size="sm"
-                  render={<Link href={link.href} aria-current={active ? "page" : undefined} />}
-                  nativeButton={false}
-                  className={cn(active ? "text-foreground" : "text-muted-foreground")}
-                >
-                  {link.label}
-                </Button>
-              );
-            })}
+          <Button
+            variant="ghost"
+            size="sm"
+            render={
+              <LocaleLink
+                href="/pricing"
+                onClick={(event: React.SyntheticEvent) => {
+                  if (pathname === "/" || pathname === "/id") {
+                    event.preventDefault();
+                    goToSection("pricing");
+                  }
+                }}
+              />
+            }
+            nativeButton={false}
+            className="rounded-full text-neutral-400 hover:bg-white/10 hover:text-white"
+          >
+            {t.nav.pricing}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            render={<Link href="/enterprise" />}
+            nativeButton={false}
+            className="rounded-full text-neutral-400 hover:bg-white/10 hover:text-white"
+          >
+            {t.nav.enterprise}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            render={<Link href="/security" />}
+            nativeButton={false}
+            className="rounded-full text-neutral-400 hover:bg-white/10 hover:text-white"
+          >
+            {t.nav.security}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            render={<Link href="/docs" />}
+            nativeButton={false}
+            className="rounded-full text-neutral-400 hover:bg-white/10 hover:text-white"
+          >
+            {t.nav.docs}
+          </Button>
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-3 md:flex">
           <LanguageToggle />
-          <Button variant="ghost" render={<LocaleLink href="/login" />} nativeButton={false}>
-            {t.nav.login}
-          </Button>
-          <Button render={<LocaleLink href="/signup" />} nativeButton={false}>
+          <Button
+            variant="glass"
+            render={<LocaleLink href="/signup" />}
+            nativeButton={false}
+            className="rounded-full text-white"
+          >
             {t.nav.startFree}
           </Button>
         </div>
@@ -187,13 +215,13 @@ export function SiteHeader() {
             aria-controls="mobile-nav"
             onClick={() => setMobileOpen((open) => !open)}
           >
-            {mobileOpen ? <XIcon className="size-4" /> : <MenuIcon className="size-4" />}
+            {mobileOpen ? <CloseIcon className="size-4" /> : <MenuIcon className="size-4" />}
           </Button>
         </div>
       </div>
 
       {mobileOpen ? (
-        <div className="border-t bg-background md:hidden">
+        <div className="border-t border-white/10 bg-[#0A0F1E]/95 backdrop-blur-xl md:hidden">
           <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 md:px-6">
             <nav id="mobile-nav" className="flex flex-col gap-1" aria-label="Mobile">
               <div className="px-2 pt-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -240,7 +268,7 @@ export function SiteHeader() {
                           href={href}
                           onClick={(event: React.SyntheticEvent) => {
                             setMobileOpen(false);
-                            if (pathname === "/") {
+                            if (pathname === "/" || pathname === "/id") {
                               event.preventDefault();
                               goToSection(link.id);
                             } else {
@@ -278,8 +306,8 @@ export function SiteHeader() {
             </nav>
             <div className="flex flex-col gap-2">
               <Button
-                variant="outline"
-                className="w-full"
+                variant="glass"
+                className="w-full text-white"
                 render={<LocaleLink href="/login" />}
                 nativeButton={false}
                 onClick={() => setMobileOpen(false)}
@@ -287,7 +315,8 @@ export function SiteHeader() {
                 {t.nav.login}
               </Button>
               <Button
-                className="w-full"
+                variant="electric"
+                className="w-full rounded-full"
                 render={<LocaleLink href="/signup" />}
                 nativeButton={false}
                 onClick={() => setMobileOpen(false)}

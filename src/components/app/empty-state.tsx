@@ -20,7 +20,7 @@ export function EmptyState({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardFooter>
-        <Button render={<Link href={href} />} nativeButton={false}>
+        <Button variant="electric" render={<Link href={href} />} nativeButton={false}>
           {actionLabel}
         </Button>
       </CardFooter>

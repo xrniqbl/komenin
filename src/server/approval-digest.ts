@@ -10,6 +10,7 @@
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { writeAuditLog } from "@/server/audit";
+import { reportError } from "@/lib/error-reporting";
 
 const DIGEST_HOUR_UTC = 1; // 08:00 WIB (UTC+7)
 
@@ -33,18 +34,19 @@ function digestDayKey(now = new Date()): string {
 }
 
 async function collectDigestTargets(): Promise<DigestTarget[]> {
-  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
+  // Include ALL pending approvals/drafts regardless of age — items pending
+  // >24h are exactly the ones most needing attention (previously they
+  // silently dropped out of the digest forever).
   const [pendingApprovals, pendingDrafts] = await Promise.all([
     db.approval.groupBy({
       by: ["workspaceId"],
-      where: { status: "pending", createdAt: { gte: dayAgo } },
+      where: { status: "pending" },
       _count: { _all: true },
       _min: { createdAt: true },
     }),
     db.contentDraft.groupBy({
       by: ["workspaceId"],
-      where: { status: "pending", createdAt: { gte: dayAgo } },
+      where: { status: "pending" },
       _count: { _all: true },
       _min: { createdAt: true },
     }),
@@ -140,14 +142,14 @@ function buildDigestEmail(target: DigestTarget): { subject: string; html: string
   const approvalsRow =
     target.pendingApprovals > 0
       ? `<tr>
-           <td style="padding:8px 12px;">Comment approvals</td>
+           <td style="padding:8px 12px;">Approval komentar</td>
            <td style="padding:8px 12px;font-weight:600;">${target.pendingApprovals}</td>
          </tr>`
       : "";
   const draftsRow =
     target.pendingDrafts > 0
       ? `<tr>
-           <td style="padding:8px 12px;">Content drafts</td>
+           <td style="padding:8px 12px;">Draf konten</td>
            <td style="padding:8px 12px;font-weight:600;">${target.pendingDrafts}</td>
          </tr>`
       : "";
@@ -186,8 +188,8 @@ function buildDigestEmail(target: DigestTarget): { subject: string; html: string
 
   const text =
     `${target.workspaceName}: ${total} item menunggu review.\n\n` +
-    (target.pendingApprovals ? `- Comment approvals: ${target.pendingApprovals}\n` : "") +
-    (target.pendingDrafts ? `- Content drafts: ${target.pendingDrafts}\n` : "") +
+    (target.pendingApprovals ? `- Approval komentar: ${target.pendingApprovals}\n` : "") +
+    (target.pendingDrafts ? `- Draf konten: ${target.pendingDrafts}\n` : "") +
     `\nBuka antrean: ${appUrl()}/app/approvals\n\n` +
     `Email digest harian dari Komenin.`;
 
@@ -271,7 +273,7 @@ export async function sendDailyApprovalDigest(now = new Date()): Promise<{
           pendingApprovals: target.pendingApprovals,
           pendingDrafts: target.pendingDrafts,
         },
-      }).catch(() => undefined);
+      }).catch((e) => reportError(e, { scope: "worker:approval_digest", workspaceId: target.workspaceId }));
     } else {
       errors += 1;
     }

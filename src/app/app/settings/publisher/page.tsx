@@ -68,7 +68,7 @@ export default async function PublisherSettingsPage({
         description="Hybrid connector policy and social delivery bridge. SOCIAL_PUBLISH_WEBHOOK_URL must be an external bridge — not this app’s /api/publish/webhook logger, and not Settings → Webhooks (those are outbound notify endpoints only)."
         action={
           <form action={runTest}>
-            <Button type="submit">Test publish bridge</Button>
+            <Button variant="electric" type="submit">Test publish bridge</Button>
           </form>
         }
       />
@@ -194,7 +194,7 @@ export default async function PublisherSettingsPage({
                 Connect Instagram OAuth
               </Button>
             ) : (
-              <Button type="button" disabled variant="outline">
+              <Button type="button" disabled variant="glass">
                 Connect Instagram OAuth
               </Button>
             )}
@@ -203,7 +203,7 @@ export default async function PublisherSettingsPage({
                 Connect Threads OAuth
               </Button>
             ) : (
-              <Button type="button" disabled variant="outline">
+              <Button type="button" disabled variant="glass">
                 Connect Threads OAuth
               </Button>
             )}
@@ -212,7 +212,7 @@ export default async function PublisherSettingsPage({
                 Connect TikTok OAuth
               </Button>
             ) : (
-              <Button type="button" disabled variant="outline">
+              <Button type="button" disabled variant="glass">
                 Connect TikTok OAuth
               </Button>
             )}
@@ -276,7 +276,7 @@ export default async function PublisherSettingsPage({
                 ]}
               />
             </div>
-            <Button type="submit">Save policy</Button>
+            <Button variant="electric" type="submit">Save policy</Button>
           </form>
         </CardContent>
       </Card>

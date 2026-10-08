@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { apiError } from "@/lib/api-errors";
 import {
   createOAuthState,
   isTikTokOAuthConfigured,
@@ -21,20 +22,26 @@ export async function GET(request: Request) {
   }
 
   if (!isTikTokOAuthConfigured()) {
-    return NextResponse.json(
-      {
-        error:
-          "TikTok OAuth is not configured. Set TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, and APP_URL.",
-        status: "not_configured",
-      },
-      { status: 503 },
+    return apiError(
+      "NOT_CONFIGURED",
+      503,
+      "TikTok OAuth is not configured. Set TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, and APP_URL.",
     );
   }
 
-  const { workspace } = await requireActiveWorkspace();
+  let workspace;
+  try {
+    ({ workspace } = await requireActiveWorkspace());
+  } catch {
+    return apiError("UNAUTHORIZED", 401, "Authentication required");
+  }
   // L3: reject early — the callback re-checks settings.manage, but failing
   // here avoids minting signed states for users who can never complete it.
-  assertWorkspacePermission(workspace, "settings.manage");
+  try {
+    assertWorkspacePermission(workspace, "settings.manage");
+  } catch {
+    return apiError("FORBIDDEN", 403, "Insufficient permissions");
+  }
   const { searchParams } = new URL(request.url);
   const socialAccountId = searchParams.get("accountId");
 

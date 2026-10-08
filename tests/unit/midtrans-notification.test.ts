@@ -10,6 +10,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 
 const applyPaidOrderMock = vi.fn();
+const reconcileRefundMock = vi.fn();
+vi.mock("@/server/refund-reconciliation", () => ({
+  reconcileRefundNotification: (...args: unknown[]) => reconcileRefundMock(...args),
+}));
 
 vi.mock("@/server/billing", () => ({
   applyPaidOrder: (...args: unknown[]) => applyPaidOrderMock(...args),
@@ -70,6 +74,7 @@ beforeEach(() => {
   vi.stubEnv("MIDTRANS_IS_PRODUCTION", "false");
   vi.stubEnv("NODE_ENV", "test");
   applyPaidOrderMock.mockReset();
+  reconcileRefundMock.mockReset();
 });afterEach(() => {
   vi.unstubAllEnvs();
 });
@@ -146,6 +151,20 @@ describe("midtrans notification route", () => {
     const res = await POST(request(notificationPayload()));
 
     expect(res.status).toBe(500);
+  });
+
+  it("acknowledges a verified refund only after its receipt is persisted", async () => {
+    reconcileRefundMock.mockResolvedValue({ state: "needs_review", id: "receipt-1" });
+    const response = await POST(request(notificationPayload({ transaction_status: "partial_refund", refund_amount: "100.00" })));
+    expect(response.status).toBe(200);
+    expect((await response.json()).result.state).toBe("needs_review");
+    expect(applyPaidOrderMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 rather than acknowledging when receipt persistence fails", async () => {
+    reconcileRefundMock.mockRejectedValue(new Error("database unavailable"));
+    const response = await POST(request(notificationPayload({ transaction_status: "refund" })));
+    expect(response.status).toBe(500);
   });
 
   it("tampering with gross_amount invalidates the signature", async () => {

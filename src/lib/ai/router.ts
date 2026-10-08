@@ -106,7 +106,7 @@ export async function resolveRouteFunding(
   });
   if (!rate.ok) {
     throw new AiQuotaExceededError(
-      "Terlalu banyak permintaan AI. Coba lagi sebentar lagi.",
+      "Too many AI requests. Please try again shortly.",
     );
   }
 
@@ -140,7 +140,7 @@ export async function resolveRouteFunding(
     });
     if (!reserved) {
       throw new AiQuotaExceededError(
-        "Saldo kredit AI tidak mencukupi untuk permintaan ini.",
+        "Insufficient AI credits for this request.",
       );
     }
   }
@@ -219,7 +219,25 @@ async function meterAndComplete(input: {
       });
       settlement.debited = true;
     } catch (error) {
-      console.warn("[ai-router] metering failed (call succeeded):", error);
+      // Metering failed AFTER the provider returned a completion: the workspace
+      // already received the result. Forfeit (do NOT release) the reservation so
+      // the estimated cost stays charged, and mark settled so releaseIfUndebited
+      // cannot refund it later. The completion itself is never broken by this.
+      try {
+        const { forfeitAiReservation } = await import("@/lib/ai/billing");
+        if (workspaceId && funding.source !== "own_key") {
+          await forfeitAiReservation({ workspaceId, requestId: funding.requestId });
+        }
+      } catch {
+        // best-effort: settlement flag below still prevents the refund
+      }
+      settlement.debited = true;
+      const { reportError } = await import("@/lib/error-reporting");
+      await reportError(error, {
+        scope: "ai-router:metering",
+        workspaceId: workspaceId ?? undefined,
+        extra: { model, requestId: funding.requestId },
+      });
     }
   }
 
@@ -309,14 +327,14 @@ export async function routeChatCompletion(
           providerId: provider.id,
           model,
           ok: false,
-          error: `Model "${model}" tidak termasuk tier ${funding.tier}. Diizinkan: ${(allowedModelsForTier(funding.tier) ?? []).join(", ")}`,
+          error: `Model "${model}" is not included in tier ${funding.tier}. Allowed: ${(allowedModelsForTier(funding.tier) ?? []).join(", ")}`,
         });
         // If the caller explicitly pinned this model, fail fast with a clear
         // error rather than silently falling back to a cheaper one.
         if (request.preferredModel === model) {
           await releaseIfUndebited();
           throw new AiModelNotAllowedError(
-            `Model "${model}" tidak tersedia untuk tier ${funding.tier}. Upgrade tier atau pilih model yang diizinkan.`,
+            `Model "${model}" is not available for tier ${funding.tier}. Upgrade the tier or pick an allowed model.`,
           );
         }
         continue;

@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
+import { messages, type Locale } from "@/lib/i18n/messages";
 
-export async function getPublicStatus() {
+export async function getPublicStatus(locale: Locale = "en") {
+  const copy = messages[locale].statusPage;
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -86,8 +88,8 @@ export async function getPublicStatus() {
       failedJobCount > 0
         ? [
             {
-              title: "Background jobs degraded",
-              message: "One or more worker jobs failed in the last 30 days",
+              title: copy.incidentDegradedTitle,
+              message: copy.incidentDegradedMessage,
               at: now.toISOString(),
             },
           ]

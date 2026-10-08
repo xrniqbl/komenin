@@ -3,12 +3,16 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { EmailOtpForm } from "@/components/auth/email-otp-form";
 import { auth } from "@/lib/auth";
 import { signInWithGoogle } from "@/server/auth-actions";
 
-export default async function SignupPage() {
+export default async function SignupPage({ searchParams }: { searchParams: Promise<{ email?: string }> }) {
+  const params = await searchParams;
+  const email = typeof params.email === "string" && params.email.length <= 254 ? params.email.trim() : "";
   const session = await auth();
-  if (session?.user) redirect("/onboarding");
+  if (session?.user?.id) redirect("/onboarding");
 
   return (
     <div className="bg-marketing relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
@@ -36,12 +40,12 @@ export default async function SignupPage() {
           <CardHeader className="pb-2 text-center">
             <CardTitle className="text-2xl text-white">Create your workspace</CardTitle>
             <CardDescription className="text-neutral-400">
-              Sign up with Google, then invite your team.
+              Sign up with Google or email code, then invite your team.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <form action={signInWithGoogle.bind(null, "/onboarding")}>
-              <Button
+              <Button variant="electric"
                 type="submit"
                 className="w-full bg-electric-500 text-white shadow-[0_0_24px_rgba(46,124,246,0.35)] hover:bg-electric-600"
                 size="lg"
@@ -49,6 +53,14 @@ export default async function SignupPage() {
                 Continue with Google
               </Button>
             </form>
+
+            <div className="my-1 flex items-center gap-3">
+              <Separator className="flex-1 bg-white/10" />
+              <span className="text-xs text-neutral-500">or</span>
+              <Separator className="flex-1 bg-white/10" />
+            </div>
+
+            <EmailOtpForm callbackUrl="/onboarding" initialEmail={email} />
             <p className="text-center text-xs text-neutral-500">
               If the button fails after a hot reload, use{" "}
               <Link
@@ -60,7 +72,7 @@ export default async function SignupPage() {
               .
             </p>
             <Button
-              variant="outline"
+              variant="glass"
               className="w-full"
               render={<Link href="/login" />}
               nativeButton={false}

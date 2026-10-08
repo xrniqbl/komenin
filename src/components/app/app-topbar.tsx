@@ -25,7 +25,7 @@ export function AppTopbar({
   const initials = (userEmail || "A").slice(0, 2).toUpperCase();
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
+    <header className="flex h-16 items-center justify-between border-b border-white/10 bg-[#0a0f1e]/60 px-4 backdrop-blur-xl md:px-6">
       <div className="flex items-center gap-3">
         <Tooltip>
           <TooltipTrigger render={<SidebarTrigger className="-ms-1" />} />

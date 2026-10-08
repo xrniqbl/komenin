@@ -119,7 +119,7 @@ export default async function AgentDetailPage({
                 id="style"
                 name="style"
                 defaultValue={agent.style || "balanced"}
-                className="h-9 rounded-md border bg-background px-3 text-sm"
+                className="h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-neutral-100 placeholder:text-neutral-500 backdrop-blur-xl"
               >
                 <option value="concise">concise</option>
                 <option value="balanced">balanced</option>
@@ -133,7 +133,7 @@ export default async function AgentDetailPage({
                 id="formality"
                 name="formality"
                 defaultValue={agent.formality || "neutral"}
-                className="h-9 rounded-md border bg-background px-3 text-sm"
+                className="h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-neutral-100 placeholder:text-neutral-500 backdrop-blur-xl"
               >
                 <option value="casual">casual</option>
                 <option value="neutral">neutral</option>
@@ -146,7 +146,7 @@ export default async function AgentDetailPage({
                 id="emojiPolicy"
                 name="emojiPolicy"
                 defaultValue={agent.emojiPolicy || "light"}
-                className="h-9 rounded-md border bg-background px-3 text-sm"
+                className="h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-neutral-100 placeholder:text-neutral-500 backdrop-blur-xl"
               >
                 <option value="none">none</option>
                 <option value="light">light</option>
@@ -159,7 +159,7 @@ export default async function AgentDetailPage({
                 id="ctaStyle"
                 name="ctaStyle"
                 defaultValue={agent.ctaStyle || "soft"}
-                className="h-9 rounded-md border bg-background px-3 text-sm"
+                className="h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-neutral-100 placeholder:text-neutral-500 backdrop-blur-xl"
               >
                 <option value="none">none</option>
                 <option value="soft">soft</option>
@@ -181,7 +181,7 @@ export default async function AgentDetailPage({
                 id="aiProviderId"
                 name="aiProviderId"
                 defaultValue={agent.aiProviderId || ""}
-                className="h-9 rounded-md border bg-background px-3 text-sm"
+                className="h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-neutral-100 placeholder:text-neutral-500 backdrop-blur-xl"
               >
                 <option value="">Workspace default</option>
                 {providers.map((p) => (
@@ -234,7 +234,7 @@ export default async function AgentDetailPage({
               />
             </div>
             <div>
-              <Button type="submit">Save persona</Button>
+              <Button variant="electric" type="submit">Save persona</Button>
             </div>
           </form>
         </CardContent>
@@ -256,7 +256,7 @@ export default async function AgentDetailPage({
                 <Label htmlFor="rawText">Knowledge text</Label>
                 <Textarea id="rawText" name="rawText" rows={5} placeholder="Paste knowledge text" />
               </div>
-              <Button type="submit" variant="outline">
+              <Button type="submit" variant="glass">
                 Add document
               </Button>
             </form>
@@ -291,7 +291,7 @@ export default async function AgentDetailPage({
                 <Label htmlFor="fact">Fact</Label>
                 <Textarea id="fact" name="fact" rows={3} placeholder="Durable fact" />
               </div>
-              <Button type="submit" variant="outline">
+              <Button type="submit" variant="glass">
                 Add memory
               </Button>
             </form>
@@ -326,7 +326,7 @@ export default async function AgentDetailPage({
                 required
               />
             </div>
-            <Button type="submit">Generate draft</Button>
+            <Button variant="electric" type="submit">Generate draft</Button>
           </form>
           {sp.playground ? (
             <div className="rounded-lg bg-muted/40 p-4 text-sm">

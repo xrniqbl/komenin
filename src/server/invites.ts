@@ -66,6 +66,15 @@ export async function createInvite(input: {
   const token = randomBytes(24).toString("hex");
   const tokenHash = hashToken(token);
   const email = input.email.trim().toLowerCase();
+  const recipient = await db.user.findUnique({ where: { email }, select: { id: true } });
+  if (recipient) {
+    const existing = await db.membership.findUnique({
+      where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: recipient.id } },
+    });
+    if (existing && existing.status !== "active") {
+      throw new Error("Membership is not active; ask an owner for access");
+    }
+  }
 
   const invite = await db.invite.create({
     data: {
@@ -120,6 +129,12 @@ export async function acceptInvite(token: string) {
   }
 
   await db.$transaction(async (tx) => {
+    const claim = await tx.invite.updateMany({
+      where: { id: invite.id, acceptedAt: null, expiresAt: { gt: new Date() } },
+      data: { acceptedAt: new Date() },
+    });
+    if (claim.count !== 1) throw new Error("Invite invalid or expired");
+
     const existing = await tx.membership.findUnique({
       where: {
         workspaceId_userId: {
@@ -130,22 +145,17 @@ export async function acceptInvite(token: string) {
     });
 
     if (existing) {
+      if (existing.status !== "active") {
+        throw new Error("Membership is not active; ask an owner for access");
+      }
       // Do not demote or overwrite an existing owner via invite accept.
       if (existing.role === "owner") {
-        await tx.membership.update({
-          where: { id: existing.id },
-          data: { status: "active" },
-        });
+        // An invitation cannot change an owner's membership.
       } else if (ROLE_RANK[invite.role as WorkspaceRole] > ROLE_RANK[existing.role as WorkspaceRole]) {
         // Only elevate; never demote via invite.
         await tx.membership.update({
           where: { id: existing.id },
-          data: { role: invite.role, status: "active" },
-        });
-      } else {
-        await tx.membership.update({
-          where: { id: existing.id },
-          data: { status: "active" },
+          data: { role: invite.role, customRoleId: null },
         });
       }
     } else {
@@ -158,11 +168,6 @@ export async function acceptInvite(token: string) {
         },
       });
     }
-
-    await tx.invite.update({
-      where: { id: invite.id },
-      data: { acceptedAt: new Date() },
-    });
   });
 
   // Land the user in the invited workspace on next app load.

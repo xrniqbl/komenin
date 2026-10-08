@@ -108,13 +108,13 @@ export function TicketConversation({
             placeholder="Add more details or answer the support team..."
           />
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" disabled={pending || reply.trim().length < 2}>
+            <Button variant="electric" type="submit" disabled={pending || reply.trim().length < 2}>
               {pending ? "Sending..." : "Send reply"}
             </Button>
             {canClose ? (
               <Button
                 type="button"
-                variant="ghost"
+                variant="glass"
                 disabled={pending}
                 onClick={() => moveStatus("closed")}
               >
@@ -124,7 +124,7 @@ export function TicketConversation({
             {canReopen ? (
               <Button
                 type="button"
-                variant="ghost"
+                variant="glass"
                 disabled={pending}
                 onClick={() => moveStatus("open")}
               >

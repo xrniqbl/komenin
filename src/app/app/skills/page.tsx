@@ -1,28 +1,15 @@
+import Link from "next/link";
+import { revalidatePath } from "next/cache";
 import { PageHeader } from "@/components/app/page-header";
+import { CreateSkillForm } from "@/components/skills/create-skill-form";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { createSkill, executeSkillNow, listSkills } from "@/server/skills";
+import { executeSkillNow, listSkills } from "@/server/skills";
 
 export default async function SkillsPage() {
   const skills = await listSkills();
-
-  async function createAction(formData: FormData) {
-    "use server";
-    await createSkill({
-      name: String(formData.get("name") || ""),
-      slug: String(formData.get("slug") || ""),
-      description: String(formData.get("description") || ""),
-      highRisk: formData.get("highRisk") === "on",
-      triggers: String(formData.get("triggers") || "")
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
-      configJson: { note: "custom skill" },
-    });
-  }
 
   async function runAction(formData: FormData) {
     "use server";
@@ -30,6 +17,7 @@ export default async function SkillsPage() {
       skillId: String(formData.get("skillId") || ""),
       inputText: String(formData.get("inputText") || ""),
     });
+    revalidatePath("/app/skills");
   }
 
   return (
@@ -44,31 +32,7 @@ export default async function SkillsPage() {
           <CardTitle className="text-base">Register skill</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={createAction} className="grid gap-3 md:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" placeholder="Name" required />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="slug">Slug</Label>
-              <Input id="slug" name="slug" placeholder="slug-name" required />
-            </div>
-            <div className="flex flex-col gap-2 md:col-span-2">
-              <Label htmlFor="description">Description</Label>
-              <Input id="description" name="description" placeholder="Description" />
-            </div>
-            <div className="flex flex-col gap-2 md:col-span-2">
-              <Label htmlFor="triggers">Triggers</Label>
-              <Input id="triggers" name="triggers" placeholder="triggers,comma,separated" />
-            </div>
-            <Label className="flex items-center gap-2 text-sm font-normal">
-              <Checkbox name="highRisk" />
-              High risk (force approval)
-            </Label>
-            <div>
-              <Button type="submit">Create skill</Button>
-            </div>
-          </form>
+          <CreateSkillForm />
         </CardContent>
       </Card>
 
@@ -76,10 +40,28 @@ export default async function SkillsPage() {
         {skills.map((skill) => (
           <Card key={skill.id}>
             <CardHeader>
-              <CardTitle className="text-base">{skill.name}</CardTitle>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="text-base">
+                  <Link href={`/app/skills/${skill.id}`} className="hover:underline">
+                    {skill.name}
+                  </Link>
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">v{skill.version}</Badge>
+                  <Button
+                    size="sm"
+                    variant="glass"
+                    render={<Link href={`/app/skills/${skill.id}`} />}
+                    nativeButton={false}
+                  >
+                    Edit
+                  </Button>
+                </div>
+              </div>
               <CardDescription>
                 {skill.slug} · {skill.executor} · runs {skill._count.runs}
                 {skill.highRisk ? " · high risk" : ""}
+                {skill.isActive ? "" : " · inactive"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
@@ -87,15 +69,23 @@ export default async function SkillsPage() {
               <div className="text-xs">
                 Triggers: {skill.triggers.map((t) => t.pattern).join(", ") || "—"}
               </div>
+              <div className="text-xs">
+                <Link
+                  href={`/app/runs?skillId=${skill.id}`}
+                  className="text-primary hover:underline"
+                >
+                  View run history ({skill._count.runs})
+                </Link>
+              </div>
               <form action={runAction} className="flex flex-col gap-2 md:flex-row">
                 <input type="hidden" name="skillId" value={skill.id} />
                 <Input
                   name="inputText"
                   placeholder="Test input text"
                   className="flex-1"
-                  defaultValue="Ada promo atau coupon bulan ini?"
+                  defaultValue={skill.triggers[0]?.pattern || ""}
                 />
-                <Button type="submit" variant="outline">
+                <Button type="submit" variant="glass">
                   Run
                 </Button>
               </form>

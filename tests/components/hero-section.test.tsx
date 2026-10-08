@@ -19,7 +19,7 @@ describe("HeroSection", () => {
       "href",
       "/signup",
     );
-    expect(screen.getByRole("link", { name: /watch video/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /explore features/i })).toHaveAttribute(
       "href",
       "/features",
     );

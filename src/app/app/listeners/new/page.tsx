@@ -6,12 +6,16 @@ import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/app/page-header";
+import { getRequestLocale } from "@/lib/i18n/request-locale";
+import { messages } from "@/lib/i18n/messages";
 import { listCampaigns } from "@/server/campaigns";
 import { createListener } from "@/server/listeners";
 import type { ListenerType, Platform } from "@prisma/client";
 
 export default async function NewListenerPage() {
   const campaigns = await listCampaigns();
+  const locale = await getRequestLocale();
+  const t = messages[locale].listeners;
 
   async function submit(formData: FormData) {
     "use server";
@@ -20,6 +24,7 @@ export default async function NewListenerPage() {
       type: String(formData.get("type") || "keyword") as ListenerType,
       query: String(formData.get("query") || ""),
       campaignId: String(formData.get("campaignId") || "") || undefined,
+      pollIntervalMinutes: String(formData.get("pollIntervalMinutes") || "") || null,
     });
     redirect("/app/listeners");
   }
@@ -31,7 +36,7 @@ export default async function NewListenerPage() {
         description="Watch keywords or competitor signals."
         action={
           <Button variant="link" render={<Link href="/app/listeners" />} nativeButton={false}>
-            Back
+            {t.back}
           </Button>
         }
       />
@@ -39,12 +44,12 @@ export default async function NewListenerPage() {
         <CardContent className="pt-6">
           <form action={submit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="query">Query</Label>
+              <Label htmlFor="query">{t.query}</Label>
               <Input id="query" name="query" required />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="platform">Platform</Label>
+                <Label htmlFor="platform">{t.platform}</Label>
                 <FormSelect
                   id="platform"
                   name="platform"
@@ -58,7 +63,7 @@ export default async function NewListenerPage() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="type">Type</Label>
+                <Label htmlFor="type">{t.type}</Label>
                 <FormSelect
                   id="type"
                   name="type"
@@ -88,8 +93,20 @@ export default async function NewListenerPage() {
                 ]}
               />
             </div>
-            <Button type="submit" size="lg">
-              Save listener
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="pollIntervalMinutes">{t.pollInterval}</Label>
+              <Input
+                id="pollIntervalMinutes"
+                name="pollIntervalMinutes"
+                type="number"
+                min={15}
+                max={10080}
+                placeholder={t.manualOnly}
+              />
+              <p className="text-xs text-muted-foreground">{t.pollIntervalHint}</p>
+            </div>
+            <Button variant="electric" type="submit" size="lg">
+              {t.saveListener}
             </Button>
           </form>
         </CardContent>

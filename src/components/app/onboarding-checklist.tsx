@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  Check,
-  ChevronDown,
-  ChevronUp,
-  Sparkles,
-  X,
-} from "lucide-react";
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
+import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded';
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,9 +39,9 @@ export function OnboardingChecklistCard({
   const nextStep = checklist.steps.find((s) => !s.done);
 
   return (
-    <Card className="group mb-6 overflow-hidden border-electric-500/20 bg-background transition-shadow hover:shadow-md">
+    <Card className="group mb-6 overflow-hidden transition-shadow hover:shadow-md">
       {/* Animated gradient accent bar */}
-      <div className="relative h-1 w-full overflow-hidden bg-white/10">
+      <div className="relative h-1 w-full overflow-hidden bg-muted">
         <div
           className="absolute inset-y-0 left-0 bg-electric-500 transition-all duration-700 ease-out"
           style={{ width: `${progressPercent}%` }}
@@ -52,8 +51,8 @@ export function OnboardingChecklistCard({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-electric-500 text-white shadow-sm">
-              <Sparkles className="size-4" />
+            <div className="flex size-9 items-center justify-center rounded-lg bg-electric-500 text-white shadow-[0_0_20px_rgba(46,124,246,0.4)]">
+              <AutoAwesomeRoundedIcon className="size-4" />
             </div>
             <div>
               <CardTitle className="text-base">
@@ -69,24 +68,24 @@ export function OnboardingChecklistCard({
               {checklist.completedCount}/{checklist.total}
             </Badge>
             <Button
-              variant="ghost"
+              variant="glass"
               size="icon-xs"
               onClick={() => setIsExpanded(!isExpanded)}
               aria-label={isExpanded ? "Collapse checklist" : "Expand checklist"}
             >
               {isExpanded ? (
-                <ChevronUp className="size-4" />
+                <KeyboardArrowUpRoundedIcon className="size-4" />
               ) : (
-                <ChevronDown className="size-4" />
+                <KeyboardArrowDownRoundedIcon className="size-4" />
               )}
             </Button>
             <Button
-              variant="ghost"
+              variant="glass"
               size="icon-xs"
               onClick={() => setIsDismissed(true)}
               aria-label="Dismiss checklist"
             >
-              <X className="size-3.5" />
+              <CloseRoundedIcon className="size-3.5" />
             </Button>
           </div>
         </div>
@@ -108,7 +107,7 @@ export function OnboardingChecklistCard({
                 {Math.round(progressPercent)}%
               </span>
             </div>
-            <ProgressTrack className="mt-1.5 h-2 bg-white/10">
+            <ProgressTrack className="mt-1.5 h-2 bg-muted">
               <ProgressIndicator className="rounded-full bg-electric-500 transition-all duration-700 ease-out" />
             </ProgressTrack>
           </Progress>
@@ -124,10 +123,10 @@ export function OnboardingChecklistCard({
                 key={step.id}
                 className={`flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 transition-all duration-200 ${
                   step.done
-                    ? "border-white/5 bg-white/[0.02] opacity-60"
+                    ? "border-border bg-muted/50 opacity-60"
                     : isNext
-                      ? "border-electric-500/20 bg-electric-500/[0.02] shadow-sm"
-                      : "border-white/10"
+                      ? "border-electric-500/30 bg-electric-500/10 shadow-sm"
+                      : "border-border"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${index * 0.05}s both`,
@@ -139,8 +138,8 @@ export function OnboardingChecklistCard({
                       step.done
                         ? "bg-electric-500 text-white"
                         : isNext
-                          ? "border-2 border-electric-500 text-white"
-                          : "border border-neutral-300 text-muted-foreground"
+                          ? "border-2 border-electric-500 text-electric-300"
+                          : "border border-input text-muted-foreground"
                     }`}
                     style={
                       isNext
@@ -149,7 +148,7 @@ export function OnboardingChecklistCard({
                     }
                   >
                     {step.done ? (
-                      <Check className="size-3" />
+                      <CheckRoundedIcon className="size-3" />
                     ) : (
                       index + 1
                     )}
@@ -168,13 +167,13 @@ export function OnboardingChecklistCard({
                 {!step.done && (
                   <Button
                     size="sm"
-                    variant={isNext ? "default" : "outline"}
+                    variant={isNext ? "electric" : "glass"}
                     render={<Link href={step.href} />}
                     nativeButton={false}
                     className="shrink-0 gap-1"
                   >
                     {isNext ? "Start" : "Open"}
-                    {isNext && <ArrowRight className="size-3" />}
+                    {isNext && <ArrowForwardRoundedIcon className="size-3" />}
                   </Button>
                 )}
               </div>
@@ -188,9 +187,9 @@ export function OnboardingChecklistCard({
               to   { opacity: 1; transform: translateY(0); }
             }
             @keyframes pulse-ring {
-              0%   { box-shadow: 0 0 0 0 rgba(23,23,23,0.2); }
-              70%  { box-shadow: 0 0 0 6px rgba(23,23,23,0); }
-              100% { box-shadow: 0 0 0 0 rgba(23,23,23,0); }
+              0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 20%, transparent); }
+              70%  { box-shadow: 0 0 0 6px transparent; }
+              100% { box-shadow: 0 0 0 0 transparent; }
             }
           `}</style>
         </CardContent>

@@ -7,6 +7,7 @@ import type { Server } from 'node:http';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { handleMockBridgeRequest } from './bridge-contract';
 import { createLiveBridgeClient } from './bridge-client';
+import { bridgePayloadHash, claimBridgeKey, saveBridgeOutcome } from './bridge-idempotency';
 
 function constantTimeEquals(provided: string, expected: string): boolean {
   // Hash both sides so timingSafeEqual always sees equal-length buffers —
@@ -32,13 +33,6 @@ export class BridgeServer {
   private config: BridgeServerConfig;
   private liveClient?: ReturnType<typeof createLiveBridgeClient>;
   private server?: Server;
-
-  /** Replayed outcomes for idempotent redeliveries (see /bridge handler). */
-  private readonly idempotencyCache = new Map<
-    string,
-    { status: number; body: unknown; expiresAt: number }
-  >();
-  private readonly IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
   constructor(config: BridgeServerConfig = {}) {
     this.config = {
@@ -131,62 +125,42 @@ export class BridgeServer {
           });
         }
 
-        // Idempotency: mutating actions may carry x-komenin-idempotency-key.
-        // A redelivery after a crash on the caller side replays the original
-        // outcome instead of posting twice. Entries expire with the window —
-        // real redeliveries happen within minutes, not days.
-        const idempotencyKey = req.get('x-komenin-idempotency-key');
         const isMutation = action === 'sendComment' || action === 'publishPost';
-        if (idempotencyKey && isMutation) {
-          const seen = this.idempotencyCache.get(idempotencyKey);
-          if (seen && seen.expiresAt > Date.now()) {
-            return res.status(seen.status).json(seen.body);
+        const idempotencyKey = req.get('x-komenin-idempotency-key')?.trim();
+        if (this.config.mode === 'live' && isMutation && !idempotencyKey) {
+          return res.status(400).json({ ok: false, error: 'Idempotency key required' });
+        }
+        let payloadHash: string | undefined;
+        if (this.config.mode === 'live' && isMutation && idempotencyKey) {
+          if (idempotencyKey.length > 255) {
+            return res.status(400).json({ ok: false, error: 'Idempotency key too long' });
           }
+          payloadHash = bridgePayloadHash({ action, platform, ...body });
+          const claim = await claimBridgeKey(idempotencyKey, payloadHash);
+          if (claim.kind === 'replay') return res.status(claim.outcome.status).json(claim.outcome.body);
+          if (claim.kind === 'conflict') return res.status(409).json({ ok: false, error: 'Idempotency key reused with different payload' });
+          if (claim.kind === 'pending') return res.status(503).json({ ok: false, error: 'Idempotency outcome pending or unknown' });
         }
 
-        const respond = (status: number, payload: unknown) => {
-          if (idempotencyKey && isMutation) {
-            this.idempotencyCache.set(idempotencyKey, {
-              status,
-              body: payload,
-              expiresAt: Date.now() + this.IDEMPOTENCY_TTL_MS,
-            });
+        const execute = async (): Promise<{ status: number; body: unknown }> => {
+          if (this.config.mode === 'mock') {
+            await new Promise(resolve => setTimeout(resolve, this.config.mockDelay!));
+            return handleMockBridgeRequest({ action, platform, ...body });
           }
-          res.status(status).json(payload);
+          if (this.liveClient) return this.liveClient.call(action, platform, body);
+          return { status: 500, body: { ok: false, error: 'No bridge mode configured' } };
         };
 
-        // Mock mode
-        if (this.config.mode === 'mock') {
-          await new Promise(resolve => setTimeout(resolve, this.config.mockDelay!));
-          const result = handleMockBridgeRequest({
-            action,
-            platform,
-            ...body
-          });
-          return respond(result.status, result.body);
+        const result = await execute();
+        if (this.config.mode === 'live' && isMutation && idempotencyKey && payloadHash) {
+          await saveBridgeOutcome(idempotencyKey, payloadHash, result);
         }
-
-        // Live mode
-        if (this.liveClient) {
-          const result = await this.liveClient.call(action, platform, body);
-          return respond(result.status, result.body);
-        }
-
-        return res.status(500).json({
-          ok: false,
-          error: 'No bridge mode configured'
-        });
+        return res.status(result.status).json(result.body);
       } catch (error) {
         console.error('Bridge error:', error);
-
-        const errorMessage = process.env.NODE_ENV === 'production'
-          ? 'Internal server error'
-          : error instanceof Error ? error.message : 'Internal server error';
-
-        return res.status(500).json({
-          ok: false,
-          error: errorMessage
-        });
+        // A failed claim/save or an ambiguous upstream failure must not cause
+        // another attempt on the same key to execute platform I/O.
+        return res.status(503).json({ ok: false, error: 'Bridge outcome unavailable; do not retry with a new key' });
       }
     });
 
@@ -200,25 +174,15 @@ export class BridgeServer {
   }
 
   async start() {
-    // Opportunistic pruning so the idempotency cache cannot grow unbounded in
-    // long-lived processes.
-    const pruneIdempotency = setInterval(() => {
-      const now = Date.now();
-      for (const [key, entry] of this.idempotencyCache) {
-        if (entry.expiresAt <= now) this.idempotencyCache.delete(key);
-      }
-    }, 60 * 60 * 1000);
-    pruneIdempotency.unref?.();
-
     return new Promise<void>((resolve) => {
       this.server = this.app.listen(this.config.port ?? 3001, this.config.host ?? '127.0.0.1', () => {
         const bound = `${this.config.host}:${this.config.port}`;
         if (this.config.mode === 'mock' && !this.config.authToken) {
           console.warn(
-            `⚠️  Bridge server (mock) on ${bound} is UNAUTHENTICATED — loopback bind only; never expose it.`
+            `[WARN] Bridge server (mock) on ${bound} is UNAUTHENTICATED — loopback bind only; never expose it.`
           );
         }
-        console.log(`🚀 Bridge server started on ${bound} (${this.config.mode})`);
+        console.log(`Bridge server started on ${bound} (${this.config.mode})`);
         resolve();
       });
     });

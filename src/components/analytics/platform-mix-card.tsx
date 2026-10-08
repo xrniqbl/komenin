@@ -51,7 +51,7 @@ export function PlatformMixCard({
               {description} · {total} total in range
             </CardDescription>
           </div>
-          <Button size="sm" variant="outline" disabled={pending} onClick={download}>
+          <Button size="sm" variant="glass" disabled={pending} onClick={download}>
             {pending ? "Exporting…" : exportLabel}
           </Button>
         </div>

@@ -190,7 +190,7 @@ const authenticatedHandler = auth((req) => {
   const { locale: pathLocale, path: unprefixedPath } = splitLocalePath(pathname);
   const effectivePath = pathLocale === "id" ? unprefixedPath : pathname;
 
-  const isLoggedIn = !!req.auth;
+  const isLoggedIn = !!req.auth?.user?.id;
 
   if (isProtectedPath(effectivePath) && !isLoggedIn) {
     const url = new URL("/login", req.nextUrl.origin);

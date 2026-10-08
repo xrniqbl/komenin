@@ -180,7 +180,7 @@ describe("resolveAiBilling", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.reason).toBe("no_source");
-      expect(result.message).toMatch(/habis/i);
+      expect(result.message).toMatch(/spent/i);
     }
   });
 
@@ -206,7 +206,7 @@ describe("resolveAiBilling", () => {
     const result = await resolveAiBilling({ workspaceId: "ws_fb_off" });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.message).toMatch(/fallback pay-as-you-go dimatikan/i);
+    if (!result.ok) expect(result.message).toMatch(/fallback is off/i);
   });
 
   it("pro_max uses PAYG when the fallback toggle is ON", async () => {
@@ -375,11 +375,13 @@ describe("refundAiOrderPartial", () => {
     grant?: unknown;
     ledgerByOpId?: Record<string, unknown>;
     unspent?: bigint;
+    priorRefundCredits?: bigint;
   }) {
     const created: Array<Record<string, unknown>> = [];
     const balanceUpserts: Array<Record<string, unknown>> = [];
     const tx = {
       aiCreditLedger: {
+        aggregate: vi.fn(async () => ({ _sum: { credits: behavior.priorRefundCredits ?? 0n } })),
         findUnique: vi.fn(async ({ where }: { where: { operationId: string } }) => {
           const opId = where.operationId;
           if (opId === "order:ord_1:grant") return behavior.grant ?? null;
@@ -477,6 +479,13 @@ describe("refundAiOrderPartial", () => {
     const result = await callPartial(tx, { refundAmountIdr: 50_000 });
 
     // 50% of 1000 = 500 proportional, but only 100 remains unspent.
+    expect(result.creditsRefunded).toBe(100n);
+    expect(created[0].credits).toBe(-100n);
+  });
+
+  it("subtracts prior refund ledger entries from recoverable grant credits", async () => {
+    const { tx, created } = makeTx({ grant, unspent: 800n, priorRefundCredits: -700n });
+    const result = await callPartial(tx, { refundAmountIdr: 50_000 });
     expect(result.creditsRefunded).toBe(100n);
     expect(created[0].credits).toBe(-100n);
   });
