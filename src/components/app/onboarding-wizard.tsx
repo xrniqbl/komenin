@@ -174,6 +174,7 @@ export function OnboardingWizard({
   const [isPending, startTransition] = useTransition();
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(initialStep);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
+  const [launchError, setLaunchError] = useState<string | null>(null);
 
   // Form state (diisi dari URL params untuk navigasi tanpa JS)
   const [workspaceName, setWorkspaceName] = useState(urlData?.workspaceName ?? "");
@@ -214,7 +215,7 @@ export function OnboardingWizard({
         // Template is optional
         return true;
       case "launch":
-        return true;
+        return workspaceName.trim().length >= 2;
       default:
         return false;
     }
@@ -253,6 +254,11 @@ export function OnboardingWizard({
   }
 
   function handleLaunch() {
+    if (workspaceName.trim().length < 2) {
+      setLaunchError("Workspace name must be at least 2 characters.");
+      return;
+    }
+    setLaunchError(null);
     const formData = new FormData();
     formData.set("name", workspaceName.trim());
     formData.set("timezone", timezone);
@@ -263,7 +269,28 @@ export function OnboardingWizard({
       formData.set("templateId", selectedTemplate.id);
     }
     startTransition(async () => {
-      await completeOnboarding(formData);
+      try {
+        await completeOnboarding(formData);
+      } catch (error) {
+        // completeOnboarding ends in redirect("/app"), which Next surfaces as
+        // NEXT_REDIRECT — that must propagate. Anything else is a real
+        // failure, so surface it inline instead of hitting the error boundary.
+        if (
+          error &&
+          typeof error === "object" &&
+          "digest" in error &&
+          typeof (error as { digest?: unknown }).digest === "string" &&
+          ((error as { digest: string }).digest.startsWith("NEXT_REDIRECT") ||
+            (error as { digest: string }).digest.includes("NEXT_REDIRECT"))
+        ) {
+          throw error;
+        }
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : "Something went wrong while launching. Please try again.";
+        setLaunchError(message);
+      }
     });
   }
 
@@ -402,7 +429,16 @@ export function OnboardingWizard({
 
       {/* Navigation footer */}
       {currentStep !== "welcome" && (
-        <div className="mt-8 flex items-center justify-between border-t pt-4">
+        <div className="mt-8 border-t pt-4">
+          {currentStep === "launch" && launchError && (
+            <p
+              role="alert"
+              className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+            >
+              {launchError}
+            </p>
+          )}
+          <div className="flex items-center justify-between">
           <Button
             variant="glass"
             onClick={goBack}
@@ -441,6 +477,7 @@ export function OnboardingWizard({
               <ArrowForwardRoundedIcon className="size-4" />
             </Button>
           )}
+          </div>
         </div>
       )}
 

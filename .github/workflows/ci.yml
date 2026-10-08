@@ -108,6 +108,7 @@ jobs:
         env:
           NODE_ENV: production
           DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+          APP_URL: "https://ci.komenin.local"
           AUTH_SECRET: "ci-build-time-placeholder-secret-0000"
           AUTH_GOOGLE_ID: "ci-build"
           AUTH_GOOGLE_SECRET: "ci-build"
@@ -118,10 +119,27 @@ jobs:
         env:
           NODE_ENV: production
           DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
-          AUTH_SECRET: "ci-build-time-placeholder-secret-0000"
+          APP_URL: "https://ci.komenin.local"
+          AUTH_URL: "https://ci.komenin.local"
+          AUTH_SECRET: "ci-e2e-auth-secret-32chars-min!"
           AUTH_GOOGLE_ID: "ci-build"
           AUTH_GOOGLE_SECRET: "ci-build"
-          ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
+          ENCRYPTION_KEY: "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90"
+          WORKER_SECRET: "ci-worker-secret-min-16-chars"
+          CRON_SECRET: "ci-cron-secret-min-16-chars"
+          OAUTH_STATE_SECRET: "ci-oauth-state-secret-16"
+          SSO_TICKET_SECRET: "ci-sso-ticket-secret-16"
+          API_KEY_PEPPER: "ci-api-key-pepper-16ch"
+          UPSTASH_REDIS_REST_URL: "https://ci-upstash.local"
+          UPSTASH_REDIS_REST_TOKEN: "ci-upstash-token-placeholder"
+          DIRECT_DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
+          SIMULATOR_MODE: "false"
+          SOCIAL_CONNECTOR_POLICY: "prefer_webhook"
+          SOCIAL_PUBLISH_WEBHOOK_URL: "https://ci-bridge.local/publish"
+          SOCIAL_PUBLISH_WEBHOOK_TOKEN: "ci-bridge-token-16chars"
+          BREVO_API_KEY: "xkeysib-ci-placeholder-16chars"
+          EMAIL_FROM: "ci@komenin.local"
+          MIDTRANS_IS_PRODUCTION: "false"
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}

@@ -53,20 +53,40 @@ export default async function OnboardingPage({
     const invitesRaw = String(formData.get("invites") || "");
     const templateId = String(formData.get("templateId") || "");
 
-    const workspace = await createWorkspace({ name, timezone });
+    if (name.length < 2) {
+      throw new Error("Workspace name must be at least 2 characters");
+    }
 
-    // Send invites
+    // Retry-safe: a previous Launch attempt may have created the workspace
+    // and then thrown before redirect. Don't stack duplicates — finish setup
+    // in the workspace the user already has.
+    const existing = await listWorkspacesForUser();
+    let workspaceId = existing[0]?.id;
+    if (!workspaceId) {
+      const workspace = await createWorkspace({ name, timezone });
+      workspaceId = workspace.id;
+    }
+
+    // Send invites — best effort per email. One bad address must never abort
+    // onboarding or block the redirect below.
     const emails = invitesRaw
       .split(/[,\n]/)
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean);
 
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     for (const email of emails) {
-      await createInvite({
-        workspaceId: workspace.id,
-        email,
-        role: "operator",
-      });
+      if (!emailPattern.test(email)) continue;
+      try {
+        await createInvite({
+          workspaceId,
+          email,
+          role: "operator",
+        });
+      } catch {
+        // Non-critical: the user can re-invite from Settings > Members.
+        continue;
+      }
     }
 
     // Create campaign from template if selected
