@@ -42,10 +42,24 @@ const TiktokIcon = createSvgIcon(
   "Tiktok",
 );
 
-const ThreadsIcon = createSvgIcon(
-  <path d="M6.321 6.016c-.27-.18-1.166-.802-1.166-.802.756-1.081 1.753-1.502 3.132-1.502.975 0 1.803.327 2.394.948s.928 1.509 1.005 2.644q.492.207.905.484c1.109.745 1.719 1.86 1.719 3.137 0 2.716-2.226 5.075-6.256 5.075C4.594 16 1 13.987 1 7.994 1 2.034 4.482 0 8.044 0 9.69 0 13.55.243 15 5.036l-1.36.353C12.516 1.974 10.163 1.43 8.006 1.43c-3.565 0-5.582 2.171-5.582 6.79 0 4.143 2.254 6.343 5.63 6.343 2.777 0 4.847-1.443 4.847-3.556 0-1.438-1.208-2.127-1.27-2.127-.236 1.234-.868 3.31-3.644 3.31-1.618 0-3.013-1.118-3.013-2.582 0-2.09 1.984-2.847 3.55-2.847.586 0 1.294.04 1.663.114 0-.637-.54-1.728-1.9-1.728-1.25 0-1.566.405-1.967.868ZM8.716 8.19c-2.04 0-2.304.87-2.304 1.416 0 .878 1.043 1.168 1.6 1.168 1.02 0 2.067-.282 2.232-2.423a6.2 6.2 0 0 0-1.528-.161" />,
-  "Threads",
-);
+// NOTE: the Threads glyph below is drawn on a 16x16 grid (bbox x:1-15,
+// y:0-16). It must keep viewBox="0 0 16 16" — rendering it in a 24x24
+// viewBox (like MUI's default) shrinks it to ~2/3 size next to the
+// Instagram/TikTok icons. A plain <svg> is used instead of createSvgIcon
+// for this reason; sizing still comes from the passed className.
+function ThreadsIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+    >
+      <path d="M6.321 6.016c-.27-.18-1.166-.802-1.166-.802.756-1.081 1.753-1.502 3.132-1.502.975 0 1.803.327 2.394.948s.928 1.509 1.005 2.644q.492.207.905.484c1.109.745 1.719 1.86 1.719 3.137 0 2.716-2.226 5.075-6.256 5.075C4.594 16 1 13.987 1 7.994 1 2.034 4.482 0 8.044 0 9.69 0 13.55.243 15 5.036l-1.36.353C12.516 1.974 10.163 1.43 8.006 1.43c-3.565 0-5.582 2.171-5.582 6.79 0 4.143 2.254 6.343 5.63 6.343 2.777 0 4.847-1.443 4.847-3.556 0-1.438-1.208-2.127-1.27-2.127-.236 1.234-.868 3.31-3.644 3.31-1.618 0-3.013-1.118-3.013-2.582 0-2.09 1.984-2.847 3.55-2.847.586 0 1.294.04 1.663.114 0-.637-.54-1.728-1.9-1.728-1.25 0-1.566.405-1.967.868ZM8.716 8.19c-2.04 0-2.304.87-2.304 1.416 0 .878 1.043 1.168 1.6 1.168 1.02 0 2.067-.282 2.232-2.423a6.2 6.2 0 0 0-1.528-.161" />
+    </svg>
+  );
+}
 
 // Map template icon names (from @/data/onboarding-templates) to MUI Rounded icons
 function TemplateIcon({ name, className }: { name: TemplateIconName; className?: string }) {
@@ -780,7 +794,8 @@ function GoalsStep({
                 key={goal.value}
                 type="button"
                 onClick={() => toggleGoal(goal.value)}
-                className={`group relative flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all duration-200 ${
+                aria-pressed={isSelected}
+                className={`group relative flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 text-left transition-all duration-200 ${
                   isSelected
                     ? "border-electric-500/50 bg-electric-500/10 shadow-sm"
                     : "border-border hover:border-electric-500/40 hover:shadow-sm"
@@ -827,7 +842,8 @@ function GoalsStep({
                 key={platform.value}
                 type="button"
                 onClick={() => togglePlatform(platform.value)}
-                className={`group relative flex flex-col items-center gap-2 rounded-xl border-2 px-4 py-5 transition-all duration-200 ${
+                aria-pressed={isSelected}
+                className={`group relative flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 px-4 py-5 transition-all duration-200 ${
                   isSelected
                     ? "border-electric-500/50 bg-electric-500/10 shadow-sm"
                     : "border-border hover:border-electric-500/40 hover:shadow-sm"
@@ -907,7 +923,8 @@ function TemplateStep({
                 onClick={() =>
                   setSelectedTemplate(isSelected ? null : template)
                 }
-                className={`group relative flex items-start gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${
+                aria-pressed={isSelected}
+                className={`group relative flex cursor-pointer items-start gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${
                   isSelected
                     ? "border-electric-500/50 bg-electric-500/10 shadow-sm"
                     : "border-border hover:border-electric-500/40 hover:shadow-sm"
