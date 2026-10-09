@@ -228,6 +228,10 @@ export function OnboardingWizard({
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(initialStep);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
   const [launchError, setLaunchError] = useState<string | null>(null);
+  // #441 companion: isPending only flips after React re-renders, so a fast
+  // double-click can fire two server actions in parallel -> slug race ->
+  // raw P2002 -> minified React error #441. A sync ref closes that gap.
+  const launchingRef = useRef(false);
 
   // Form state (diisi dari URL params untuk navigasi tanpa JS)
   const [workspaceName, setWorkspaceName] = useState(urlData?.workspaceName ?? "");
@@ -339,11 +343,14 @@ export function OnboardingWizard({
   }
 
   function handleLaunch() {
-    if (isPending) return; // C2 companion: ignore double-clicks while launching
+    // Sync guard: ignore double-clicks before React re-renders (isPending)
+    // and while the action is in flight.
+    if (launchingRef.current || isPending) return;
     if (workspaceName.trim().length < 2) {
       setLaunchError("Workspace name must be at least 2 characters.");
       return;
     }
+    launchingRef.current = true;
     setLaunchError(null);
     const formData = new FormData();
     formData.set("name", workspaceName.trim());
@@ -374,9 +381,15 @@ export function OnboardingWizard({
         const message =
           error instanceof Error && error.message
             ? error.message
-            : "Something went wrong while launching. Please try again.";
+            : typeof error === "string" && error
+              ? error
+              : "Something went wrong while launching. Please try again.";
         setLaunchError(message);
+        launchingRef.current = false;
       }
+      // NOTE: on success the action redirects, so this transition never
+      // settles — the ref stays true, which is exactly what we want (no
+      // re-launch after navigation begins).
     });
   }
 
