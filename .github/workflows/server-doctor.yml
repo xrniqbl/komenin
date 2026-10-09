@@ -15,11 +15,5 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /opt/komenin
-            echo "=== running image ==="
-            sudo docker compose ps --format '{{.Name}} {{.Image}} {{.Status}}' app || true
-            echo "=== auth error names (last 1000 lines) ==="
-            sudo docker compose logs --tail=1000 app 2>/dev/null | grep -oE "\[auth\]\[error\] [A-Za-z]+" | sort | uniq -c || true
-            echo "=== full recent auth error lines ==="
-            sudo docker compose logs --tail=1000 app 2>/dev/null | grep -E "\[auth\]\[error\]" | tail -n 5 || true
-            echo "=== effective env ==="
-            sudo docker compose exec -T app node -e "console.log('AUTH_URL=' + process.env.AUTH_URL); console.log('NODE_ENV=' + process.env.NODE_ENV); console.log('secret_len=' + String(process.env.AUTH_SECRET || '').length); console.log('google_id=' + String(process.env.AUTH_GOOGLE_ID || '').length + ' google_secret=' + String(process.env.AUTH_GOOGLE_SECRET || '').length)" || true
+            echo "=== last auth errors with names ==="
+            sudo docker compose logs --tail=300 app 2>/dev/null | grep -E "\[auth\]\[error\]" | tail -n 8 || true
