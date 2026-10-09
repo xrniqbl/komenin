@@ -120,12 +120,21 @@ jobs:
             # .env.docker) — never a local rebuild of stale source.
             echo "KOMENIN_IMAGE=$IMAGE" > .deploy-image.env
             sudo docker compose --env-file .env.docker --env-file .deploy-image.env up -d --no-build app --remove-orphans
-            # An orphaned preview container (komenin-preview-1, a manually
-            # started next-dev server) once hijacked Traefik routing for the
-            # domain while the real app was healthy. Remove any leftover
-            # preview/dev containers so only this project's services answer.
-            sudo docker ps --format '{{.Names}} {{.Image}}' | grep -iE 'preview|dev' || true
-            sudo docker ps -q --filter 'name=komenin.*preview' | xargs -r sudo docker rm -f || true
+            # Host nginx (/etc/nginx/sites-enabled/komenin.id) proxies to
+            # 127.0.0.1:3000. The HTTPS vhost once pointed at :3001 (a dev
+            # preview that no longer exists) while HTTP pointed at :3000 —
+            # that mismatch produced 502 on https. Normalize both to :3000
+            # idempotently, then reload nginx only if the config changed.
+            VHOST=/etc/nginx/sites-enabled/komenin.id
+            if [ -f "$VHOST" ]; then
+              if grep -q "proxy_pass http://127.0.0.1:3001" "$VHOST"; then
+                sudo sed -i 's|proxy_pass http://127.0.0.1:3001|proxy_pass http://127.0.0.1:3000|g' "$VHOST"
+                sudo nginx -t && sudo systemctl reload nginx
+                echo "nginx vhost fixed: 3001 -> 3000"
+              else
+                echo "nginx vhost already points at :3000"
+              fi
+            fi
             # Guard: the running container MUST be the image we just pulled.
             # If something (override file, stale container, wrong compose
             # project) serves another image — e.g. a manually started dev

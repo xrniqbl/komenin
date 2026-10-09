@@ -85,6 +85,12 @@ services:
         NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION: ${MIDTRANS_IS_PRODUCTION:-false}
     image: ${KOMENIN_IMAGE:-komenin:latest}
     restart: unless-stopped
+    # Publish ke host loopback agar reverse proxy di host (nginx
+    # /etc/nginx/sites-enabled/komenin.id → 127.0.0.1:3000) mencapai app.
+    # Tanpa ini nginx mendapat 502 karena port 3000 hanya ada di dalam
+    # docker network. Bind loopback-only: tidak terekspos ke publik langsung.
+    ports:
+      - "127.0.0.1:3000:3000"
     depends_on:
       db:
         condition: service_healthy
