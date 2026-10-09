@@ -14,7 +14,6 @@ jobs:
           username: ${{ secrets.PRODUCTION_SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            set -x
             cd /opt/komenin
-            echo "=== onboarding/campaign errors in app logs (last 500) ==="
-            sudo docker compose logs --tail=500 app 2>/dev/null | grep -iE "onboarding|campaign|template|digest|NEXT_REDIRECT|Error|error" | grep -viE "error-report|error\.tsx|sentry|ErrorBoundary" | tail -n 40 || true
+            echo "=== full prisma error block ==="
+            sudo docker compose logs --tail=2000 app 2>/dev/null | grep -A30 "PrismaClientKnownRequestError" | head -n 60 || true
