@@ -85,6 +85,19 @@ jobs:
             cd /opt/komenin
             IMAGE="${{ steps.image.outputs.tag }}"
 
+            # Upstash (durable rate limits) lives in GitHub Secrets so it is
+            # never committed. Ensure .env.docker carries it — compose reads
+            # ${UPSTASH_*} from there. Idempotent: drop old lines, append
+            # fresh values. Values are masked in Actions logs. (grep/sed-free
+            # so token metacharacters like & | / can never break substitution.)
+            touch .env.docker
+            grep -v -e '^UPSTASH_REDIS_REST_URL=' -e '^UPSTASH_REDIS_REST_TOKEN=' .env.docker > .env.docker.tmp || true
+            mv .env.docker.tmp .env.docker
+            {
+              printf 'UPSTASH_REDIS_REST_URL=%s\n' "${{ secrets.UPSTASH_REDIS_REST_URL }}"
+              printf 'UPSTASH_REDIS_REST_TOKEN=%s\n' "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}"
+            } >> .env.docker
+
             # Private GHCR image: log in with the fresh per-run GITHUB_TOKEN
             # (this job has packages:write, so the token can pull). Never rely
             # on a stale long-lived PAT file on disk — that is what caused
