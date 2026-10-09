@@ -16,7 +16,5 @@ jobs:
           script: |
             set -x
             cd /opt/komenin
-            echo "=== auth errors in app logs (last 200 lines) ==="
-            sudo docker compose logs --tail=200 app 2>/dev/null | grep -iE "auth|signout|sign-out|Configuration|secret|callback|UntrustedHost|InvalidCallback|MissingSecret|csrf" | tail -n 30 || true
-            echo "=== AUTH_URL / APP_URL effective ==="
-            sudo docker compose exec -T app node -e "console.log('AUTH_URL=' + process.env.AUTH_URL); console.log('APP_URL=' + process.env.APP_URL); console.log('NODE_ENV=' + process.env.NODE_ENV); console.log('secret_len=' + String(process.env.AUTH_SECRET || '').length)" || true
+            echo "=== onboarding/campaign errors in app logs (last 500) ==="
+            sudo docker compose logs --tail=500 app 2>/dev/null | grep -iE "onboarding|campaign|template|digest|NEXT_REDIRECT|Error|error" | grep -viE "error-report|error\.tsx|sentry|ErrorBoundary" | tail -n 40 || true
