@@ -4,12 +4,25 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 
+const NOTIFICATION_STATUSES = ["unread", "read", "archived"] as const;
+
+function toNotificationStatus(
+  raw: string | undefined,
+): (typeof NOTIFICATION_STATUSES)[number] | undefined {
+  const value = raw?.trim();
+  if (!value || value === "all") return undefined;
+  return (NOTIFICATION_STATUSES as readonly string[]).includes(value)
+    ? (value as (typeof NOTIFICATION_STATUSES)[number])
+    : undefined;
+}
+
 export async function listNotifications(limit = 50, filters?: { status?: string; q?: string }) {
   const { workspace } = await requireActiveWorkspace();
   const where: Record<string, unknown> & { workspaceId: string } = {
     workspaceId: workspace.id,
   };
-  if (filters?.status && filters.status !== "all") where.status = filters.status as never;
+  const status = toNotificationStatus(filters?.status);
+  if (status) where.status = status;
   if (filters?.q?.trim()) {
     const q = filters.q.trim();
     where.OR = [
@@ -27,7 +40,8 @@ export async function listNotifications(limit = 50, filters?: { status?: string;
 export async function listNotificationsPage(page: number, pageSize = 10, filters?: { status?: string; q?: string }) {
   const { workspace } = await requireActiveWorkspace();
   const where: Record<string, unknown> = { workspaceId: workspace.id };
-  if (filters?.status && filters.status !== "all") where.status = filters.status;
+  const status = toNotificationStatus(filters?.status);
+  if (status) where.status = status;
   if (filters?.q?.trim()) {
     const q = filters.q.trim();
     where.OR = [

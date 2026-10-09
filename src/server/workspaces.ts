@@ -74,6 +74,19 @@ export async function createWorkspace(input: { name: string; timezone?: string }
   const name = input.name.trim();
   if (name.length < 2) throw new Error("Workspace name is required");
 
+  // C2: onboarding retries (double-submit, two tabs, replayed action) must
+  // not stack duplicate workspaces. The caller picks the active workspace via
+  // resolveActiveWorkspace (cookie, else oldest), so returning the existing
+  // membership workspace here converges instead of splitting state.
+  const existing = await db.membership.findFirst({
+    where: { userId: session.user.id, status: "active" },
+    include: { workspace: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (existing && existing.workspace.status === "active") {
+    return existing.workspace;
+  }
+
   const base = slugifyWorkspaceName(name) || "workspace";
   let slug = base;
   for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -82,12 +95,25 @@ export async function createWorkspace(input: { name: string; timezone?: string }
     if (!exists) break;
   }
 
+  let timezone: string | undefined;
+  if (input.timezone !== undefined) {
+    const tz = input.timezone.trim();
+    if (tz) {
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone: tz });
+      } catch {
+        throw new Error(`Invalid timezone: ${tz}`);
+      }
+      timezone = tz.slice(0, 64);
+    }
+  }
+
   const workspace = await db.$transaction(async (tx) => {
     const created = await tx.workspace.create({
       data: {
         name,
         slug,
-        timezone: input.timezone ?? "Asia/Jakarta",
+        ...(timezone ? { timezone } : {}),
         // Free tier until a paid plan is applied via checkout.
         planCode: "free",
         monthlySendLimit: 500,

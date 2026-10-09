@@ -6,6 +6,67 @@ import { assertWorkspacePermission } from "@/lib/rbac";
 import { db } from "@/lib/db";
 import { requireActiveWorkspace } from "@/server/workspace-access";
 import { writeAuditLog } from "@/server/audit";
+import { escapeCsvValue } from "@/lib/csv";
+
+const LEAD_STATUSES: LeadStatus[] = [
+  "new",
+  "contacted",
+  "qualified",
+  "won",
+  "lost",
+  "archived",
+];
+
+// Field limits mirror the public API route (api/v1/leads) so UI-created and
+// API-created leads share the same shape — overlong/garbage input must fail
+// with a 400-style error, never with a Prisma 500.
+const LEAD_LIMITS = {
+  handle: 120,
+  displayName: 160,
+  contactPhone: 40,
+  intent: 500,
+  notes: 5000,
+  postSnippet: 2000,
+  draftSnippet: 2000,
+} as const;
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function cleanText(
+  raw: string | null | undefined,
+  max: number,
+  label: string,
+): string | null {
+  const value = raw?.trim() || null;
+  if (!value) return null;
+  if (value.length > max) throw new Error(`${label} is too long (max ${max} characters)`);
+  return value;
+}
+
+function cleanEmail(raw: string | null | undefined): string | null {
+  const value = raw?.trim().toLowerCase() || null;
+  if (!value) return null;
+  if (value.length > 254 || !EMAIL_PATTERN.test(value)) {
+    throw new Error("Contact email is invalid");
+  }
+  return value;
+}
+
+function cleanUrl(raw: string | null | undefined): string | null {
+  const value = raw?.trim() || null;
+  if (!value) return null;
+  if (value.length > 2048) throw new Error("URL is too long");
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("URL is invalid");
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("URL must be http(s)");
+  }
+  return value;
+}
 
 export async function listLeads(input?: {
   status?: LeadStatus | "all";
@@ -16,7 +77,13 @@ export async function listLeads(input?: {
 }) {
   const { workspace } = await requireActiveWorkspace();
   const where: Record<string, unknown> = { workspaceId: workspace.id };
-  if (input?.status && input.status !== "all") where.status = input.status;
+  // Allowlisted status — raw query values must never reach the Prisma enum.
+  if (input?.status && input.status !== "all") {
+    if (!(LEAD_STATUSES as string[]).includes(input.status)) {
+      return [];
+    }
+    where.status = input.status;
+  }
   if (input?.clientId) where.clientId = input.clientId;
   if (input?.dueFollowUp) {
     where.followUpAt = { lte: new Date() };
@@ -69,6 +136,18 @@ export async function createLead(input: {
 
   const handle = input.handle.trim().replace(/^@/, "");
   if (!handle) throw new Error("Handle is required");
+  if (handle.length > LEAD_LIMITS.handle) {
+    throw new Error(`Handle is too long (max ${LEAD_LIMITS.handle} characters)`);
+  }
+  if (input.status && !(LEAD_STATUSES as string[]).includes(input.status)) {
+    throw new Error("Invalid lead status");
+  }
+  if (input.platform && !["instagram", "threads", "tiktok"].includes(input.platform)) {
+    throw new Error("Invalid platform");
+  }
+  if (input.source && !["inbox", "approval", "comment", "manual", "api"].includes(input.source)) {
+    throw new Error("Invalid lead source");
+  }
 
   if (input.clientId) {
     const client = await db.clientProfile.findFirst({
@@ -126,16 +205,16 @@ export async function createLead(input: {
     data: {
       workspaceId: workspace.id,
       handle,
-      displayName: input.displayName?.trim() || null,
-      contactEmail: input.contactEmail?.trim().toLowerCase() || null,
-      contactPhone: input.contactPhone?.trim() || null,
+      displayName: cleanText(input.displayName, LEAD_LIMITS.displayName, "Display name"),
+      contactEmail: cleanEmail(input.contactEmail),
+      contactPhone: cleanText(input.contactPhone, LEAD_LIMITS.contactPhone, "Phone"),
       platform: input.platform,
       source: input.source || "manual",
-      intent: input.intent?.trim() || null,
-      notes: input.notes?.trim() || null,
-      postSnippet: input.postSnippet?.trim() || null,
-      draftSnippet: input.draftSnippet?.trim() || null,
-      externalUrl: input.externalUrl?.trim() || null,
+      intent: cleanText(input.intent, LEAD_LIMITS.intent, "Intent"),
+      notes: cleanText(input.notes, LEAD_LIMITS.notes, "Notes"),
+      postSnippet: cleanText(input.postSnippet, LEAD_LIMITS.postSnippet, "Post snippet"),
+      draftSnippet: cleanText(input.draftSnippet, LEAD_LIMITS.draftSnippet, "Draft snippet"),
+      externalUrl: cleanUrl(input.externalUrl),
       targetPostId: input.targetPostId || null,
       campaignId: input.campaignId || null,
       clientId: input.clientId || null,
@@ -267,11 +346,7 @@ export async function captureLeadFromApproval(input: {
 }
 
 function csvEscape(value: string | number | null | undefined): string {
-  const raw = value == null ? "" : String(value);
-  if (/[",\n\r]/.test(raw)) {
-    return `"${raw.replace(/"/g, '""')}"`;
-  }
-  return raw;
+  return escapeCsvValue(value);
 }
 
 /** Build a CSV export of current workspace leads (up to 500 rows). */
@@ -283,7 +358,12 @@ export async function exportLeadsCsv(input?: {
   assertWorkspacePermission(workspace, "analytics.view");
 
   const where: Record<string, unknown> = { workspaceId: workspace.id };
-  if (input?.status && input.status !== "all") where.status = input.status;
+  if (input?.status && input.status !== "all") {
+    if (!(LEAD_STATUSES as string[]).includes(input.status)) {
+      throw new Error("Invalid lead status");
+    }
+    where.status = input.status;
+  }
   if (input?.clientId) where.clientId = input.clientId;
 
   const leads = await db.engagementLead.findMany({
@@ -361,11 +441,20 @@ export async function updateLeadStatus(input: {
   });
   if (!existing) throw new Error("Lead not found");
 
+  if (input.status && !(LEAD_STATUSES as string[]).includes(input.status)) {
+    throw new Error("Invalid lead status");
+  }
+  // Explicit empty string clears notes; undefined keeps the old value.
+  const notes =
+    input.notes === undefined
+      ? existing.notes
+      : cleanText(input.notes, LEAD_LIMITS.notes, "Notes");
+
   const lead = await db.engagementLead.update({
     where: { id: existing.id },
     data: {
       status: input.status,
-      notes: input.notes?.trim() || existing.notes,
+      notes,
     },
   });
 
@@ -407,8 +496,6 @@ export async function updateLeadFollowUp(input: {
     throw new Error("Invalid follow-up date");
   }
 
-  // M2 (same rule as createLead): the new owner must be null, self, or an
-  // active member of this workspace.
   let ownerUserId: string | null | undefined = undefined;
   if (input.ownerUserId !== undefined) {
     const trimmed = input.ownerUserId?.trim() || null;
@@ -429,8 +516,18 @@ export async function updateLeadFollowUp(input: {
     data: {
       followUpAt: followUpAt === undefined ? existing.followUpAt : followUpAt,
       ownerUserId: ownerUserId === undefined ? existing.ownerUserId : ownerUserId,
-      notes: input.notes !== undefined ? input.notes.trim() || null : existing.notes,
-      status: input.status || existing.status,
+      notes:
+        input.notes !== undefined
+          ? cleanText(input.notes, LEAD_LIMITS.notes, "Notes")
+          : existing.notes,
+      status:
+        input.status !== undefined
+          ? (LEAD_STATUSES as string[]).includes(input.status)
+            ? input.status
+            : (() => {
+                throw new Error("Invalid lead status");
+              })()
+          : existing.status,
     },
   });
 

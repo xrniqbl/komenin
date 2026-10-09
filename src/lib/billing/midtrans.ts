@@ -1,4 +1,5 @@
 import { isProductionRuntime, safeEqual } from "@/lib/security";
+import { OUTBOUND_FETCH_TIMEOUT_MS } from "@/lib/url-safety";
 import { createHash } from "node:crypto";
 
 export type MidtransConfig = {
@@ -61,6 +62,7 @@ export async function createMidtransSnapTransaction(input: {
   const auth = Buffer.from(`${config.serverKey}:`).toString("base64");
   const response = await fetch(`${midtransApiBase(config.isProduction)}/snap/v1/transactions`, {
     method: "POST",
+    signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
     headers: {
       "content-type": "application/json",
       accept: "application/json",

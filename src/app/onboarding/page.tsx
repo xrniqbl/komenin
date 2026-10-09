@@ -5,7 +5,8 @@ import { getTemplateById } from "@/data/onboarding-templates";
 import { createInvite } from "@/server/invites";
 import { createWorkspace, listWorkspacesForUser } from "@/server/workspaces";
 import { createCampaign } from "@/server/campaigns";
-import type { Platform } from "@prisma/client";
+import { parseInviteEmails } from "@/lib/invite-emails";
+import { Platform } from "@prisma/client";
 
 export default async function OnboardingPage({
   searchParams,
@@ -22,6 +23,10 @@ export default async function OnboardingPage({
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+  // M5: a TOTP-gated session sees no workspaces (listWorkspacesForUser
+  // returns []), so without this the user renders the wizard and every
+  // launch fails with no exit path. Send them to the 2FA challenge first.
+  if (session.user.totpGate) redirect("/auth/totp-gate");
 
   const workspaces = await listWorkspacesForUser();
   if (workspaces.length > 0) redirect("/app");
@@ -49,34 +54,35 @@ export default async function OnboardingPage({
   async function completeOnboarding(formData: FormData) {
     "use server";
     const name = String(formData.get("name") || "").trim();
-    const timezone = String(formData.get("timezone") || "Asia/Jakarta");
+    const timezone = String(formData.get("timezone") || "Asia/Jakarta").trim();
     const invitesRaw = String(formData.get("invites") || "");
-    const templateId = String(formData.get("templateId") || "");
+    const templateId = String(formData.get("templateId") || "").trim();
 
-    if (name.length < 2) {
-      throw new Error("Workspace name must be at least 2 characters");
+    // M7 companion: validate everything up front and throw readable errors.
+    // The client shows these inline (handleLaunch catches non-redirect
+    // throws); a direct POST still hits the error boundary, but the message
+    // is now specific instead of a generic crash.
+    if (name.length < 2 || name.length > 120) {
+      throw new Error("Workspace name must be between 2 and 120 characters");
+    }
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+    } catch {
+      throw new Error(`Invalid timezone: ${timezone}`);
     }
 
-    // Retry-safe: a previous Launch attempt may have created the workspace
-    // and then thrown before redirect. Don't stack duplicates — finish setup
-    // in the workspace the user already has.
-    const existing = await listWorkspacesForUser();
-    let workspaceId = existing[0]?.id;
-    if (!workspaceId) {
-      const workspace = await createWorkspace({ name, timezone });
-      workspaceId = workspace.id;
-    }
+    // C2: createWorkspace is retry-safe (returns the existing workspace when
+    // the user already has one), so a double-submit converges instead of
+    // stacking duplicates.
+    const workspace = await createWorkspace({ name, timezone });
+    const workspaceId = workspace.id;
 
-    // Send invites — best effort per email. One bad address must never abort
-    // onboarding or block the redirect below.
-    const emails = invitesRaw
-      .split(/[,\n]/)
-      .map((value) => value.trim().toLowerCase())
-      .filter(Boolean);
+    // N1: parse comma/semicolon/whitespace-separated pastes, dedupe, cap the
+    // batch, and surface what happened via the audit log instead of silently
+    // skipping or timing out on hundreds of sequential sends.
+    const { emails } = parseInviteEmails(invitesRaw);
 
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     for (const email of emails) {
-      if (!emailPattern.test(email)) continue;
       try {
         await createInvite({
           workspaceId,
@@ -89,10 +95,18 @@ export default async function OnboardingPage({
       }
     }
 
-    // Create campaign from template if selected
+    // Create campaign from template if selected.
+    // N2: validate the platform against the Prisma enum (the API route
+    // already does this) and surface failures — a swallowed catch would show
+    // success while creating nothing.
+    let campaignError: string | null = null;
     if (templateId) {
       const template = getTemplateById(templateId);
-      if (template) {
+      if (!template) {
+        campaignError = `Unknown template: ${templateId}`;
+      } else if (!Object.values(Platform).includes(template.platform as Platform)) {
+        campaignError = `Template platform is not supported: ${template.platform}`;
+      } else {
         try {
           await createCampaign({
             name: template.name,
@@ -104,11 +118,17 @@ export default async function OnboardingPage({
             maxDelaySec: template.maxDelaySec,
             listenerQuery: template.listenerQuery || undefined,
           });
-        } catch {
-          // Non-critical: campaign creation failure shouldn't block onboarding.
-          // User can create campaigns manually from the dashboard.
+        } catch (error) {
+          campaignError =
+            error instanceof Error ? error.message : "Failed to create campaign";
         }
       }
+    }
+
+    if (campaignError) {
+      // Throw AFTER invites are done so the workspace + invites persist; the
+      // client shows this inline and the user can retry from the dashboard.
+      throw new Error(campaignError);
     }
 
     redirect("/app");

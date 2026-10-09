@@ -62,9 +62,31 @@ describe("OnboardingWizard goals step clickability", () => {
     const threads = screen.getByRole("button", { name: /threads/i });
     const svg = threads.querySelector("svg");
     expect(svg).not.toBeNull();
-    // fixed root cause: 16x16 artwork must keep its own viewBox,
-    // otherwise it renders ~2/3 size inside MUI 24x24 box
-    expect(svg?.getAttribute("viewBox")).toBe("0 0 16 16");
+    // Threads artwork (16x16) is normalized into a 24x24 viewBox with 2u
+    // padding — the same ink box as the MUI Instagram/TikTok icons — and
+    // carries an explicit 28px size so MUI's SvgIcon CSS can't shrink it.
+    expect(svg?.getAttribute("viewBox")).toBe("0 0 24 24");
     expect(svg?.getAttribute("class")).toMatch(/size-7/);
+    expect(svg?.getAttribute("style")).toMatch(/28px/);
+  });
+
+  it("fills the selection circle with a fitting check when a card is picked", async () => {
+    const user = userEvent.setup();
+    renderGoalsStep();
+    const threads = screen.getByRole("button", { name: /threads/i });
+    await user.click(threads);
+    const indicator = threads.querySelector("span.absolute");
+    expect(indicator?.className).toMatch(/bg-electric-500/);
+    const check = indicator?.querySelector("svg");
+    expect(check).not.toBeNull();
+    // 10px check inside the 16px platform circle (no overflow)
+    expect(check?.getAttribute("style")).toMatch(/10px/);
+
+    const goal = screen.getByRole("button", { name: /boost engagement/i });
+    await user.click(goal);
+    const goalCheck = goal.querySelector("span.mt-0\\.5 svg, span svg");
+    expect(goalCheck).not.toBeNull();
+    // 12px check inside the 20px goal circle (no overflow)
+    expect(goalCheck?.getAttribute("style")).toMatch(/12px/);
   });
 });

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { ListPagination, getPageWindow } from "@/components/app/list-pagination";
 import { PageHeader } from "@/components/app/page-header";
 import { FilterBar } from "@/components/app/filter-bar";
 import { InboxCaptureButton } from "@/components/inbox/inbox-capture-button";
@@ -27,6 +28,7 @@ import { getRequestLocale } from "@/lib/i18n/request-locale";
 import { messages } from "@/lib/i18n/messages";
 import {
   assignTargetPost,
+  countInbox,
   listInbox,
   applyInboxTemplate,
   type InboxSort,
@@ -75,6 +77,7 @@ export default async function InboxPage({
     assignee?: string;
     priority?: string;
     sort?: string;
+    page?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -83,6 +86,7 @@ export default async function InboxPage({
   const status = (params.status || "").trim();
   const platform = (params.platform || "").trim();
   const sort = normalizeSort(params.sort);
+  const requestedPage = Math.max(Number(params.page) || 1, 1);
   const baseParams = {
     q: params.q,
     status: params.status,
@@ -92,7 +96,7 @@ export default async function InboxPage({
     sort: params.sort,
   };
 
-  const [posts, members, templates] = await Promise.all([
+  const [posts, counts, members, templates] = await Promise.all([
     listInbox({
       status: status || undefined,
       platform: platform || undefined,
@@ -100,18 +104,22 @@ export default async function InboxPage({
       assignee: params.assignee || undefined,
       priority: params.priority || undefined,
       sort,
+      page: requestedPage,
+      pageSize: 50,
+    }),
+    // Count queries (not a second full findMany) so "All (n)" reflects the
+    // real total beyond the first page instead of min(n, 50).
+    countInbox({
+      platform: platform || undefined,
+      q: params.q,
+      assignee: params.assignee || undefined,
     }),
     listWorkspaceAssignees(),
     listCommentTemplates({ isActive: true }),
   ]);
-  // Counts must reflect the query without the status filter; reuse the same
-  // platform/search scope so the "All (n)" tab stays stable across tabs.
-  const unfilteredPosts = status
-    ? await listInbox({ platform: platform || undefined, q: params.q })
-    : posts;
+  const { total, drafted } = counts;
+  const window = getPageWindow(total, requestedPage, 50);
   const leadCaptureEnabled = await isFeatureEnabled(FEATURE_FLAG_KEYS.leadCapture);
-
-  const drafted = unfilteredPosts.filter((p) => p.drafts.length > 0).length;
 
   async function assign(formData: FormData) {
     "use server";
@@ -152,7 +160,7 @@ export default async function InboxPage({
         platforms={PLATFORM_TABS}
         activeStatus={status || "all"}
         activePlatform={platform || "all"}
-        counts={{ total: unfilteredPosts.length, drafted, undrafted: unfilteredPosts.length - drafted }}
+        counts={{ total, drafted, undrafted: total - drafted }}
       />
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
         <span className="text-muted-foreground">{t.assigneeLabel}:</span>
@@ -295,6 +303,18 @@ export default async function InboxPage({
           })
         )}
       </div>
+      <ListPagination
+        pathname="/app/inbox"
+        searchParams={{
+          q: params.q,
+          status: params.status,
+          platform: params.platform,
+          assignee: params.assignee,
+          priority: params.priority,
+          sort: params.sort,
+        }}
+        window={window}
+      />
     </div>
   );
 }

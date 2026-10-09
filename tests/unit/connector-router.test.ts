@@ -1,4 +1,5 @@
 ﻿import { describe, expect, it, vi, afterEach } from "vitest";
+import { safeOutboundFetch } from "@/lib/url-safety";
 import {
   resolveConnectorKind,
   runConnectorAction,
@@ -9,9 +10,23 @@ import {
   runThreadsNative,
 } from "@/lib/connectors/official/native";
 
+// The native adapters call safeOutboundFetch (which does DNS + SSRF checks
+// before fetch), never global.fetch. Mock that layer so these tests never
+// perform real DNS/outbound traffic and cannot hang offline.
+vi.mock("@/lib/url-safety", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/url-safety")>(
+    "@/lib/url-safety",
+  );
+  return { ...actual, safeOutboundFetch: vi.fn() };
+});
+
+const outboundMock = safeOutboundFetch as unknown as ReturnType<typeof vi.fn>;
+
 describe("connector router", () => {
   afterEach(() => {
+    outboundMock.mockReset();
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -85,17 +100,15 @@ describe("connector router", () => {
   });
 
   it("publishes a Threads native reply via create -> publish with reply_to_id", async () => {
-    const fetchMock = vi
-      .fn()
+    outboundMock
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: "creation_1" }),
-      })
+      } as Response)
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: "reply_99" }),
-      });
-    vi.stubGlobal("fetch", fetchMock);
+      } as Response);
 
     const result = await runThreadsNative({
       action: "sendComment",
@@ -110,11 +123,11 @@ describe("connector router", () => {
     expect(result.ok).toBe(true);
     expect(result.externalId).toBe("reply_99");
 
-    const createBody = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+    const createBody = JSON.parse(outboundMock.mock.calls[0][1].body as string);
     expect(createBody.reply_to_id).toBe("post_42");
     expect(createBody.media_type).toBe("TEXT");
 
-    const publishBody = JSON.parse(fetchMock.mock.calls[1][1].body as string);
+    const publishBody = JSON.parse(outboundMock.mock.calls[1][1].body as string);
     expect(publishBody.creation_id).toBe("creation_1");
   });
 
@@ -134,11 +147,10 @@ describe("connector router", () => {
   });
 
   it("uses the platform externalId (not the internal UUID) for ig_hashtag_search", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
+    outboundMock.mockResolvedValue({
       ok: true,
       json: async () => ({ data: [] }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
+    } as Response);
 
     await runInstagramNative({
       action: "discoverPosts",
@@ -155,7 +167,7 @@ describe("connector router", () => {
       official: { provider: "instagram", accessToken: "tok_123" },
     });
 
-    const calledUrl = fetchMock.mock.calls[0][0] as string;
+    const calledUrl = outboundMock.mock.calls[0][0] as string;
     // Meta requires the Instagram Business Account id here; the internal
     // SocialAccount UUID would make every call fail with a 400.
     expect(calledUrl).toContain("user_id=17841400000000000");
@@ -163,9 +175,6 @@ describe("connector router", () => {
   });
 
   it("fails discovery early when no platform externalId is available", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
     const result = await runInstagramNative({
       action: "discoverPosts",
       runtimeMode: "live",
@@ -178,6 +187,6 @@ describe("connector router", () => {
 
     expect(result.ok).toBe(false);
     expect(result.message).toMatch(/external/i);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(outboundMock).not.toHaveBeenCalled();
   });
 });

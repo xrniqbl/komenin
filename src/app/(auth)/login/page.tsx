@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { EmailOtpForm } from "@/components/auth/email-otp-form";
 import { auth } from "@/lib/auth";
+import { sanitizeCallbackUrl } from "@/lib/callback-url";
 import { signInWithGoogle } from "@/server/auth-actions";
 
 export default async function LoginPage({
@@ -15,9 +16,9 @@ export default async function LoginPage({
 }) {
   const session = await auth();
   const params = await searchParams;
-  const callbackUrl = params.callbackUrl?.startsWith("/") && !params.callbackUrl.startsWith("//") && !params.callbackUrl.includes("\\")
-    ? params.callbackUrl
-    : "/onboarding";
+  // N4: normalize (decode %5c, strip controls, reject // and schemes) so a
+  // smuggled off-site value can never reach Auth.js as redirectTo.
+  const callbackUrl = sanitizeCallbackUrl(params.callbackUrl);
   if (session?.user?.id) redirect(callbackUrl);
 
   return (

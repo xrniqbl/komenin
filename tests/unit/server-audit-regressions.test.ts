@@ -15,6 +15,9 @@ vi.mock("@/lib/auth", () => ({ auth: async () => state.session }));
 vi.mock("@/lib/db", () => {
   const membership = {
     findUnique: async () => state.membership,
+    // createWorkspace checks for an existing active membership first (C2
+    // retry-safety); the mock mirrors that with findFirst.
+    findFirst: async () => state.membership,
     create: async () => { state.created++; return {}; },
     update: async ({ data }: { data: { status?: string; role?: string; customRoleId?: null } }) => { state.membership = { ...state.membership!, ...data }; return state.membership; },
   };
@@ -78,10 +81,18 @@ describe("server audit regressions", () => {
     await expect(acceptInvite("token")).rejects.toThrow(/invalid or expired/i);
     expect(state.created).toBe(1);
   });
-  it("clears a custom role when an active member is elevated by invitation", async () => {
+  it("leaves an existing member untouched when they accept a stale invite (no self-elevation)", async () => {
     state.membership = { id: "member-1", role: "viewer", status: "active", customRoleId: "custom-1" };
     await acceptInvite("token");
-    expect(state.membership).toMatchObject({ role: "operator", customRoleId: null });
+    // M10: role and custom role must be unchanged — elevation now goes
+    // through Team settings, never through invite accept.
+    expect(state.membership).toMatchObject({ role: "viewer", customRoleId: "custom-1" });
+  });
+  it("returns the existing workspace instead of stacking a duplicate on retry", async () => {
+    state.membership = { id: "member-1", role: "owner", status: "active", workspace: { id: "ws-1", name: "Acme", slug: "acme", status: "active" } } as unknown as typeof state.membership;
+    const workspace = await createWorkspace({ name: "Acme" });
+    expect(workspace).toMatchObject({ id: "ws-1" });
+    expect(state.created).toBe(0);
   });
   it("blocks workspace creation while TOTP challenge remains", async () => {
     state.session.user.totpGate = true;

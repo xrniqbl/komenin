@@ -85,6 +85,11 @@ export class BridgeWorker {
 
       } catch (error) {
         lastError = error as Error;
+        // M14: a transport failure (timeout/lost response) after the bridge
+        // accepted a mutation can mean the post already exists. Only retry
+        // mutations when an idempotency key lets the bridge dedup; reads are
+        // always safe to retry.
+        if (!retryBusinessFailure && !idempotencyKey) break;
         await this.delay(attempt * 200);
       }
     }

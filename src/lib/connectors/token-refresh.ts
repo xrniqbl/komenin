@@ -6,6 +6,7 @@
  * adapters start failing. `refreshDueCredentials` refreshes anything that
  * expires within the lead time.
  */
+import { OUTBOUND_FETCH_TIMEOUT_MS } from "@/lib/url-safety";
 import { decryptSecret, encryptSecret } from "@/lib/encryption";
 import { db } from "@/lib/db";
 
@@ -39,7 +40,10 @@ async function refreshMetaToken(
   );
   url.searchParams.set("access_token", accessToken);
 
-  const res = await fetch(url.toString(), { method: "GET" });
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
+  });
   const payload = (await res.json().catch(() => ({}))) as {
     access_token?: string;
     expires_in?: number;
@@ -66,6 +70,7 @@ async function refreshTikTokToken(
   }
   const res = await fetch("https://open.tiktokapis.com/v2/oauth/token/", {
     method: "POST",
+    signal: AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS),
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_key: clientKey,

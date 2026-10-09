@@ -170,6 +170,19 @@ export async function publishSocialPost(input: {
     };
   }
 
+  // Simulator mode never touches the credential vault: resolving it hits the
+  // database even though the simulator needs no credentials. Skip the DB
+  // round-trip so simulator publishes stay instant and DB-independent.
+  const official =
+    mode === "simulator"
+      ? (input.official ?? null)
+      : await resolveOfficialConfigForPublish({
+          platform: input.target.platform,
+          workspaceId: input.target.workspaceId,
+          accountId: input.target.accountId,
+          official: input.official,
+        });
+
   const result = await runConnectorAction({
     action: "publishPost",
     runtimeMode: mode,
@@ -182,12 +195,7 @@ export async function publishSocialPost(input: {
     },
     payload: input.payload as ConnectorPublishPayload,
     webhook: input.webhook === undefined ? getDefaultWebhookConfig() : input.webhook,
-    official: await resolveOfficialConfigForPublish({
-      platform: input.target.platform,
-      workspaceId: input.target.workspaceId,
-      accountId: input.target.accountId,
-      official: input.official,
-    }),
+    official,
     idempotencyKey: input.idempotencyKey ?? null,
   });
 

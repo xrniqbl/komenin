@@ -71,8 +71,14 @@ export async function createInvite(input: {
     const existing = await db.membership.findUnique({
       where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: recipient.id } },
     });
-    if (existing && existing.status !== "active") {
-      throw new Error("Membership is not active; ask an owner for access");
+    if (existing) {
+      if (existing.status !== "active") {
+        throw new Error("Membership is not active; ask an owner for access");
+      }
+      // M10 companion: inviting an already-active member would create a
+      // redundant invite row + email; the accept path can no longer elevate,
+      // so skip instead of spamming.
+      throw new Error("This user is already an active member of the workspace");
     }
   }
 
@@ -148,16 +154,11 @@ export async function acceptInvite(token: string) {
       if (existing.status !== "active") {
         throw new Error("Membership is not active; ask an owner for access");
       }
-      // Do not demote or overwrite an existing owner via invite accept.
-      if (existing.role === "owner") {
-        // An invitation cannot change an owner's membership.
-      } else if (ROLE_RANK[invite.role as WorkspaceRole] > ROLE_RANK[existing.role as WorkspaceRole]) {
-        // Only elevate; never demote via invite.
-        await tx.membership.update({
-          where: { id: existing.id },
-          data: { role: invite.role, customRoleId: null },
-        });
-      }
+      // M10: a stale invite must never change an existing membership. The
+      // inviter's authority is checked at create-time, not accept-time, so a
+      // demoted user could otherwise re-elevate themselves (and wipe a
+      // custom role) by accepting an old higher-rank invite. Accept is a
+      // no-op for existing members — role changes go through Team settings.
     } else {
       await tx.membership.create({
         data: {
