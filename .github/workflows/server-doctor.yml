@@ -16,15 +16,7 @@ jobs:
           script: |
             set -x
             cd /opt/komenin
-            echo "=== is 3000 listening on host? ==="
-            (ss -ltn 2>/dev/null || netstat -ltn 2>/dev/null) | grep -E ':3000' || echo "(nothing on :3000)"
-            echo "=== app container ports ==="
-            sudo docker port komenin-app-1 || true
-            sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | head -n 10 || true
-            echo "=== vhost now ==="
-            sudo grep -n "proxy_pass" /etc/nginx/sites-enabled/komenin.id || true
-            echo "=== nginx test + direct backend check ==="
-            curl -sS -m 10 -o /dev/null -w "via-nginx-http=%{http_code}\n" http://127.0.0.1/ || true
-            curl -sS -m 10 -o /dev/null -w "direct-3000=%{http_code}\n" http://127.0.0.1:3000/api/health || true
-            echo "=== nginx error log tail ==="
-            sudo tail -n 20 /var/log/nginx/error.log 2>/dev/null || true
+            echo "=== auth errors in app logs (last 200 lines) ==="
+            sudo docker compose logs --tail=200 app 2>/dev/null | grep -iE "auth|signout|sign-out|Configuration|secret|callback|UntrustedHost|InvalidCallback|MissingSecret|csrf" | tail -n 30 || true
+            echo "=== AUTH_URL / APP_URL effective ==="
+            sudo docker compose exec -T app node -e "console.log('AUTH_URL=' + process.env.AUTH_URL); console.log('APP_URL=' + process.env.APP_URL); console.log('NODE_ENV=' + process.env.NODE_ENV); console.log('secret_len=' + String(process.env.AUTH_SECRET || '').length)" || true
