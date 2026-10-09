@@ -237,6 +237,20 @@ export function OnboardingWizard({
     }
   }
 
+  // URL builder untuk navigasi tanpa JS (native anchor).
+  // Semua data form dipertahankan di query params.
+  function buildStepUrl(step: OnboardingStep): string {
+    const params = new URLSearchParams();
+    params.set("step", step);
+    if (workspaceName.trim()) params.set("workspaceName", workspaceName.trim());
+    if (timezone) params.set("timezone", timezone);
+    if (invites.trim()) params.set("invites", invites.trim());
+    if (selectedGoals.length > 0) params.set("goals", selectedGoals.join(","));
+    if (selectedPlatforms.length > 0) params.set("platforms", selectedPlatforms.join(","));
+    if (selectedTemplate) params.set("templateId", selectedTemplate.id);
+    return "/onboarding?" + params.toString();
+  }
+
   function toggleGoal(goal: UserGoal) {
     setSelectedGoals((prev) =>
       prev.includes(goal) ? prev.filter((g) => g !== goal) : [...prev, goal],
@@ -393,29 +407,50 @@ export function OnboardingWizard({
           <WelcomeStep userName={userName} onContinue={goNext} />
         )}
         {currentStep === "workspace" && (
-          <WorkspaceStep
-            workspaceName={workspaceName}
-            setWorkspaceName={setWorkspaceName}
-            timezone={timezone}
-            setTimezone={setTimezone}
-            invites={invites}
-            setInvites={setInvites}
-          />
+          <form id="workspace-form" method="GET" action="/onboarding">
+            <input type="hidden" name="step" value="goals" />
+            <WorkspaceStep
+              workspaceName={workspaceName}
+              setWorkspaceName={setWorkspaceName}
+              timezone={timezone}
+              setTimezone={setTimezone}
+              invites={invites}
+              setInvites={setInvites}
+            />
+          </form>
         )}
         {currentStep === "goals" && (
-          <GoalsStep
-            selectedGoals={selectedGoals}
-            toggleGoal={toggleGoal}
-            selectedPlatforms={selectedPlatforms}
-            togglePlatform={togglePlatform}
-          />
+          <form id="goals-form" method="GET" action="/onboarding">
+            <input type="hidden" name="step" value="template" />
+            <input type="hidden" name="workspaceName" value={workspaceName} />
+            <input type="hidden" name="timezone" value={timezone} />
+            <input type="hidden" name="invites" value={invites} />
+            <GoalsStep
+              selectedGoals={selectedGoals}
+              toggleGoal={toggleGoal}
+              selectedPlatforms={selectedPlatforms}
+              togglePlatform={togglePlatform}
+            />
+          </form>
         )}
         {currentStep === "template" && (
-          <TemplateStep
-            templates={templatesToShow}
-            selectedTemplate={selectedTemplate}
-            setSelectedTemplate={setSelectedTemplate}
-          />
+          <form id="template-form" method="GET" action="/onboarding">
+            <input type="hidden" name="step" value="launch" />
+            <input type="hidden" name="workspaceName" value={workspaceName} />
+            <input type="hidden" name="timezone" value={timezone} />
+            <input type="hidden" name="invites" value={invites} />
+            {selectedGoals.map((g) => (
+              <input key={g} type="hidden" name="goals" value={g} />
+            ))}
+            {selectedPlatforms.map((p) => (
+              <input key={p} type="hidden" name="platforms" value={p} />
+            ))}
+            <TemplateStep
+              templates={templatesToShow}
+              selectedTemplate={selectedTemplate}
+              setSelectedTemplate={setSelectedTemplate}
+            />
+          </form>
         )}
         {currentStep === "launch" && (
           <LaunchStep
@@ -441,37 +476,38 @@ export function OnboardingWizard({
           <div className="flex items-center justify-between">
           <Button
             variant="glass"
-            onClick={goBack}
-            disabled={isPending}
+            render={<a href={buildStepUrl(STEPS[Math.max(0, currentIndex - 1)])} />}
+            nativeButton={false}
           >
             <ArrowBackRoundedIcon className="size-4" />
             Back
           </Button>
           {currentStep === "launch" ? (
-            <Button
-              variant="electric"
-              onClick={handleLaunch}
-              disabled={isPending || !canGoNext()}
-              size="lg"
-              className="rounded-full"
-            >
-              {isPending ? (
-                <>
-                  <LoopRoundedIcon className="size-4 animate-spin" />
-                  Launching…
-                </>
-              ) : (
-                <>
-                  <RocketLaunchRoundedIcon className="size-4" />
-                  Launch command center
-                </>
+            <form method="POST" action="/api/onboarding/complete">
+              <input type="hidden" name="name" value={workspaceName.trim()} />
+              <input type="hidden" name="timezone" value={timezone} />
+              <input type="hidden" name="invites" value={invites} />
+              <input type="hidden" name="goals" value={selectedGoals.join(",")} />
+              <input type="hidden" name="platforms" value={selectedPlatforms.join(",")} />
+              {selectedTemplate && (
+                <input type="hidden" name="templateId" value={selectedTemplate.id} />
               )}
-            </Button>
+              <Button
+                variant="electric"
+                type="submit"
+                disabled={!canGoNext()}
+                size="lg"
+                className="rounded-full"
+              >
+                <RocketLaunchRoundedIcon className="size-4" />
+                Launch command center
+              </Button>
+            </form>
           ) : (
             <Button
               variant="electric"
-              onClick={goNext}
-              disabled={!canGoNext() || isPending}
+              type="submit"
+              form={`${currentStep}-form`}
             >
               Continue
               <ArrowForwardRoundedIcon className="size-4" />
@@ -566,7 +602,7 @@ function WelcomeStep({
         ))}
       </div>
       <div style={{ animation: "fadeInUp 0.5s ease-out 0.4s both" }}>
-        <Button size="lg" variant="electric" onClick={onContinue} className="gap-2 rounded-full">
+        <Button size="lg" variant="electric" render={<a href="/onboarding?step=workspace" />} nativeButton={false} className="gap-2 rounded-full">
           Get started
           <ArrowForwardRoundedIcon className="size-4" />
         </Button>
@@ -615,16 +651,19 @@ function WorkspaceStep({
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-4">
-              <Field name="name">
+              <Field name="workspaceName">
                 <FieldLabel htmlFor="onboarding-name">
                   Workspace name
                 </FieldLabel>
                 <Input
                   id="onboarding-name"
-                  value={workspaceName}
+                  name="workspaceName"
+                  defaultValue={workspaceName}
                   onChange={(e) => setWorkspaceName(e.target.value)}
                   placeholder="Acme Growth"
                   autoFocus
+                  required
+                  minLength={2}
                 />
                 <FieldDescription>
                   Your team or brand name. This appears throughout the app.
@@ -633,11 +672,32 @@ function WorkspaceStep({
 
               <Field name="timezone">
                 <FieldLabel htmlFor="onboarding-timezone">Timezone</FieldLabel>
-                <Input
+                <select
                   id="onboarding-timezone"
-                  value={timezone}
+                  name="timezone"
+                  defaultValue={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
-                />
+                  className="h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:opacity-50 md:text-sm dark:bg-input/30 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&>option]:bg-neutral-900 [&>option]:text-neutral-100"
+                >
+                  <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
+                  <option value="Asia/Makassar">Asia/Makassar (WITA)</option>
+                  <option value="Asia/Jayapura">Asia/Jayapura (WIT)</option>
+                  <option value="Asia/Singapore">Asia/Singapore</option>
+                  <option value="Asia/Kuala_Lumpur">Asia/Kuala Lumpur</option>
+                  <option value="Asia/Bangkok">Asia/Bangkok</option>
+                  <option value="Asia/Tokyo">Asia/Tokyo</option>
+                  <option value="Asia/Seoul">Asia/Seoul</option>
+                  <option value="Asia/Shanghai">Asia/Shanghai</option>
+                  <option value="Asia/Dubai">Asia/Dubai</option>
+                  <option value="Europe/London">Europe/London</option>
+                  <option value="Europe/Paris">Europe/Paris</option>
+                  <option value="Europe/Berlin">Europe/Berlin</option>
+                  <option value="America/New_York">America/New_York</option>
+                  <option value="America/Chicago">America/Chicago</option>
+                  <option value="America/Los_Angeles">America/Los_Angeles</option>
+                  <option value="Australia/Sydney">Australia/Sydney</option>
+                  <option value="UTC">UTC</option>
+                </select>
                 <FieldDescription>
                   Used for schedules, audit timestamps, and digests.
                 </FieldDescription>
@@ -664,7 +724,8 @@ function WorkspaceStep({
           <CardContent>
             <Textarea
               id="onboarding-invites"
-              value={invites}
+              name="invites"
+              defaultValue={invites}
               onChange={(e) => setInvites(e.target.value)}
               placeholder="ops@company.com, analyst@company.com"
               rows={3}
@@ -776,19 +837,23 @@ function GoalsStep({
           {GOAL_OPTIONS.map((goal, index) => {
             const isSelected = selectedGoals.includes(goal.value);
             return (
-              <button
+              <label
                 key={goal.value}
-                type="button"
-                onClick={() => toggleGoal(goal.value)}
-                className={`group relative flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all duration-200 ${
-                  isSelected
-                    ? "border-electric-500/50 bg-electric-500/10 shadow-sm"
-                    : "border-border hover:border-electric-500/40 hover:shadow-sm"
+                className={`group relative flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 text-left transition-all duration-200 has-checked:border-electric-500/50 has-checked:bg-electric-500/10 has-checked:shadow-sm ${
+                  isSelected ? "" : "border-border hover:border-electric-500/40 hover:shadow-sm"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${index * 0.05}s both`,
                 }}
               >
+                <input
+                  type="checkbox"
+                  name="goals"
+                  value={goal.value}
+                  defaultChecked={isSelected}
+                  onChange={() => toggleGoal(goal.value)}
+                  className="sr-only"
+                />
                 {/* Selection indicator */}
                 <span
                   className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs transition-all duration-200 ${
@@ -808,7 +873,7 @@ function GoalsStep({
                     {goal.description}
                   </p>
                 </div>
-              </button>
+              </label>
             );
           })}
         </div>
@@ -823,19 +888,23 @@ function GoalsStep({
           {PLATFORM_OPTIONS.map((platform, index) => {
             const isSelected = selectedPlatforms.includes(platform.value);
             return (
-              <button
+              <label
                 key={platform.value}
-                type="button"
-                onClick={() => togglePlatform(platform.value)}
-                className={`group relative flex flex-col items-center gap-2 rounded-xl border-2 px-4 py-5 transition-all duration-200 ${
-                  isSelected
-                    ? "border-electric-500/50 bg-electric-500/10 shadow-sm"
-                    : "border-border hover:border-electric-500/40 hover:shadow-sm"
+                className={`group relative flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 px-4 py-5 transition-all duration-200 has-checked:border-electric-500/50 has-checked:bg-electric-500/10 has-checked:shadow-sm ${
+                  isSelected ? "" : "border-border hover:border-electric-500/40 hover:shadow-sm"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${(index + 4) * 0.05}s both`,
                 }}
               >
+                <input
+                  type="checkbox"
+                  name="platforms"
+                  value={platform.value}
+                  defaultChecked={isSelected}
+                  onChange={() => togglePlatform(platform.value)}
+                  className="sr-only"
+                />
                 <span
                   className={`absolute right-2 top-2 flex size-4 items-center justify-center rounded-full text-[10px] transition-all duration-200 ${
                     isSelected
@@ -847,7 +916,7 @@ function GoalsStep({
                 </span>
                 <span className="flex shrink-0">{platform.icon}</span>
                 <span className="text-sm font-medium">{platform.label}</span>
-              </button>
+              </label>
             );
           })}
         </div>
@@ -901,21 +970,25 @@ function TemplateStep({
                   : "Threads";
 
             return (
-              <button
+              <label
                 key={template.id}
-                type="button"
-                onClick={() =>
-                  setSelectedTemplate(isSelected ? null : template)
-                }
-                className={`group relative flex items-start gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${
-                  isSelected
-                    ? "border-electric-500/50 bg-electric-500/10 shadow-sm"
-                    : "border-border hover:border-electric-500/40 hover:shadow-sm"
+                className={`group relative flex cursor-pointer items-start gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 has-checked:border-electric-500/50 has-checked:bg-electric-500/10 has-checked:shadow-sm ${
+                  isSelected ? "" : "border-border hover:border-electric-500/40 hover:shadow-sm"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${index * 0.05}s both`,
                 }}
               >
+                <input
+                  type="radio"
+                  name="templateId"
+                  value={template.id}
+                  defaultChecked={isSelected}
+                  onChange={() =>
+                    setSelectedTemplate(isSelected ? null : template)
+                  }
+                  className="sr-only"
+                />
                 {/* Icon */}
                 <span
                   className={`flex size-10 shrink-0 items-center justify-center rounded-lg transition-all ${
@@ -987,7 +1060,7 @@ function TemplateStep({
                 >
                   {isSelected && <CheckRoundedIcon className="size-3" />}
                 </span>
-              </button>
+              </label>
             );
           })}
         </div>

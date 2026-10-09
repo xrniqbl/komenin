@@ -46,6 +46,29 @@ export default async function OnboardingPage({
     templateId: String(params.templateId ?? ""),
   };
 
+  // Validasi server-side untuk navigasi tanpa JS:
+  // jangan biarkan user lompat ke step berikutnya dengan data kosong.
+  const qp = new URLSearchParams();
+  if (urlData.workspaceName) qp.set("workspaceName", urlData.workspaceName);
+  if (urlData.timezone) qp.set("timezone", urlData.timezone);
+  if (urlData.invites) qp.set("invites", urlData.invites);
+  if (urlData.goals) qp.set("goals", urlData.goals);
+  if (urlData.platforms) qp.set("platforms", urlData.platforms);
+  if (urlData.templateId) qp.set("templateId", urlData.templateId);
+  const qs = qp.toString() ? `&${qp.toString()}` : "";
+  if (
+    ["goals", "template", "launch"].includes(initialStep) &&
+    urlData.workspaceName.trim().length < 2
+  ) {
+    redirect(`/onboarding?step=workspace${qs}`);
+  }
+  if (
+    ["template", "launch"].includes(initialStep) &&
+    (!urlData.goals || !urlData.platforms)
+  ) {
+    redirect(`/onboarding?step=goals${qs}`);
+  }
+
   async function completeOnboarding(formData: FormData) {
     "use server";
     const name = String(formData.get("name") || "").trim();
