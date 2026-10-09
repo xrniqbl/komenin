@@ -27,7 +27,6 @@ export const authConfig = {
   // host is our canonical origin, not attacker input. The production gate +
   // preflight enforce AUTH_URL == APP_URL == https://<canonical domain>.
   // Local dev keeps `true` so http://localhost:3000 and 127.0.0.1 both work
-<<<<<<< HEAD
   // without setting AUTH_URL; every deployed env must set AUTH_URL == APP_URL
   // (enforced by the production gate + preflight).
   trustHost:
