@@ -34,7 +34,7 @@ const buttonVariants = cva(
         electric:
           "bg-electric-600 text-white shadow-[0_0_32px_rgba(46,124,246,0.45)] hover:bg-electric-500",
         glass:
-          "border border-white/15 bg-white/5 text-neutral-200 shadow-none backdrop-blur-xl hover:border-white/30 hover:bg-white/10 hover:text-white",
+          "border border-white/10 bg-[#0d1322] text-neutral-200 shadow-none hover:border-white/20 hover:bg-[#111827] hover:text-white",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",

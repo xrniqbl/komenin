@@ -245,7 +245,7 @@ export default async function MentionsPage({
                 min={1}
                 max={500}
                 defaultValue={settings?.maxRepliesPerDay ?? 20}
-                className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 backdrop-blur-xl"
+                className="rounded-md border border-white/10 bg-[#0d1322] px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500"
               />
             </div>
             <div className="flex flex-col gap-2 md:col-span-2">
@@ -256,7 +256,7 @@ export default async function MentionsPage({
                 rows={3}
                 defaultValue={settings?.templateText || ""}
                 placeholder="Hai {{authorHandle}}, thanks! Tim kami balas lebih detail via DM ya."
-                className="rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 backdrop-blur-xl"
+                className="rounded-md border border-white/10 bg-[#0d1322] px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500"
               />
               <p className="text-xs text-muted-foreground">
                 Variabel: {"{{authorHandle}} {{platform}} {{postSnippet}} {{agentName}} {{topic}}"}. Kosongkan

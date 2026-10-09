@@ -119,7 +119,7 @@ export default async function AgentDetailPage({
                 id="style"
                 name="style"
                 defaultValue={agent.style || "balanced"}
-                className="h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-neutral-100 placeholder:text-neutral-500 backdrop-blur-xl"
+                className="h-9 rounded-md border border-white/10 bg-[#0d1322] px-3 text-sm text-neutral-100 placeholder:text-neutral-500"
               >
                 <option value="concise">concise</option>
                 <option value="balanced">balanced</option>
@@ -133,7 +133,7 @@ export default async function AgentDetailPage({
                 id="formality"
                 name="formality"
                 defaultValue={agent.formality || "neutral"}
-                className="h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-neutral-100 placeholder:text-neutral-500 backdrop-blur-xl"
+                className="h-9 rounded-md border border-white/10 bg-[#0d1322] px-3 text-sm text-neutral-100 placeholder:text-neutral-500"
               >
                 <option value="casual">casual</option>
                 <option value="neutral">neutral</option>
@@ -146,7 +146,7 @@ export default async function AgentDetailPage({
                 id="emojiPolicy"
                 name="emojiPolicy"
                 defaultValue={agent.emojiPolicy || "light"}
-                className="h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-neutral-100 placeholder:text-neutral-500 backdrop-blur-xl"
+                className="h-9 rounded-md border border-white/10 bg-[#0d1322] px-3 text-sm text-neutral-100 placeholder:text-neutral-500"
               >
                 <option value="none">none</option>
                 <option value="light">light</option>
@@ -159,7 +159,7 @@ export default async function AgentDetailPage({
                 id="ctaStyle"
                 name="ctaStyle"
                 defaultValue={agent.ctaStyle || "soft"}
-                className="h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-neutral-100 placeholder:text-neutral-500 backdrop-blur-xl"
+                className="h-9 rounded-md border border-white/10 bg-[#0d1322] px-3 text-sm text-neutral-100 placeholder:text-neutral-500"
               >
                 <option value="none">none</option>
                 <option value="soft">soft</option>
@@ -181,7 +181,7 @@ export default async function AgentDetailPage({
                 id="aiProviderId"
                 name="aiProviderId"
                 defaultValue={agent.aiProviderId || ""}
-                className="h-9 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-neutral-100 placeholder:text-neutral-500 backdrop-blur-xl"
+                className="h-9 rounded-md border border-white/10 bg-[#0d1322] px-3 text-sm text-neutral-100 placeholder:text-neutral-500"
               >
                 <option value="">Workspace default</option>
                 {providers.map((p) => (

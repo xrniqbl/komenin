@@ -50,15 +50,15 @@ export function OnboardingChecklistCard({
 
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-electric-500 text-white shadow-[0_0_20px_rgba(46,124,246,0.4)]">
-              <AutoAwesomeRoundedIcon className="size-4" />
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-electric-600 text-white">
+              <AutoAwesomeRoundedIcon className="size-3.5" />
             </div>
             <div>
-              <CardTitle className="text-base">
+              <CardTitle className="text-[15px]">
                 Get live in 15 minutes
               </CardTitle>
-              <CardDescription className="mt-0.5">
+              <CardDescription className="mt-0.5 text-xs">
                 Finish these steps to run your first approval-safe campaign.
               </CardDescription>
             </div>
@@ -72,11 +72,12 @@ export function OnboardingChecklistCard({
               size="icon-xs"
               onClick={() => setIsExpanded(!isExpanded)}
               aria-label={isExpanded ? "Collapse checklist" : "Expand checklist"}
+              className="size-7"
             >
               {isExpanded ? (
-                <KeyboardArrowUpRoundedIcon className="size-4" />
+                <KeyboardArrowUpRoundedIcon className="size-3.5" />
               ) : (
-                <KeyboardArrowDownRoundedIcon className="size-4" />
+                <KeyboardArrowDownRoundedIcon className="size-3.5" />
               )}
             </Button>
             <Button
@@ -84,8 +85,9 @@ export function OnboardingChecklistCard({
               size="icon-xs"
               onClick={() => setIsDismissed(true)}
               aria-label="Dismiss checklist"
+              className="size-7"
             >
-              <CloseRoundedIcon className="size-3.5" />
+              <CloseRoundedIcon className="size-3" />
             </Button>
           </div>
         </div>
@@ -166,11 +168,11 @@ export function OnboardingChecklistCard({
                 </div>
                 {!step.done && (
                   <Button
-                    size="sm"
+                    size="xs"
                     variant={isNext ? "electric" : "glass"}
                     render={<Link href={step.href} />}
                     nativeButton={false}
-                    className="shrink-0 gap-1"
+                    className="shrink-0 gap-1 text-xs"
                   >
                     {isNext ? "Start" : "Open"}
                     {isNext && <ArrowForwardRoundedIcon className="size-3" />}

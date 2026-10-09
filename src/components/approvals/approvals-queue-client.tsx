@@ -434,7 +434,7 @@ export function ApprovalsQueueClient({
       </Card>
 
       {selected.size > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/95 p-3 shadow-lg backdrop-blur sm:static sm:z-auto sm:rounded-xl sm:border sm:p-4 sm:shadow-none">
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-background p-3 shadow-lg sm:static sm:z-auto sm:rounded-xl sm:border sm:p-4 sm:shadow-none">
           <div className="mx-auto flex max-w-6xl flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <Input
               type="text"

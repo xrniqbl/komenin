@@ -115,7 +115,7 @@ export function ApprovalCard({
               />
             </div>
 
-            <div className="sticky bottom-0 z-10 -mx-6 border-t bg-background/95 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+            <div className="sticky bottom-0 z-10 -mx-6 border-t bg-background px-6 py-3 sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   type="button"
