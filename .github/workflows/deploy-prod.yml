@@ -119,6 +119,12 @@ jobs:
             # Compose runs from the pinned image (see KOMENIN_IMAGE in
             # .env.docker) — never a local rebuild of stale source.
             echo "KOMENIN_IMAGE=$IMAGE" > .deploy-image.env
+            # Diagnose: the live site serves next-dev artifacts (hmr-client),
+            # which the production image cannot produce. A compose override
+            # file on the server (command:, volumes:) would explain it — show
+            # the effective config so it is visible in logs.
+            ls -la docker-compose*.yml compose*.yml 2>/dev/null || true
+            sudo docker compose --env-file .env.docker --env-file .deploy-image.env config --models 2>/dev/null | grep -A8 "^services:" | head -n 30 || true
             sudo docker compose --env-file .env.docker --env-file .deploy-image.env up -d --no-build app
             # Guard: the running container MUST be the image we just pulled.
             # If something (override file, stale container, wrong compose
