@@ -19,7 +19,9 @@ import { apiError } from "@/lib/api-errors";
 export function assertSameOrigin(
   request: NextRequest | Request,
 ): NextResponse | null {
-  const host = new URL(request.url).host;
+  const fwdHost = request.headers.get("x-forwarded-host");
+  const hostHdr = request.headers.get("host");
+  const host = (fwdHost ? fwdHost.split(",")[0].trim() : null) || hostHdr || new URL(request.url).host;
 
   const origin = request.headers.get("origin");
   if (origin) {
