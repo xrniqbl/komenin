@@ -15,7 +15,11 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /opt/komenin
-            echo "=== recent server-component errors with digest ==="
-            sudo docker compose logs --tail=3000 app 2>/dev/null | grep -B2 -A25 -E "Error \[|digest:|Failed to .* action|Failed to fetch|Unhandled" | head -n 120 || true
-            echo "=== workspaces for iqbal ==="
-            sudo docker compose exec -T db psql -U "${POSTGRES_USER:-komenin}" -d "${POSTGRES_DB:-komenin}" -c "SELECT w.id, w.name, w.slug, w.\"createdAt\", m.role FROM \"Workspace\" w JOIN \"Membership\" m ON m.\"workspaceId\" = w.id JOIN \"User\" u ON u.id = m.\"userId\" WHERE u.email = 'iqblsptr04@gmail.com' ORDER BY w.\"createdAt\";" 2>&1 | head -n 20 || true
+            echo "=== columns now ==="
+            sudo docker compose exec -T db psql -U "${POSTGRES_USER:-komenin}" -d "${POSTGRES_DB:-komenin}" -c "\d \"Workspace\"" 2>&1 | grep -iE "aiDefault|aiFallback|aiTemperature|aiMaxTokens|agencyLabel|aiPrefer|aiPayg" | head -n 12 || true
+            echo "=== migration applied? ==="
+            sudo docker compose exec -T db psql -U "${POSTGRES_USER:-komenin}" -d "${POSTGRES_DB:-komenin}" -c "SELECT migration_name FROM _prisma_migrations ORDER BY finished_at DESC LIMIT 3;" 2>&1 | head -n 8 || true
+            echo "=== fresh P2022 since deploy? ==="
+            sudo docker compose logs --tail=500 app 2>/dev/null | grep -c "P2022" || true
+            echo "=== live /app check ==="
+            curl -sS -m 20 -o /dev/null -w "app=%{http_code}\n" https://komenin.id/app || true
