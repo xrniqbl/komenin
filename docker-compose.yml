@@ -132,6 +132,7 @@ services:
       # Email transaksional (wajib prod — OTP login + digest gagal diam-diam tanpanya)
       BREVO_API_KEY: ${BREVO_API_KEY}
       EMAIL_FROM: ${EMAIL_FROM}
+      TIKTOK_SITE_VERIFICATION: ${TIKTOK_SITE_VERIFICATION}
       SUPPORT_INBOX_EMAIL: ${SUPPORT_INBOX_EMAIL:-}
       AI_GATEWAY_ENABLED: ${AI_GATEWAY_ENABLED:-false}
       AI_GATEWAY_BASE_URL: ${AI_GATEWAY_BASE_URL:-}
