@@ -483,26 +483,17 @@ export function OnboardingWizard({
             Back
           </Button>
           {currentStep === "launch" ? (
-            <form method="POST" action="/api/onboarding/complete">
-              <input type="hidden" name="name" value={workspaceName.trim()} />
-              <input type="hidden" name="timezone" value={timezone} />
-              <input type="hidden" name="invites" value={invites} />
-              <input type="hidden" name="goals" value={selectedGoals.join(",")} />
-              <input type="hidden" name="platforms" value={selectedPlatforms.join(",")} />
-              {selectedTemplate && (
-                <input type="hidden" name="templateId" value={selectedTemplate.id} />
-              )}
-              <Button
-                variant="electric"
-                type="submit"
-                disabled={!canGoNext()}
-                size="lg"
-                className="rounded-full"
-              >
-                <RocketLaunchRoundedIcon className="size-4" />
-                Launch command center
-              </Button>
-            </form>
+            <Button
+              variant="electric"
+              type="button"
+              onClick={handleLaunch}
+              disabled={!canGoNext()}
+              size="lg"
+              className="rounded-full"
+            >
+              <RocketLaunchRoundedIcon className="size-4" />
+              Launch command center
+            </Button>
           ) : (
             <Button
               variant="electric"
