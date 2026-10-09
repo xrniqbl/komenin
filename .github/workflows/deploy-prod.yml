@@ -120,6 +120,24 @@ jobs:
             # .env.docker) — never a local rebuild of stale source.
             echo "KOMENIN_IMAGE=$IMAGE" > .deploy-image.env
             sudo docker compose --env-file .env.docker --env-file .deploy-image.env up -d --no-build app
+            # Guard: the running container MUST be the image we just pulled.
+            # If something (override file, stale container, wrong compose
+            # project) serves another image — e.g. a manually started dev
+            # server — fail loudly instead of health-checking the wrong app.
+            RUNNING="$(sudo docker compose ps --format '{{.Image}}' app 2>/dev/null | head -1 || true)"
+            echo "expected image: $IMAGE"
+            echo "running image:  $RUNNING"
+            sudo docker compose ps app || true
+            if [ -z "$RUNNING" ]; then
+              echo "❌ app container is not running after up -d"
+              sudo docker compose logs --tail=50 app || true
+              exit 1
+            fi
+            if [ "$RUNNING" != "$IMAGE" ]; then
+              echo "❌ app runs $RUNNING, expected $IMAGE — refusing to continue"
+              sudo docker compose logs --tail=50 app || true
+              exit 1
+            fi
             sudo docker image prune -f
 
       - name: Container health check (on server)
