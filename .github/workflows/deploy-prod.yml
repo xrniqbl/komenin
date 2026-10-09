@@ -130,6 +130,8 @@ jobs:
             done
             echo "❌ Container never became healthy — recent logs:"
             sudo docker compose logs --tail=100 app || true
+            echo "--- production-gate errors (the exact failing checks):"
+            sudo docker compose logs app 2>/dev/null | grep -o "\[boot\] production-gate error: .*" | sort -u || true
             exit 1
 
       - name: External health check after deploy
