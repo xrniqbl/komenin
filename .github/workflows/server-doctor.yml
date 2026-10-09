@@ -1,0 +1,29 @@
+name: Server Doctor (manual diagnostics)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Diagnose production server routing
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PRODUCTION_SERVER_HOST }}
+          username: ${{ secrets.PRODUCTION_SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -x
+            cd /opt/komenin
+            echo "=== containers ==="
+            sudo docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}' || true
+            echo "=== preview compose content ==="
+            cat docker-compose.preview.yml 2>/dev/null || echo "(no preview file)"
+            echo "=== traefik routers (from traefik api if enabled) ==="
+            sudo docker logs traefik --tail=30 2>/dev/null | grep -iE "router|error|komenin" | tail -n 20 || echo "(no traefik logs)"
+            echo "=== app labels ==="
+            sudo docker inspect komenin-app-1 --format '{{json .Config.Labels}}' 2>/dev/null | head -c 2000 || true
+            echo ""
+            echo "=== app listening? ==="
+            sudo docker compose exec -T app node -e "fetch('http://localhost:3000/api/health').then(async (r) => console.log('app direct:', r.status, (await r.text()).slice(0,60))).catch((e) => console.log('app direct FAIL:', e.message))" || true
