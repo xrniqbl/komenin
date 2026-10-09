@@ -119,10 +119,10 @@ export function AppSidebar() {
               size="lg"
               tooltip="Komenin"
               render={<Link href="/app" />}
-              className="data-[slot=sidebar-menu-button]:!px-2 hover:bg-white/[0.04]"
+              className="data-[slot=sidebar-menu-button]:!px-2 hover:bg-white/[0.04] group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-0"
             >
-              <span className="flex size-8 items-center justify-center rounded-lg bg-electric-600">
-                <Image src="/brand/komenin-robot-256.png" alt="Komenin" width={20} height={20} className="brightness-0 invert" />
+              <span className="flex size-7 items-center justify-center rounded-md bg-electric-600">
+                <Image src="/brand/komenin-robot-256.png" alt="Komenin" width={16} height={16} className="brightness-0 invert" />
               </span>
               <span className="text-sm font-semibold tracking-tight text-white">Komenin</span>
             </SidebarMenuButton>
@@ -149,9 +149,9 @@ export function AppSidebar() {
                         isActive={isActive}
                         tooltip={child.label}
                         render={<Link href={child.href} />}
-                        className="h-9 rounded-lg text-[13px] text-neutral-400 hover:bg-white/[0.04] hover:text-white data-[active=true]:bg-electric-600/15 data-[active=true]:text-white data-[active=true]:shadow-[inset_0_0_0_1px_rgba(46,124,246,0.25)]"
+                        className="h-8 rounded-md text-[13px] text-neutral-400 hover:bg-white/[0.04] hover:text-white data-[active=true]:bg-electric-600/15 data-[active=true]:text-white data-[active=true]:shadow-[inset_0_0_0_1px_rgba(46,124,246,0.25)] group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-0"
                       >
-                        <Icon className="size-4 shrink-0" />
+                        <Icon className="size-3.5 shrink-0" />
                         <span>{child.label}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
