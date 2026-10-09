@@ -109,19 +109,43 @@ jobs:
             sudo docker compose --env-file .env.docker --env-file .deploy-image.env up -d --no-build app
             sudo docker image prune -f
 
-      - name: Health check after deploy
+      - name: Container health check (on server)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PRODUCTION_SERVER_HOST }}
+          username: ${{ secrets.PRODUCTION_SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /opt/komenin
+            # App answers its own liveness probe (no DB needed). node exists
+            # in the image for sure; wget/curl may not.
+            for i in $(seq 1 12); do
+              sleep 10
+              if sudo docker compose exec -T app node -e "fetch('http://localhost:3000/api/health').then(async (r) => { const t = await r.text(); if (!r.ok || !t.includes('\"ok\":true')) process.exit(1); }).catch(() => process.exit(1))"; then
+                echo "✅ Container healthy!"
+                exit 0
+              fi
+              echo "container attempt $i not healthy yet..."
+            done
+            echo "❌ Container never became healthy — recent logs:"
+            sudo docker compose logs --tail=100 app || true
+            exit 1
+
+      - name: External health check after deploy
         run: |
           echo "Waiting for deployment to complete..."
           # PRODUCTION_SERVER_URL may be stored with or without scheme
           # ("example.com" or "https://example.com"); normalize to a bare
-          # host so the curl URL below is never "http://https://...".
+          # host. Traefik only serves the app on websecure, so check https
+          # (Let's Encrypt cert is valid — no -k needed).
           HOST="${{ secrets.PRODUCTION_SERVER_URL }}"
           HOST="${HOST#https://}"
           HOST="${HOST#http://}"
           HOST="${HOST%%/*}"
           for i in $(seq 1 12); do
             sleep 10
-            if curl -fsS "http://${HOST}/api/health" | grep -q '"ok":true'; then
+            if curl -fsS "https://${HOST}/api/health" | grep -q '"ok":true'; then
               echo "✅ Deployment healthy!"
               exit 0
             fi
