@@ -136,7 +136,7 @@ export default async function AppHomePage() {
             <Badge variant={mode === "simulator" ? "secondary" : "default"}>
               {mode} mode
             </Badge>
-            <Button variant="glass" render={<Link href="/app/audit-logs" />} nativeButton={false}>
+            <Button variant="outline" render={<Link href="/app/audit-logs" />} nativeButton={false}>
               Audit trail ({recentAudits})
             </Button>
           </div>
@@ -173,7 +173,7 @@ export default async function AppHomePage() {
             <div className="pt-2">
               <Button
                 size="sm"
-                variant="glass"
+                variant="outline"
                 render={<Link href="/app/settings/publisher" />}
                 nativeButton={false}
               >

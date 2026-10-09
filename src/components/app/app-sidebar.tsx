@@ -110,29 +110,33 @@ export function AppSidebar() {
   return (
     <Sidebar
       collapsible="icon"
-      className="text-neutral-200 [&_[data-sidebar=sidebar-inner]]:border-white/10 [&_[data-sidebar=sidebar-inner]]:bg-[#0a0f1e]/80 [&_[data-sidebar=sidebar-inner]]:backdrop-blur-xl"
+      className="text-neutral-200 [&_[data-sidebar=sidebar-inner]]:border-r [&_[data-sidebar=sidebar-inner]]:border-white/[0.06] [&_[data-sidebar=sidebar-inner]]:bg-[#080c16]"
     >
-      <SidebarHeader className="border-b border-white/10">
+      <SidebarHeader className="border-b border-white/[0.06] bg-[#080c16]">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
               tooltip="Komenin"
               render={<Link href="/app" />}
-              className="data-[slot=sidebar-menu-button]:!px-2"
+              className="data-[slot=sidebar-menu-button]:!px-2 hover:bg-white/[0.04]"
             >
-              <Image src="/brand/komenin-robot-256.png" alt="Komenin" width={32} height={32} />
-              <span className="text-sm font-semibold tracking-tight">Komenin</span>
+              <span className="flex size-8 items-center justify-center rounded-lg bg-electric-600">
+                <Image src="/brand/komenin-robot-256.png" alt="Komenin" width={20} height={20} className="brightness-0 invert" />
+              </span>
+              <span className="text-sm font-semibold tracking-tight text-white">Komenin</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="bg-[#080c16] px-2">
         {items.map((item) => (
-          <SidebarGroup key={item.label}>
-            <SidebarGroupLabel>{item.label}</SidebarGroupLabel>
+          <SidebarGroup key={item.label} className="py-1">
+            <SidebarGroupLabel className="px-2 text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+              {item.label}
+            </SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu>
+              <SidebarMenu className="gap-0.5">
                 {item.children.map((child) => {
                   const Icon = child.icon;
                   const isActive =
@@ -145,8 +149,9 @@ export function AppSidebar() {
                         isActive={isActive}
                         tooltip={child.label}
                         render={<Link href={child.href} />}
+                        className="h-9 rounded-lg text-[13px] text-neutral-400 hover:bg-white/[0.04] hover:text-white data-[active=true]:bg-electric-600/15 data-[active=true]:text-white data-[active=true]:shadow-[inset_0_0_0_1px_rgba(46,124,246,0.25)]"
                       >
-                        <Icon className="size-4" />
+                        <Icon className="size-4 shrink-0" />
                         <span>{child.label}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -157,7 +162,7 @@ export function AppSidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
-      <SidebarRail />
+      <SidebarRail className="bg-[#080c16]" />
     </Sidebar>
   );
 }

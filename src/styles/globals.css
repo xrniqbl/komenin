@@ -1667,11 +1667,11 @@ input[type="search"]::-webkit-search-cancel-button {
 }
 
 @utility bg-marketing {
-  background-color: #0a0f1e;
+  background-color: #060a14;
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(46, 124, 246, 0.08), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 110%, rgba(46, 124, 246, 0.05), transparent),
-    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
-  background-size: auto, auto, 56px 56px, 56px 56px;
+    radial-gradient(ellipse 90% 55% at 50% -10%, rgba(46, 124, 246, 0.14), transparent 70%),
+    radial-gradient(ellipse 70% 45% at 85% 110%, rgba(46, 124, 246, 0.08), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 10% 100%, rgba(20, 60, 160, 0.06), transparent 70%),
+    linear-gradient(180deg, #060a14 0%, #0a0f1e 45%, #060a14 100%);
+  background-size: auto, auto, auto, auto;
 }
