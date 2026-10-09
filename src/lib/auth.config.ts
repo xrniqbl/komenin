@@ -24,7 +24,9 @@ export const authConfig = {
   // Local dev keeps `true` so http://localhost:3000 and 127.0.0.1 both work
   // without setting AUTH_URL; every deployed env must set AUTH_URL == APP_URL
   // (enforced by the production gate + preflight) and runs with `false`.
-  trustHost: process.env.NODE_ENV !== "production" && !process.env.VERCEL_ENV,
+  trustHost:
+    process.env.AUTH_TRUST_HOST === "true" ||
+    (process.env.NODE_ENV !== "production" && !process.env.VERCEL_ENV),
   callbacks: {
     async jwt({ token, user }) {
       if (user?.id) {

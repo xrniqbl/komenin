@@ -24,7 +24,9 @@ RUN npm ci
 FROM base AS builder
 # Build-arg dari docker-compose (NEXT_PUBLIC_* di-inline ke client bundle).
 ARG NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION
+ARG TIKTOK_SITE_VERIFICATION
 ENV NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION=$NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION
+ENV TIKTOK_SITE_VERIFICATION=$TIKTOK_SITE_VERIFICATION
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Prisma client
