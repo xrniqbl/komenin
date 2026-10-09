@@ -74,6 +74,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Sync compose file to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.PRODUCTION_SERVER_HOST }}
+          username: ${{ secrets.PRODUCTION_SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml"
+          target: "/opt/komenin"
+          overwrite: true
+
       - name: Deploy to production server
         uses: appleboy/ssh-action@master
         with:
@@ -84,6 +94,9 @@ jobs:
             set -e
             cd /opt/komenin
             IMAGE="${{ steps.image.outputs.tag }}"
+            # The compose file is now synced from the repo (previous step), so
+            # service changes (ports, healthcheck, env wiring) actually apply.
+            cp docker-compose.yml "docker-compose.backup-$(date +%Y%m%d%H%M%S).yml" || true
 
             # Upstash (durable rate limits) lives in GitHub Secrets so it is
             # never committed. Ensure .env.docker carries it — compose reads
