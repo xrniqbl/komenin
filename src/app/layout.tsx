@@ -132,6 +132,11 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} className={`${interTight.variable} dark`} data-scroll-behavior="smooth">
+      <head>
+        {process.env.TIKTOK_SITE_VERIFICATION && (
+          <meta name="tiktok-developers-site-verification" content={process.env.TIKTOK_SITE_VERIFICATION} />
+        )}
+      </head>
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         <AppProviders initialLocale={locale}>{children}</AppProviders>
       </body>
