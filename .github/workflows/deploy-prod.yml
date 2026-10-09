@@ -85,13 +85,15 @@ jobs:
             cd /opt/komenin
             IMAGE="${{ steps.image.outputs.tag }}"
 
-            # Private GHCR image: the server needs its own login (a PAT with
-            # read:packages stored once in /opt/komenin/.ghcr-token).
-            if [ -f .ghcr-token ]; then
-              echo "${{ secrets.GHCR_USERNAME }}" | sudo docker login ghcr.io \
-                --username "$(cat .ghcr-username 2>/dev/null || echo '${{ secrets.GHCR_USERNAME }}')" \
-                --password-stdin < .ghcr-token || echo "WARN: ghcr login failed; continuing with cached images"
-            fi
+            # Private GHCR image: log in with the fresh per-run GITHUB_TOKEN
+            # (this job has packages:write, so the token can pull). Never rely
+            # on a stale long-lived PAT file on disk — that is what caused
+            # "error from registry: unauthorized" on docker pull. The token is
+            # masked in logs by Actions, and `echo` is a shell builtin so the
+            # value never appears in the remote process list.
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io \
+              --username "${{ github.actor }}" \
+              --password-stdin
 
             sudo docker pull "$IMAGE"
 
