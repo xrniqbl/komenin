@@ -119,13 +119,13 @@ jobs:
             # Compose runs from the pinned image (see KOMENIN_IMAGE in
             # .env.docker) — never a local rebuild of stale source.
             echo "KOMENIN_IMAGE=$IMAGE" > .deploy-image.env
-            # Diagnose: the live site serves next-dev artifacts (hmr-client),
-            # which the production image cannot produce. A compose override
-            # file on the server (command:, volumes:) would explain it — show
-            # the effective config so it is visible in logs.
-            ls -la docker-compose*.yml compose*.yml 2>/dev/null || true
-            sudo docker compose --env-file .env.docker --env-file .deploy-image.env config --models 2>/dev/null | grep -A8 "^services:" | head -n 30 || true
-            sudo docker compose --env-file .env.docker --env-file .deploy-image.env up -d --no-build app
+            sudo docker compose --env-file .env.docker --env-file .deploy-image.env up -d --no-build app --remove-orphans
+            # An orphaned preview container (komenin-preview-1, a manually
+            # started next-dev server) once hijacked Traefik routing for the
+            # domain while the real app was healthy. Remove any leftover
+            # preview/dev containers so only this project's services answer.
+            sudo docker ps --format '{{.Names}} {{.Image}}' | grep -iE 'preview|dev' || true
+            sudo docker ps -q --filter 'name=komenin.*preview' | xargs -r sudo docker rm -f || true
             # Guard: the running container MUST be the image we just pulled.
             # If something (override file, stale container, wrong compose
             # project) serves another image — e.g. a manually started dev
