@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { apiError } from "@/lib/api-errors";
 import { assertSameOrigin } from "@/lib/csrf";
 import { consumeRateLimit, getRequestRateKey } from "@/lib/rate-limit";
+import { parseInviteEmails } from "@/lib/invite-emails";
 import { createWorkspace } from "@/server/workspaces";
 import { createInvite } from "@/server/invites";
 import { createCampaign } from "@/server/campaigns";
@@ -32,8 +33,6 @@ const onboardingSchema = z.object({
   invites: z.string().max(2000).optional().default(""),
   templateId: z.string().trim().max(64).optional().default(""),
 });
-
-const emailSchema = z.string().trim().toLowerCase().email();
 
 export async function POST(request: Request) {
   // State-changing cookie-auth handler: reject cross-site forged posts.
@@ -83,23 +82,21 @@ export async function POST(request: Request) {
 
   let workspace: { id: string };
   try {
+    // C2: createWorkspace returns the existing workspace on retry, so a
+    // replayed request converges instead of stacking duplicates.
     workspace = await createWorkspace({ name, timezone });
   } catch {
     return apiError("INTERNAL_ERROR", 500, "Failed to complete onboarding");
   }
 
-  const emails = invitesRaw
-    .split(/[,\n]/)
-    .map((v) => v.trim().toLowerCase())
-    .filter(Boolean);
+  const { emails, skippedInvalid, truncated } = parseInviteEmails(invitesRaw);
 
   let invited = 0;
-  const inviteErrors: string[] = [];
+  const inviteErrors: string[] = [...skippedInvalid];
+  if (truncated > 0) {
+    inviteErrors.push(`${truncated} invite(s) skipped: batch limit reached`);
+  }
   for (const email of emails) {
-    if (!emailSchema.safeParse(email).success) {
-      inviteErrors.push(email);
-      continue;
-    }
     try {
       await createInvite({
         workspaceId: workspace.id,

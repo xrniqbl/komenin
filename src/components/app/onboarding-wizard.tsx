@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useTransition } from "react";
 import Image from "next/image";
 import ArrowBackRoundedIcon from "@mui/icons-material/ArrowBackRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
@@ -42,33 +42,86 @@ const TiktokIcon = createSvgIcon(
   "Tiktok",
 );
 
-const ThreadsIcon = createSvgIcon(
-  <path d="M6.321 6.016c-.27-.18-1.166-.802-1.166-.802.756-1.081 1.753-1.502 3.132-1.502.975 0 1.803.327 2.394.948s.928 1.509 1.005 2.644q.492.207.905.484c1.109.745 1.719 1.86 1.719 3.137 0 2.716-2.226 5.075-6.256 5.075C4.594 16 1 13.987 1 7.994 1 2.034 4.482 0 8.044 0 9.69 0 13.55.243 15 5.036l-1.36.353C12.516 1.974 10.163 1.43 8.006 1.43c-3.565 0-5.582 2.171-5.582 6.79 0 4.143 2.254 6.343 5.63 6.343 2.777 0 4.847-1.443 4.847-3.556 0-1.438-1.208-2.127-1.27-2.127-.236 1.234-.868 3.31-3.644 3.31-1.618 0-3.013-1.118-3.013-2.582 0-2.09 1.984-2.847 3.55-2.847.586 0 1.294.04 1.663.114 0-.637-.54-1.728-1.9-1.728-1.25 0-1.566.405-1.967.868ZM8.716 8.19c-2.04 0-2.304.87-2.304 1.416 0 .878 1.043 1.168 1.6 1.168 1.02 0 2.067-.282 2.232-2.423a6.2 6.2 0 0 0-1.528-.161" />,
-  "Threads",
-);
+// NOTE: the Threads glyph below is drawn on a 16x16 grid (bbox x:1-15,
+// y:0-16). It is scaled 1.25x into a 24x24 viewBox with 2 units of padding
+// on every side — the same 2-unit padding Instagram's rounded square uses —
+// so all three platform icons occupy an identical 20x20 ink box and render
+// at the same visual size as the MUI (24x24) Instagram/TikTok icons.
+// `style` carries an explicit pixel size because MUI's injected SvgIcon CSS
+// (width/height: 1em, unlayered) beats Tailwind's layered size-* utilities,
+// which previously left Threads on a different box than its siblings.
+function ThreadsIcon({
+  className,
+  style,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+      style={style}
+    >
+      <g transform="translate(2,2) scale(1.25)">
+        <path d="M6.321 6.016c-.27-.18-1.166-.802-1.166-.802.756-1.081 1.753-1.502 3.132-1.502.975 0 1.803.327 2.394.948s.928 1.509 1.005 2.644q.492.207.905.484c1.109.745 1.719 1.86 1.719 3.137 0 2.716-2.226 5.075-6.256 5.075C4.594 16 1 13.987 1 7.994 1 2.034 4.482 0 8.044 0 9.69 0 13.55.243 15 5.036l-1.36.353C12.516 1.974 10.163 1.43 8.006 1.43c-3.565 0-5.582 2.171-5.582 6.79 0 4.143 2.254 6.343 5.63 6.343 2.777 0 4.847-1.443 4.847-3.556 0-1.438-1.208-2.127-1.27-2.127-.236 1.234-.868 3.31-3.644 3.31-1.618 0-3.013-1.118-3.013-2.582 0-2.09 1.984-2.847 3.55-2.847.586 0 1.294.04 1.663.114 0-.637-.54-1.728-1.9-1.728-1.25 0-1.566.405-1.967.868ZM8.716 8.19c-2.04 0-2.304.87-2.304 1.416 0 .878 1.043 1.168 1.6 1.168 1.02 0 2.067-.282 2.232-2.423a6.2 6.2 0 0 0-1.528-.161" />
+      </g>
+    </svg>
+  );
+}
+
+// Selection checkmark with an explicit pixel size. Same cascade reason as
+// above: MUI's SvgIcon CSS overrides Tailwind size-* classes, so a bare
+// `size-3`/`size-2.5` check renders at 1em and spills out of its circle,
+// making selected cards look unmarked. Inline style always wins.
+function SelectionCheck({
+  pixelSize,
+  className,
+}: {
+  pixelSize: number;
+  className?: string;
+}) {
+  return (
+    <CheckRoundedIcon
+      className={className}
+      style={{ width: pixelSize, height: pixelSize }}
+    />
+  );
+}
+
+// Explicit pixel sizes win over MUI's unlayered SvgIcon CSS (see above),
+// so every icon below carries both a Tailwind size-* class (for tooling /
+// tests) and an inline pixel size (the actual rendered size).
+const PLATFORM_ICON_PX = 28;
+const GOAL_ICON_PX = 20;
 
 // Map template icon names (from @/data/onboarding-templates) to MUI Rounded icons
 function TemplateIcon({ name, className }: { name: TemplateIconName; className?: string }) {
   const cls = className ?? "size-5";
+  const pixelSize = cls.includes("size-4") ? 16 : 20;
+  const iconStyle = { width: pixelSize, height: pixelSize } as const;
   switch (name) {
     case "MessageSquare":
-      return <MessageRoundedIcon className={cls} />;
+      return <MessageRoundedIcon className={cls} style={iconStyle} />;
     case "Target":
-      return <TrackChangesRoundedIcon className={cls} />;
+      return <TrackChangesRoundedIcon className={cls} style={iconStyle} />;
     case "Megaphone":
-      return <CampaignRoundedIcon className={cls} />;
+      return <CampaignRoundedIcon className={cls} style={iconStyle} />;
     case "LifeBuoy":
-      return <SupportRoundedIcon className={cls} />;
+      return <SupportRoundedIcon className={cls} style={iconStyle} />;
     case "Music":
-      return <MusicNoteRoundedIcon className={cls} />;
+      return <MusicNoteRoundedIcon className={cls} style={iconStyle} />;
     case "Search":
-      return <SearchRoundedIcon className={cls} />;
+      return <SearchRoundedIcon className={cls} style={iconStyle} />;
     case "Threads":
-      return <ThreadsIcon className={cls} />;
+      return <ThreadsIcon className={cls} style={iconStyle} />;
     case "Sparkles":
-      return <AutoAwesomeRoundedIcon className={cls} />;
+      return <AutoAwesomeRoundedIcon className={cls} style={iconStyle} />;
     default:
-      return <AutoAwesomeRoundedIcon className={cls} />;
+      return <AutoAwesomeRoundedIcon className={cls} style={iconStyle} />;
   }
 }
 import { Badge } from "@/components/ui/badge";
@@ -175,6 +228,10 @@ export function OnboardingWizard({
   const [currentStep, setCurrentStep] = useState<OnboardingStep>(initialStep);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
   const [launchError, setLaunchError] = useState<string | null>(null);
+  // #441 companion: isPending only flips after React re-renders, so a fast
+  // double-click can fire two server actions in parallel -> slug race ->
+  // raw P2002 -> minified React error #441. A sync ref closes that gap.
+  const launchingRef = useRef(false);
 
   // Form state (diisi dari URL params untuk navigasi tanpa JS)
   const [workspaceName, setWorkspaceName] = useState(urlData?.workspaceName ?? "");
@@ -202,6 +259,38 @@ export function OnboardingWizard({
 
   const currentIndex = STEPS.indexOf(currentStep);
   const progressPercent = ((currentIndex + 1) / STEPS.length) * 100;
+  const invitesLabelId = useId();
+  const stepHeadingRef = useRef<HTMLDivElement>(null);
+
+  // M9: keep the URL in sync so refresh / back-button restores the wizard
+  // instead of dropping everything. replace (not push) avoids spamming
+  // history on every keystroke.
+  const stateForUrl = `${currentStep}|${workspaceName}|${timezone}|${invites}|${selectedGoals.join(",")}|${selectedPlatforms.join(",")}|${selectedTemplate?.id ?? ""}`;
+  const stateForUrlRef = useRef(stateForUrl);
+  stateForUrlRef.current = stateForUrl;
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const current = stateForUrlRef.current;
+      const [step, name, tz, inv, goals, platforms, templateId] = current.split("|");
+      const qs = new URLSearchParams();
+      if (step && step !== "welcome") qs.set("step", step);
+      if (name) qs.set("workspaceName", name);
+      if (tz && tz !== "Asia/Jakarta") qs.set("timezone", tz);
+      if (inv) qs.set("invites", inv);
+      if (goals) qs.set("goals", goals);
+      if (platforms) qs.set("platforms", platforms);
+      if (templateId) qs.set("templateId", templateId);
+      const suffix = qs.toString();
+      window.history.replaceState(null, "", suffix ? `/onboarding?${suffix}` : "/onboarding");
+    }, 400);
+    return () => clearTimeout(t);
+  }, [stateForUrl]);
+
+  // N5: move focus to the step content on change and announce via aria-live
+  // so keyboard/screen-reader users land on the new step.
+  useEffect(() => {
+    stepHeadingRef.current?.focus();
+  }, [currentStep]);
 
   const canGoNext = useCallback((): boolean => {
     switch (currentStep) {
@@ -237,20 +326,6 @@ export function OnboardingWizard({
     }
   }
 
-  // URL builder untuk navigasi tanpa JS (native anchor).
-  // Semua data form dipertahankan di query params.
-  function buildStepUrl(step: OnboardingStep): string {
-    const params = new URLSearchParams();
-    params.set("step", step);
-    if (workspaceName.trim()) params.set("workspaceName", workspaceName.trim());
-    if (timezone) params.set("timezone", timezone);
-    if (invites.trim()) params.set("invites", invites.trim());
-    if (selectedGoals.length > 0) params.set("goals", selectedGoals.join(","));
-    if (selectedPlatforms.length > 0) params.set("platforms", selectedPlatforms.join(","));
-    if (selectedTemplate) params.set("templateId", selectedTemplate.id);
-    return "/onboarding?" + params.toString();
-  }
-
   function toggleGoal(goal: UserGoal) {
     setSelectedGoals((prev) =>
       prev.includes(goal) ? prev.filter((g) => g !== goal) : [...prev, goal],
@@ -268,14 +343,18 @@ export function OnboardingWizard({
   }
 
   function handleLaunch() {
+    // Sync guard: ignore double-clicks before React re-renders (isPending)
+    // and while the action is in flight.
+    if (launchingRef.current || isPending) return;
     if (workspaceName.trim().length < 2) {
       setLaunchError("Workspace name must be at least 2 characters.");
       return;
     }
+    launchingRef.current = true;
     setLaunchError(null);
     const formData = new FormData();
     formData.set("name", workspaceName.trim());
-    formData.set("timezone", timezone);
+    formData.set("timezone", timezone.trim() || "Asia/Jakarta");
     formData.set("invites", invites);
     formData.set("goals", selectedGoals.join(","));
     formData.set("platforms", selectedPlatforms.join(","));
@@ -302,28 +381,40 @@ export function OnboardingWizard({
         const message =
           error instanceof Error && error.message
             ? error.message
-            : "Something went wrong while launching. Please try again.";
+            : typeof error === "string" && error
+              ? error
+              : "Something went wrong while launching. Please try again.";
         setLaunchError(message);
+        launchingRef.current = false;
       }
+      // NOTE: on success the action redirects, so this transition never
+      // settles — the ref stays true, which is exactly what we want (no
+      // re-launch after navigation begins).
     });
   }
 
-  // Template suggestions filtered by selected platforms
+  // Template suggestions filtered by selected platforms.
+  // N2 companion: never silently fall back to an unrelated template. When
+  // nothing matches the goal+platform pair (e.g. support + tiktok), show the
+  // empty state so the user picks deliberately or skips.
   const filteredTemplates = selectedPlatforms.flatMap((p) =>
     getTemplatesByPlatform(p).filter((t) =>
       selectedGoals.includes(t.category as UserGoal),
     ),
   );
 
-  const allTemplatesForPlatforms = selectedPlatforms.flatMap((p) =>
-    getTemplatesByPlatform(p),
-  );
-
-  const templatesToShow =
-    filteredTemplates.length > 0 ? filteredTemplates : allTemplatesForPlatforms;
+  const templatesToShow = filteredTemplates;
 
   return (
     <div className="bg-marketing relative flex min-h-screen flex-col overflow-hidden px-4 py-8 text-neutral-100">
+      {/* M4: the wizard is client-driven — without JS the buttons below do
+          nothing. Say so up front instead of stranding no-JS users. */}
+      <noscript>
+        <div className="relative mx-auto mb-4 w-full max-w-2xl rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          Onboarding needs JavaScript enabled. Please enable JavaScript and
+          reload this page to continue setup.
+        </div>
+      </noscript>
       {/* Ambient glows ala landing */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="absolute -top-32 left-1/2 h-96 w-[60rem] -translate-x-1/2 rounded-full bg-electric-600/15 blur-3xl" />
@@ -357,7 +448,7 @@ export function OnboardingWizard({
         </Progress>
 
         {/* Step labels */}
-        <div className="mt-3 flex justify-between">
+        <nav aria-label="Onboarding progress" className="mt-3 flex justify-between">
           {STEPS.map((step, index) => {
             const meta = STEP_META[step];
             const isActive = index === currentIndex;
@@ -365,6 +456,7 @@ export function OnboardingWizard({
             return (
               <div
                 key={step}
+                aria-current={isActive ? "step" : undefined}
                 className={`flex items-center gap-1.5 text-xs transition-colors duration-300 ${
                   isActive
                     ? "font-medium text-foreground"
@@ -383,7 +475,7 @@ export function OnboardingWizard({
                   }`}
                 >
                   {isCompleted ? (
-                    <CheckRoundedIcon className="size-3" />
+                    <SelectionCheck pixelSize={12} />
                   ) : (
                     <span>{index + 1}</span>
                   )}
@@ -392,7 +484,7 @@ export function OnboardingWizard({
               </div>
             );
           })}
-        </div>
+        </nav>
       </div>
 
       {/* Step content */}
@@ -403,54 +495,36 @@ export function OnboardingWizard({
           animation: `${direction === "forward" ? "slideInRight" : "slideInLeft"} 0.3s ease-out`,
         }}
       >
+        {/* N5: focus target + live region so step changes are announced. */}
+        <div ref={stepHeadingRef} tabIndex={-1} aria-live="polite" className="outline-none">
         {currentStep === "welcome" && (
           <WelcomeStep userName={userName} onContinue={goNext} />
         )}
         {currentStep === "workspace" && (
-          <form id="workspace-form" method="GET" action="/onboarding">
-            <input type="hidden" name="step" value="goals" />
-            <WorkspaceStep
-              workspaceName={workspaceName}
-              setWorkspaceName={setWorkspaceName}
-              timezone={timezone}
-              setTimezone={setTimezone}
-              invites={invites}
-              setInvites={setInvites}
-            />
-          </form>
+          <WorkspaceStep
+            workspaceName={workspaceName}
+            setWorkspaceName={setWorkspaceName}
+            timezone={timezone}
+            setTimezone={setTimezone}
+            invites={invites}
+            setInvites={setInvites}
+            invitesLabelId={invitesLabelId}
+          />
         )}
         {currentStep === "goals" && (
-          <form id="goals-form" method="GET" action="/onboarding">
-            <input type="hidden" name="step" value="template" />
-            <input type="hidden" name="workspaceName" value={workspaceName} />
-            <input type="hidden" name="timezone" value={timezone} />
-            <input type="hidden" name="invites" value={invites} />
-            <GoalsStep
-              selectedGoals={selectedGoals}
-              toggleGoal={toggleGoal}
-              selectedPlatforms={selectedPlatforms}
-              togglePlatform={togglePlatform}
-            />
-          </form>
+          <GoalsStep
+            selectedGoals={selectedGoals}
+            toggleGoal={toggleGoal}
+            selectedPlatforms={selectedPlatforms}
+            togglePlatform={togglePlatform}
+          />
         )}
         {currentStep === "template" && (
-          <form id="template-form" method="GET" action="/onboarding">
-            <input type="hidden" name="step" value="launch" />
-            <input type="hidden" name="workspaceName" value={workspaceName} />
-            <input type="hidden" name="timezone" value={timezone} />
-            <input type="hidden" name="invites" value={invites} />
-            {selectedGoals.map((g) => (
-              <input key={g} type="hidden" name="goals" value={g} />
-            ))}
-            {selectedPlatforms.map((p) => (
-              <input key={p} type="hidden" name="platforms" value={p} />
-            ))}
-            <TemplateStep
-              templates={templatesToShow}
-              selectedTemplate={selectedTemplate}
-              setSelectedTemplate={setSelectedTemplate}
-            />
-          </form>
+          <TemplateStep
+            templates={templatesToShow}
+            selectedTemplate={selectedTemplate}
+            setSelectedTemplate={setSelectedTemplate}
+          />
         )}
         {currentStep === "launch" && (
           <LaunchStep
@@ -460,6 +534,7 @@ export function OnboardingWizard({
             selectedTemplate={selectedTemplate}
           />
         )}
+        </div>
       </div>
 
       {/* Navigation footer */}
@@ -476,8 +551,8 @@ export function OnboardingWizard({
           <div className="flex items-center justify-between">
           <Button
             variant="glass"
-            render={<a href={buildStepUrl(STEPS[Math.max(0, currentIndex - 1)])} />}
-            nativeButton={false}
+            onClick={goBack}
+            disabled={isPending}
           >
             <ArrowBackRoundedIcon className="size-4" />
             Back
@@ -485,20 +560,28 @@ export function OnboardingWizard({
           {currentStep === "launch" ? (
             <Button
               variant="electric"
-              type="button"
               onClick={handleLaunch}
-              disabled={!canGoNext()}
+              disabled={isPending || !canGoNext()}
               size="lg"
               className="rounded-full"
             >
-              <RocketLaunchRoundedIcon className="size-4" />
-              Launch command center
+              {isPending ? (
+                <>
+                  <LoopRoundedIcon className="size-4 animate-spin" />
+                  Launching…
+                </>
+              ) : (
+                <>
+                  <RocketLaunchRoundedIcon className="size-4" />
+                  Launch command center
+                </>
+              )}
             </Button>
           ) : (
             <Button
               variant="electric"
-              type="submit"
-              form={`${currentStep}-form`}
+              onClick={goNext}
+              disabled={!canGoNext() || isPending}
             >
               Continue
               <ArrowForwardRoundedIcon className="size-4" />
@@ -593,7 +676,7 @@ function WelcomeStep({
         ))}
       </div>
       <div style={{ animation: "fadeInUp 0.5s ease-out 0.4s both" }}>
-        <Button size="lg" variant="electric" render={<a href="/onboarding?step=workspace" />} nativeButton={false} className="gap-2 rounded-full">
+        <Button size="lg" variant="electric" onClick={onContinue} className="gap-2 rounded-full">
           Get started
           <ArrowForwardRoundedIcon className="size-4" />
         </Button>
@@ -619,6 +702,7 @@ function WorkspaceStep({
   setTimezone,
   invites,
   setInvites,
+  invitesLabelId,
 }: {
   workspaceName: string;
   setWorkspaceName: (v: string) => void;
@@ -626,6 +710,7 @@ function WorkspaceStep({
   setTimezone: (v: string) => void;
   invites: string;
   setInvites: (v: string) => void;
+  invitesLabelId: string;
 }) {
   return (
     <div>
@@ -642,19 +727,16 @@ function WorkspaceStep({
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-4">
-              <Field name="workspaceName">
+              <Field name="name">
                 <FieldLabel htmlFor="onboarding-name">
                   Workspace name
                 </FieldLabel>
                 <Input
                   id="onboarding-name"
-                  name="workspaceName"
-                  defaultValue={workspaceName}
+                  value={workspaceName}
                   onChange={(e) => setWorkspaceName(e.target.value)}
                   placeholder="Acme Growth"
                   autoFocus
-                  required
-                  minLength={2}
                 />
                 <FieldDescription>
                   Your team or brand name. This appears throughout the app.
@@ -663,32 +745,11 @@ function WorkspaceStep({
 
               <Field name="timezone">
                 <FieldLabel htmlFor="onboarding-timezone">Timezone</FieldLabel>
-                <select
+                <Input
                   id="onboarding-timezone"
-                  name="timezone"
-                  defaultValue={timezone}
+                  value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
-                  className="h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:opacity-50 md:text-sm dark:bg-input/30 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [&>option]:bg-neutral-900 [&>option]:text-neutral-100"
-                >
-                  <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
-                  <option value="Asia/Makassar">Asia/Makassar (WITA)</option>
-                  <option value="Asia/Jayapura">Asia/Jayapura (WIT)</option>
-                  <option value="Asia/Singapore">Asia/Singapore</option>
-                  <option value="Asia/Kuala_Lumpur">Asia/Kuala Lumpur</option>
-                  <option value="Asia/Bangkok">Asia/Bangkok</option>
-                  <option value="Asia/Tokyo">Asia/Tokyo</option>
-                  <option value="Asia/Seoul">Asia/Seoul</option>
-                  <option value="Asia/Shanghai">Asia/Shanghai</option>
-                  <option value="Asia/Dubai">Asia/Dubai</option>
-                  <option value="Europe/London">Europe/London</option>
-                  <option value="Europe/Paris">Europe/Paris</option>
-                  <option value="Europe/Berlin">Europe/Berlin</option>
-                  <option value="America/New_York">America/New_York</option>
-                  <option value="America/Chicago">America/Chicago</option>
-                  <option value="America/Los_Angeles">America/Los_Angeles</option>
-                  <option value="Australia/Sydney">Australia/Sydney</option>
-                  <option value="UTC">UTC</option>
-                </select>
+                />
                 <FieldDescription>
                   Used for schedules, audit timestamps, and digests.
                 </FieldDescription>
@@ -713,16 +774,19 @@ function WorkspaceStep({
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <span id={invitesLabelId} className="mb-1.5 block text-sm font-medium">
+              Teammate emails
+            </span>
             <Textarea
               id="onboarding-invites"
-              name="invites"
-              defaultValue={invites}
+              aria-labelledby={invitesLabelId}
+              value={invites}
               onChange={(e) => setInvites(e.target.value)}
               placeholder="ops@company.com, analyst@company.com"
               rows={3}
             />
             <p className="mt-1.5 text-xs text-muted-foreground">
-              Comma-separated emails. They&apos;ll receive an invite link.
+              Comma- or semicolon-separated emails (up to 50). They&apos;ll receive an invite link.
             </p>
           </CardContent>
         </Card>
@@ -746,28 +810,28 @@ const GOAL_OPTIONS: {
     label: "Boost Engagement",
     description:
       "Increase likes, comments, and followers through strategic commenting",
-    icon: <FavoriteRoundedIcon className="size-5" />,
+    icon: <FavoriteRoundedIcon className="size-5" style={{ width: GOAL_ICON_PX, height: GOAL_ICON_PX }} />,
   },
   {
     value: "leads",
     label: "Generate Leads",
     description:
       "Capture potential customers through intent-based comment targeting",
-    icon: <TrackChangesRoundedIcon className="size-5" />,
+    icon: <TrackChangesRoundedIcon className="size-5" style={{ width: GOAL_ICON_PX, height: GOAL_ICON_PX }} />,
   },
   {
     value: "brand",
     label: "Build Brand Awareness",
     description:
       "Strengthen your brand presence through consistent engagement",
-    icon: <CampaignRoundedIcon className="size-5" />,
+    icon: <CampaignRoundedIcon className="size-5" style={{ width: GOAL_ICON_PX, height: GOAL_ICON_PX }} />,
   },
   {
     value: "support",
     label: "Customer Support",
     description:
       "Respond quickly to brand mentions and customer inquiries",
-    icon: <SupportRoundedIcon className="size-5" />,
+    icon: <SupportRoundedIcon className="size-5" style={{ width: GOAL_ICON_PX, height: GOAL_ICON_PX }} />,
   },
 ];
 
@@ -780,19 +844,19 @@ const PLATFORM_OPTIONS: {
   {
     value: "instagram",
     label: "Instagram",
-    icon: <InstagramIcon className="size-7" />,
+    icon: <InstagramIcon className="size-7" style={{ width: PLATFORM_ICON_PX, height: PLATFORM_ICON_PX }} />,
     color: "from-purple-500/10 to-pink-500/10",
   },
   {
     value: "tiktok",
     label: "TikTok",
-    icon: <TiktokIcon className="size-7" />,
+    icon: <TiktokIcon className="size-7" style={{ width: PLATFORM_ICON_PX, height: PLATFORM_ICON_PX }} />,
     color: "from-cyan-500/10 to-neutral-500/10",
   },
   {
     value: "threads",
     label: "Threads",
-    icon: <ThreadsIcon className="size-7" />,
+    icon: <ThreadsIcon className="size-7" style={{ width: PLATFORM_ICON_PX, height: PLATFORM_ICON_PX }} />,
     color: "from-neutral-500/10 to-neutral-300/10",
   },
 ];
@@ -828,23 +892,20 @@ function GoalsStep({
           {GOAL_OPTIONS.map((goal, index) => {
             const isSelected = selectedGoals.includes(goal.value);
             return (
-              <label
+              <button
                 key={goal.value}
-                className={`group relative flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 text-left transition-all duration-200 has-checked:border-electric-500/50 has-checked:bg-electric-500/10 has-checked:shadow-sm ${
-                  isSelected ? "" : "border-border hover:border-electric-500/40 hover:shadow-sm"
+                type="button"
+                onClick={() => toggleGoal(goal.value)}
+                aria-pressed={isSelected}
+                className={`group relative flex cursor-pointer items-start gap-3 rounded-xl border-2 p-4 text-left transition-all duration-200 ${
+                  isSelected
+                    ? "border-electric-500/50 bg-electric-500/10 shadow-sm"
+                    : "border-border hover:border-electric-500/40 hover:shadow-sm"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${index * 0.05}s both`,
                 }}
               >
-                <input
-                  type="checkbox"
-                  name="goals"
-                  value={goal.value}
-                  defaultChecked={isSelected}
-                  onChange={() => toggleGoal(goal.value)}
-                  className="sr-only"
-                />
                 {/* Selection indicator */}
                 <span
                   className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-xs transition-all duration-200 ${
@@ -853,7 +914,7 @@ function GoalsStep({
                       : "border border-input bg-muted"
                   }`}
                 >
-                  {isSelected && <CheckRoundedIcon className="size-3" />}
+                  {isSelected && <SelectionCheck pixelSize={12} />}
                 </span>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -864,7 +925,7 @@ function GoalsStep({
                     {goal.description}
                   </p>
                 </div>
-              </label>
+              </button>
             );
           })}
         </div>
@@ -879,23 +940,20 @@ function GoalsStep({
           {PLATFORM_OPTIONS.map((platform, index) => {
             const isSelected = selectedPlatforms.includes(platform.value);
             return (
-              <label
+              <button
                 key={platform.value}
-                className={`group relative flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 px-4 py-5 transition-all duration-200 has-checked:border-electric-500/50 has-checked:bg-electric-500/10 has-checked:shadow-sm ${
-                  isSelected ? "" : "border-border hover:border-electric-500/40 hover:shadow-sm"
+                type="button"
+                onClick={() => togglePlatform(platform.value)}
+                aria-pressed={isSelected}
+                className={`group relative flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 px-4 py-5 transition-all duration-200 ${
+                  isSelected
+                    ? "border-electric-500/50 bg-electric-500/10 shadow-sm"
+                    : "border-border hover:border-electric-500/40 hover:shadow-sm"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${(index + 4) * 0.05}s both`,
                 }}
               >
-                <input
-                  type="checkbox"
-                  name="platforms"
-                  value={platform.value}
-                  defaultChecked={isSelected}
-                  onChange={() => togglePlatform(platform.value)}
-                  className="sr-only"
-                />
                 <span
                   className={`absolute right-2 top-2 flex size-4 items-center justify-center rounded-full text-[10px] transition-all duration-200 ${
                     isSelected
@@ -903,11 +961,11 @@ function GoalsStep({
                       : "border border-input bg-muted"
                   }`}
                 >
-                  {isSelected && <CheckRoundedIcon className="size-2.5" />}
+                  {isSelected && <SelectionCheck pixelSize={10} />}
                 </span>
                 <span className="flex shrink-0">{platform.icon}</span>
                 <span className="text-sm font-medium">{platform.label}</span>
-              </label>
+              </button>
             );
           })}
         </div>
@@ -961,25 +1019,22 @@ function TemplateStep({
                   : "Threads";
 
             return (
-              <label
+              <button
                 key={template.id}
-                className={`group relative flex cursor-pointer items-start gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 has-checked:border-electric-500/50 has-checked:bg-electric-500/10 has-checked:shadow-sm ${
-                  isSelected ? "" : "border-border hover:border-electric-500/40 hover:shadow-sm"
+                type="button"
+                onClick={() =>
+                  setSelectedTemplate(isSelected ? null : template)
+                }
+                aria-pressed={isSelected}
+                className={`group relative flex cursor-pointer items-start gap-4 rounded-xl border-2 p-4 text-left transition-all duration-200 ${
+                  isSelected
+                    ? "border-electric-500/50 bg-electric-500/10 shadow-sm"
+                    : "border-border hover:border-electric-500/40 hover:shadow-sm"
                 }`}
                 style={{
                   animation: `fadeInUp 0.3s ease-out ${index * 0.05}s both`,
                 }}
               >
-                <input
-                  type="radio"
-                  name="templateId"
-                  value={template.id}
-                  defaultChecked={isSelected}
-                  onChange={() =>
-                    setSelectedTemplate(isSelected ? null : template)
-                  }
-                  className="sr-only"
-                />
                 {/* Icon */}
                 <span
                   className={`flex size-10 shrink-0 items-center justify-center rounded-lg transition-all ${
@@ -1049,9 +1104,9 @@ function TemplateStep({
                       : "border border-input bg-muted"
                   }`}
                 >
-                  {isSelected && <CheckRoundedIcon className="size-3" />}
+                  {isSelected && <SelectionCheck pixelSize={12} />}
                 </span>
-              </label>
+              </button>
             );
           })}
         </div>

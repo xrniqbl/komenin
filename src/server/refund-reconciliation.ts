@@ -18,12 +18,21 @@ function refundAmount(payload: Payload): number | null {
 function eventKey(payload: Payload): string {
   const status = text(payload.transaction_status)?.toLowerCase() ?? "unknown";
   const id = text(payload.refund_key) ?? text(payload.refund_id);
-  // transaction_id identifies the original charge on some Midtrans notifications,
-  // NOT a particular partial refund. Never infer a partial event identity from it.
-  const identity = id
-    ? `${text(payload.order_id) ?? ""}:${status}:${id}`
-    : JSON.stringify(Object.keys(payload).sort().map((key) => [key, payload[key]]));
-  return createHash("sha256").update(identity).digest("hex");
+  if (id) {
+    return createHash("sha256")
+      .update(`${text(payload.order_id) ?? ""}:${status}:${id}`)
+      .digest("hex");
+  }
+  // N-stable: no refund identity in the payload. Midtrans retries can add or
+  // rename fields, so hashing the whole payload would mint a new receipt per
+  // retry. Fall back to the stable business identity (order + status +
+  // amount) instead — one receipt per refund event per order.
+  const amount = refundAmount(payload);
+  return createHash("sha256")
+    .update(
+      `${text(payload.order_id) ?? ""}:${status}:${amount === null ? "full" : String(amount)}`,
+    )
+    .digest("hex");
 }
 
 /** Durable signed receipt first; only then attempt local accounting. A replay reuses the same receipt. */

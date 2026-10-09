@@ -74,6 +74,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Sync compose file to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.PRODUCTION_SERVER_HOST }}
+          username: ${{ secrets.PRODUCTION_SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml"
+          target: "/opt/komenin"
+          overwrite: true
+
       - name: Deploy to production server
         uses: appleboy/ssh-action@master
         with:
@@ -84,14 +94,32 @@ jobs:
             set -e
             cd /opt/komenin
             IMAGE="${{ steps.image.outputs.tag }}"
+            # The compose file is now synced from the repo (previous step), so
+            # service changes (ports, healthcheck, env wiring) actually apply.
+            cp docker-compose.yml "docker-compose.backup-$(date +%Y%m%d%H%M%S).yml" || true
 
-            # Private GHCR image: the server needs its own login (a PAT with
-            # read:packages stored once in /opt/komenin/.ghcr-token).
-            if [ -f .ghcr-token ]; then
-              echo "${{ secrets.GHCR_USERNAME }}" | sudo docker login ghcr.io \
-                --username "$(cat .ghcr-username 2>/dev/null || echo '${{ secrets.GHCR_USERNAME }}')" \
-                --password-stdin < .ghcr-token || echo "WARN: ghcr login failed; continuing with cached images"
-            fi
+            # Upstash (durable rate limits) lives in GitHub Secrets so it is
+            # never committed. Ensure .env.docker carries it — compose reads
+            # ${UPSTASH_*} from there. Idempotent: drop old lines, append
+            # fresh values. Values are masked in Actions logs. (grep/sed-free
+            # so token metacharacters like & | / can never break substitution.)
+            touch .env.docker
+            grep -v -e '^UPSTASH_REDIS_REST_URL=' -e '^UPSTASH_REDIS_REST_TOKEN=' .env.docker > .env.docker.tmp || true
+            mv .env.docker.tmp .env.docker
+            {
+              printf 'UPSTASH_REDIS_REST_URL=%s\n' "${{ secrets.UPSTASH_REDIS_REST_URL }}"
+              printf 'UPSTASH_REDIS_REST_TOKEN=%s\n' "${{ secrets.UPSTASH_REDIS_REST_TOKEN }}"
+            } >> .env.docker
+
+            # Private GHCR image: log in with the fresh per-run GITHUB_TOKEN
+            # (this job has packages:write, so the token can pull). Never rely
+            # on a stale long-lived PAT file on disk — that is what caused
+            # "error from registry: unauthorized" on docker pull. The token is
+            # masked in logs by Actions, and `echo` is a shell builtin so the
+            # value never appears in the remote process list.
+            echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ghcr.io \
+              --username "${{ github.actor }}" \
+              --password-stdin
 
             sudo docker pull "$IMAGE"
 
@@ -104,15 +132,81 @@ jobs:
             # Compose runs from the pinned image (see KOMENIN_IMAGE in
             # .env.docker) — never a local rebuild of stale source.
             echo "KOMENIN_IMAGE=$IMAGE" > .deploy-image.env
-            sudo docker compose --env-file .env.docker --env-file .deploy-image.env up -d --no-build app
+            sudo docker compose --env-file .env.docker --env-file .deploy-image.env up -d --no-build app --remove-orphans
+            # Host nginx (/etc/nginx/sites-enabled/komenin.id) proxies to
+            # 127.0.0.1:3000. The HTTPS vhost once pointed at :3001 (a dev
+            # preview that no longer exists) while HTTP pointed at :3000 —
+            # that mismatch produced 502 on https. Normalize both to :3000
+            # idempotently, then reload nginx only if the config changed.
+            VHOST=/etc/nginx/sites-enabled/komenin.id
+            if [ -f "$VHOST" ]; then
+              if grep -q "proxy_pass http://127.0.0.1:3001" "$VHOST"; then
+                sudo sed -i 's|proxy_pass http://127.0.0.1:3001|proxy_pass http://127.0.0.1:3000|g' "$VHOST"
+                sudo nginx -t && sudo systemctl reload nginx
+                echo "nginx vhost fixed: 3001 -> 3000"
+              else
+                echo "nginx vhost already points at :3000"
+              fi
+            fi
+            # Guard: the running container MUST be the image we just pulled.
+            # If something (override file, stale container, wrong compose
+            # project) serves another image — e.g. a manually started dev
+            # server — fail loudly instead of health-checking the wrong app.
+            RUNNING="$(sudo docker compose ps --format '{{.Image}}' app 2>/dev/null | head -1 || true)"
+            echo "expected image: $IMAGE"
+            echo "running image:  $RUNNING"
+            sudo docker compose ps app || true
+            if [ -z "$RUNNING" ]; then
+              echo "❌ app container is not running after up -d"
+              sudo docker compose logs --tail=50 app || true
+              exit 1
+            fi
+            if [ "$RUNNING" != "$IMAGE" ]; then
+              echo "❌ app runs $RUNNING, expected $IMAGE — refusing to continue"
+              sudo docker compose logs --tail=50 app || true
+              exit 1
+            fi
             sudo docker image prune -f
 
-      - name: Health check after deploy
+      - name: Container health check (on server)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PRODUCTION_SERVER_HOST }}
+          username: ${{ secrets.PRODUCTION_SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd /opt/komenin
+            # App answers its own liveness probe (no DB needed). node exists
+            # in the image for sure; wget/curl may not.
+            for i in $(seq 1 12); do
+              sleep 10
+              if sudo docker compose exec -T app node -e "fetch('http://localhost:3000/api/health').then(async (r) => { const t = await r.text(); if (!r.ok || !t.includes('\"ok\":true')) process.exit(1); }).catch(() => process.exit(1))"; then
+                echo "✅ Container healthy!"
+                exit 0
+              fi
+              echo "container attempt $i not healthy yet..."
+            done
+            echo "❌ Container never became healthy — recent logs:"
+            sudo docker compose logs --tail=100 app || true
+            echo "--- production-gate errors (the exact failing checks):"
+            sudo docker compose logs app 2>/dev/null | grep -o "\[boot\] production-gate error: .*" | sort -u || true
+            exit 1
+
+      - name: External health check after deploy
         run: |
           echo "Waiting for deployment to complete..."
+          # PRODUCTION_SERVER_URL may be stored with or without scheme
+          # ("example.com" or "https://example.com"); normalize to a bare
+          # host. Traefik only serves the app on websecure, so check https
+          # (Let's Encrypt cert is valid — no -k needed).
+          HOST="${{ secrets.PRODUCTION_SERVER_URL }}"
+          HOST="${HOST#https://}"
+          HOST="${HOST#http://}"
+          HOST="${HOST%%/*}"
           for i in $(seq 1 12); do
             sleep 10
-            if curl -fsS "http://${{ secrets.PRODUCTION_SERVER_URL }}/api/health" | grep -q '"ok":true'; then
+            if curl -fsS "https://${HOST}/api/health" | grep -q '"ok":true'; then
               echo "✅ Deployment healthy!"
               exit 0
             fi

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { Platform, TargetPostStatus } from "@prisma/client";
 import { dailyActionIncrementData } from "@/lib/account-quota";
 import { assertWorkspacePermission } from "@/lib/rbac";
 import { generateContextualCommentHybrid, pickDelaySeconds } from "@/lib/comment-engine";
@@ -57,6 +58,35 @@ export type InboxItem = {
 
 export type InboxSort = "risk" | "oldest" | "newest";
 
+const INBOX_STATUSES: TargetPostStatus[] = [
+  "new",
+  "generating",
+  "drafted",
+  "approved",
+  "sent",
+  "skipped",
+  "failed",
+];
+
+const INBOX_PLATFORMS: Platform[] = ["instagram", "threads", "tiktok"];
+
+/** Allowlisted enum coercion — raw URL query values must never reach Prisma. */
+function toInboxStatus(raw: string | undefined): TargetPostStatus | undefined {
+  const value = raw?.trim();
+  if (!value || value === "all") return undefined;
+  return (INBOX_STATUSES as string[]).includes(value)
+    ? (value as TargetPostStatus)
+    : undefined;
+}
+
+function toInboxPlatform(raw: string | undefined): Platform | undefined {
+  const value = raw?.trim().toLowerCase();
+  if (!value || value === "all") return undefined;
+  return (INBOX_PLATFORMS as string[]).includes(value)
+    ? (value as Platform)
+    : undefined;
+}
+
 export async function listInbox(input?: {
   status?: string;
   platform?: string;
@@ -67,13 +97,17 @@ export async function listInbox(input?: {
   sort?: InboxSort;
   onlyDrafted?: boolean;
   onlyUndrafted?: boolean;
+  page?: number;
+  pageSize?: number;
 }): Promise<InboxItem[]> {
   const { workspace } = await requireActiveWorkspace();
   const where: Record<string, unknown> & { workspaceId: string } = {
     workspaceId: workspace.id,
   };
-  if (input?.status) where.status = input.status as never;
-  if (input?.platform) where.platform = input.platform as never;
+  const status = toInboxStatus(input?.status);
+  const platform = toInboxPlatform(input?.platform);
+  if (status) where.status = status;
+  if (platform) where.platform = platform;
   if (input?.assignee === "unassigned") where.assigneeId = null;
   else if (input?.assignee) where.assigneeId = input.assignee;
   if (input?.q?.trim()) {
@@ -83,6 +117,8 @@ export async function listInbox(input?: {
       { content: { contains: q, mode: "insensitive" as const } },
     ];
   }
+  const pageSize = Math.min(Math.max(input?.pageSize ?? 50, 1), 100);
+  const page = Math.max(Math.trunc(input?.page ?? 1) || 1, 1);
   const rows = await db.targetPost.findMany({
     where,
     include: {
@@ -102,7 +138,8 @@ export async function listInbox(input?: {
       listener: { select: { id: true, query: true } },
     },
     orderBy: { discoveredAt: "desc" },
-    take: 50,
+    skip: (page - 1) * pageSize,
+    take: pageSize,
   });
 
   let items: InboxItem[] = rows.map((post) => ({
@@ -145,6 +182,39 @@ export async function listInbox(input?: {
   }
 
   return items;
+}
+
+/**
+ * Cheap tab counts for the inbox header: total + drafted within the same
+ * platform/search scope (without the status filter). Uses count queries so
+ * the "All (n)" tab reflects the real total instead of min(n, pageSize), and
+ * avoids a second full findMany.
+ */
+export async function countInbox(input?: {
+  platform?: string;
+  q?: string;
+  assignee?: string;
+}): Promise<{ total: number; drafted: number }> {
+  const { workspace } = await requireActiveWorkspace();
+  const where: Record<string, unknown> & { workspaceId: string } = {
+    workspaceId: workspace.id,
+  };
+  const platform = toInboxPlatform(input?.platform);
+  if (platform) where.platform = platform;
+  if (input?.assignee === "unassigned") where.assigneeId = null;
+  else if (input?.assignee) where.assigneeId = input.assignee;
+  if (input?.q?.trim()) {
+    const q = input.q.trim();
+    where.OR = [
+      { authorHandle: { contains: q, mode: "insensitive" as const } },
+      { content: { contains: q, mode: "insensitive" as const } },
+    ];
+  }
+  const [total, drafted] = await Promise.all([
+    db.targetPost.count({ where }),
+    db.targetPost.count({ where: { ...where, drafts: { some: {} } } }),
+  ]);
+  return { total, drafted };
 }
 
 /** Assign a target post to an active workspace member (null = unassign). */

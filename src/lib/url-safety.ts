@@ -147,7 +147,17 @@ export async function assertSafeOutboundUrlResolved(raw: string): Promise<URL> {
   }
 
   try {
-    const records = await lookup(host, { all: true, verbatim: true });
+    // DNS can hang on a black-hole resolver — bound it so callers never wait
+    // longer than the fetch timeout for name resolution alone.
+    const records = await Promise.race([
+      lookup(host, { all: true, verbatim: true }),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new UnsafeUrlError("URL hostname resolution timed out")),
+          8000,
+        ),
+      ),
+    ]);
     if (!records.length) {
       throw new UnsafeUrlError("Unable to resolve URL hostname");
     }
@@ -164,14 +174,23 @@ export async function assertSafeOutboundUrlResolved(raw: string): Promise<URL> {
   return url;
 }
 
+/** Default ceiling for outbound connector fetches (matches AI/email callers). */
+export const OUTBOUND_FETCH_TIMEOUT_MS = 15_000;
+
 /** fetch() wrapper that validates target and refuses redirects (redirect SSRF). */
 export async function safeOutboundFetch(
   rawUrl: string,
   init?: RequestInit,
 ): Promise<Response> {
   const url = await assertSafeOutboundUrlResolved(rawUrl);
+  const callerSignal = init?.signal;
+  const timeoutSignal = AbortSignal.timeout(OUTBOUND_FETCH_TIMEOUT_MS);
+  const signal = callerSignal
+    ? AbortSignal.any([callerSignal, timeoutSignal])
+    : timeoutSignal;
   return fetch(url.toString(), {
     ...init,
+    signal,
     redirect: "error",
   });
 }

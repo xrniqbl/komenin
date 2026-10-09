@@ -1,0 +1,19 @@
+name: Server Doctor (manual diagnostics)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Diagnose production server routing
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.PRODUCTION_SERVER_HOST }}
+          username: ${{ secrets.PRODUCTION_SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/komenin
+            echo "=== last auth errors with names ==="
+            sudo docker compose logs --tail=300 app 2>/dev/null | grep -E "\[auth\]\[error\]" | tail -n 8 || true

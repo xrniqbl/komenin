@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { assertWorkspacePermission } from "@/lib/rbac";
@@ -74,38 +75,93 @@ export async function createWorkspace(input: { name: string; timezone?: string }
   const name = input.name.trim();
   if (name.length < 2) throw new Error("Workspace name is required");
 
+  // C2: onboarding retries (double-submit, two tabs, replayed action) must
+  // not stack duplicate workspaces. The caller picks the active workspace via
+  // resolveActiveWorkspace (cookie, else oldest), so returning the existing
+  // membership workspace here converges instead of splitting state.
+  const existing = await db.membership.findFirst({
+    where: { userId: session.user.id, status: "active" },
+    include: { workspace: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (existing && existing.workspace.status === "active") {
+    return existing.workspace;
+  }
+
   const base = slugifyWorkspaceName(name) || "workspace";
   let slug = base;
+  // Probe a few candidates up front to avoid the common collision, but the
+  // transaction below is still the authority — two parallel submits can pick
+  // the same free slug, so P2002 is caught and converged afterwards.
   for (let attempt = 0; attempt < 20; attempt += 1) {
     slug = buildUniqueSlugCandidate(base, attempt);
     const exists = await db.workspace.findUnique({ where: { slug } });
     if (!exists) break;
   }
 
-  const workspace = await db.$transaction(async (tx) => {
-    const created = await tx.workspace.create({
-      data: {
-        name,
-        slug,
-        timezone: input.timezone ?? "Asia/Jakarta",
-        // Free tier until a paid plan is applied via checkout.
-        planCode: "free",
-        monthlySendLimit: 500,
-        monthlyPublishLimit: 50,
-      },
+  let timezone: string | undefined;
+  if (input.timezone !== undefined) {
+    const tz = input.timezone.trim();
+    if (tz) {
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone: tz });
+      } catch {
+        throw new Error(`Invalid timezone: ${tz}`);
+      }
+      timezone = tz.slice(0, 64);
+    }
+  }
+
+  const findOwnWorkspace = () =>
+    db.membership.findFirst({
+      where: { userId: session.user.id, status: "active" },
+      include: { workspace: true },
+      orderBy: { createdAt: "asc" },
     });
 
-    await tx.membership.create({
-      data: {
-        workspaceId: created.id,
-        userId: session.user.id,
-        role: "owner",
-        status: "active",
-      },
-    });
+  let workspace;
+  try {
+    workspace = await db.$transaction(async (tx) => {
+      const created = await tx.workspace.create({
+        data: {
+          name,
+          slug,
+          ...(timezone ? { timezone } : {}),
+          // Free tier until a paid plan is applied via checkout.
+          planCode: "free",
+          monthlySendLimit: 500,
+          monthlyPublishLimit: 50,
+        },
+      });
 
-    return created;
-  });
+      await tx.membership.create({
+        data: {
+          workspaceId: created.id,
+          userId: session.user.id,
+          role: "owner",
+          status: "active",
+        },
+      });
+
+      return created;
+    });
+  } catch (error) {
+    // #441 companion: a parallel double-submit can lose the slug race
+    // (P2002 on workspace.slug) or the membership race (P2002 on
+    // [workspaceId, userId]). A raw Prisma error would surface in the
+    // client as minified React error #441 with no readable message.
+    // Converge instead: the winner's workspace is ours too.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      const raced = await findOwnWorkspace();
+      if (raced && raced.workspace.status === "active") {
+        return raced.workspace;
+      }
+    }
+    throw error;
+  }
 
   await writeAuditLog({
     workspaceId: workspace.id,

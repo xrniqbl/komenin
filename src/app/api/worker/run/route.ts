@@ -13,6 +13,9 @@ export async function POST(request: Request) {
     key: getRequestRateKey(request, "api:worker:run"),
     limit: 120,
     windowMs: 60_000,
+    // N7: fail closed like the other secret-gated entrypoints so an Upstash
+    // outage cannot open an unauthenticated CPU/DB flood window.
+    failClosed: true,
   });
   if (!rate.ok) {
     return apiError("RATE_LIMITED", 429);

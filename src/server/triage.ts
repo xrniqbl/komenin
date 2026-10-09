@@ -14,6 +14,12 @@ export async function triageScoreForText(
   text: string,
   postContent?: string,
 ): Promise<{ riskScore: number; highRisk: boolean }> {
+  // C1: this is a "use server" export — verify the caller belongs to the
+  // requested workspace before touching its private risk rules.
+  const { workspace } = await requireActiveWorkspace();
+  if (workspace.id !== workspaceId) {
+    throw new Error("Workspace not found or access denied");
+  }
   const rules = await db.riskRule.findMany({
     where: { workspaceId, isActive: true },
     select: { type: true, pattern: true, severity: true },
