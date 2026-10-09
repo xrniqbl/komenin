@@ -112,9 +112,16 @@ jobs:
       - name: Health check after deploy
         run: |
           echo "Waiting for deployment to complete..."
+          # PRODUCTION_SERVER_URL may be stored with or without scheme
+          # ("example.com" or "https://example.com"); normalize to a bare
+          # host so the curl URL below is never "http://https://...".
+          HOST="${{ secrets.PRODUCTION_SERVER_URL }}"
+          HOST="${HOST#https://}"
+          HOST="${HOST#http://}"
+          HOST="${HOST%%/*}"
           for i in $(seq 1 12); do
             sleep 10
-            if curl -fsS "http://${{ secrets.PRODUCTION_SERVER_URL }}/api/health" | grep -q '"ok":true'; then
+            if curl -fsS "http://${HOST}/api/health" | grep -q '"ok":true'; then
               echo "✅ Deployment healthy!"
               exit 0
             fi
