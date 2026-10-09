@@ -53,11 +53,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# Prisma: schema, migrasi, CLI + engine untuk `migrate deploy` saat start
+# Prisma: schema, migrasi, CLI + engine untuk `migrate deploy` saat start.
+# Salin SELURUH node_modules (bukan hanya prisma/@prisma): prisma 6.x
+# me-resolve transitive deps yang di-hoist ke top-level (effect/fast-check
+# via @prisma/config). COPY parsial membuat `migrate deploy` crash-loop
+# dengan "Cannot find module 'fast-check'" karena entrypoint `set -e`
+# exit 1 dan kontainer restart selamanya.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 # Preflight tanpa dependensi — bisa dijalankan di VPS via
 # `docker compose exec app node ./scripts/preflight-deploy.mjs`
