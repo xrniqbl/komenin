@@ -109,6 +109,9 @@ export function ConnectWizard({
   // Content script announces itself on load; we ask, we don't assume.
   const [extStatus, setExtStatus] = useState<"unknown" | "ready" | "absent">("unknown");
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Once the operator picks a tab by hand, detection must never drag them
+  // back — the auto-switch is a default, not a lock.
+  const modeTouchedByUser = useRef(false);
 
   const [raw, setRaw] = useState("");
   const [username, setUsername] = useState("");
@@ -204,6 +207,21 @@ export function ConnectWizard({
     };
   }, [token, stopPolling]);
 
+  // Default tab follows what the operator can actually do.
+  //
+  //   no extension  -> Tempel manual (installing via chrome://extensions is
+  //                    never something they will do, so do not land them
+  //                    there and call it "mudah")
+  //   extension     -> Ekstensi (the one-click path)
+  //
+  // Fires once on the detection transition, and never after the operator has
+  // clicked a tab themselves.
+  useEffect(() => {
+    if (modeTouchedByUser.current) return;
+    if (extStatus === "absent") setMode("paste");
+    if (extStatus === "ready") setMode("extension");
+  }, [extStatus]);
+
   const resetForPlatform = (next: Platform) => {
     setPlatform(next);
     setToken("");
@@ -264,12 +282,14 @@ export function ConnectWizard({
   };
 
   const goManual = () => {
+    modeTouchedByUser.current = true;
     setMode("paste");
     stopPolling();
     setIngest("idle");
   };
 
   const goExtension = () => {
+    modeTouchedByUser.current = true;
     setMode("extension");
     setError(null);
   };
@@ -455,14 +475,18 @@ export function ConnectWizard({
                 variant={mode === "extension" ? "electric" : "glass"}
                 onClick={goExtension}
               >
-                1. Ekstensi (mudah)
+                {extStatus === "ready"
+                  ? "1. Ekstensi (satu klik)"
+                  : extStatus === "absent"
+                    ? "1. Pasang ekstensi"
+                    : "1. Ekstensi"}
               </Button>
               <Button
                 type="button"
                 variant={mode === "paste" ? "electric" : "glass"}
                 onClick={goManual}
               >
-                2. Tempel manual
+                {extStatus === "absent" ? "Sudah punya cookie? Tempel" : "2. Tempel manual"}
               </Button>
             </div>
 
