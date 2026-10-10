@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/app/page-header";
 import { ConnectAccountForm } from "@/components/accounts/connect-account-form";
+import { ConnectWizard } from "@/components/accounts/connect-wizard";
 import { createAccount } from "@/server/accounts";
 import { listProxies } from "@/server/proxies";
 import { getPublisherStatus } from "@/server/publisher-settings";
@@ -37,6 +39,10 @@ const OAUTH_PLATFORMS = [
 export default async function NewAccountPage() {
   const proxies = await listProxies();
   const status = await getPublisherStatus();
+  const headerList = await headers();
+  const proto = headerList.get("x-forwarded-proto") || "http";
+  const host = headerList.get("x-forwarded-host") || headerList.get("host") || "localhost:3000";
+  const appOrigin = process.env.APP_URL?.trim() || `${proto}://${host}`;
 
   async function submit(formData: FormData) {
     "use server";
@@ -62,10 +68,10 @@ export default async function NewAccountPage() {
           </Button>
         }
       />
-      <Tabs defaultValue="oauth" className="max-w-2xl">
+      <Tabs defaultValue="cookie" className="max-w-2xl">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="oauth">Sekali klik (OAuth)</TabsTrigger>
-          <TabsTrigger value="cookie">Session cookie</TabsTrigger>
+          <TabsTrigger value="cookie">Sesi (mudah)</TabsTrigger>
+          <TabsTrigger value="oauth">OAuth resmi</TabsTrigger>
         </TabsList>
         <TabsContent value="oauth">
           <Card>
@@ -105,21 +111,38 @@ export default async function NewAccountPage() {
         <TabsContent value="cookie">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Import session cookie</CardTitle>
+              <CardTitle className="text-base">Sambungkan dalam 3 langkah</CardTitle>
               <CardDescription>
-                Untuk pengguna advanced: import session cookies production untuk Instagram, Threads, atau TikTok dan bind proxy tunnel opsional.
+                Tanpa persetujuan Meta. Pilih platform → ambil akses lewat ekstensi atau tempel
+                manual → simpan. Sesi disimpan terenkripsi.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ConnectAccountForm
-                action={submit}
-                proxies={proxies.map((proxy) => ({
-                  id: proxy.id,
-                  label: `${proxy.label} (${proxy.host}:${proxy.port})`,
+              <ConnectWizard
+                proxies={proxies.map((p) => ({
+                  id: p.id,
+                  label: `${p.label} (${p.host}:${p.port})`,
                 }))}
+                action={submit}
+                appOrigin={appOrigin}
               />
             </CardContent>
           </Card>
+
+          <details className="mt-4 max-w-2xl rounded-xl border border-white/10 bg-white/[0.02] p-4">
+            <summary className="cursor-pointer text-sm font-medium text-muted-foreground">
+              Pengguna tingkat lanjut: form impor cookie mentah
+            </summary>
+            <div className="mt-4">
+              <ConnectAccountForm
+                action={submit}
+                proxies={proxies.map((p) => ({
+                  id: p.id,
+                  label: `${p.label} (${p.host}:${p.port})`,
+                }))}
+              />
+            </div>
+          </details>
         </TabsContent>
       </Tabs>
     </div>

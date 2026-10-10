@@ -1,12 +1,20 @@
 export type RuntimeMode = "simulator" | "live";
 
-export type ConnectorKind = "simulator" | "webhook" | "official" | "none";
+/**
+ * `session` is the unofficial path: calls ride an imported Instagram/Threads
+ * session cookie against the private mobile API. It requires no Meta App
+ * Review, but it is undocumented, ban-prone, and expires — so it sits in the
+ * chain after webhook/official unless the workspace opts in.
+ */
+export type ConnectorKind = "simulator" | "webhook" | "official" | "session" | "none";
 
 export type ConnectorPolicy =
   | "prefer_official"
   | "prefer_webhook"
+  | "prefer_session"
   | "webhook_only"
   | "official_only"
+  | "session_only"
   | "simulator_only";
 
 export type ConnectorAction =
@@ -33,6 +41,18 @@ export type ConnectorOfficialConfig = {
   provider: "instagram" | "threads" | "tiktok" | string;
   accessToken: string;
   apiBaseUrl?: string | null;
+};
+
+/**
+ * Credentials for the unofficial session path. The blob is already encrypted
+ * at rest — this type only carries the handle into the connector, and callers
+ * must never log it.
+ */
+export type ConnectorSessionConfig = {
+  platform: "instagram" | "threads" | "tiktok" | string;
+  encryptedBlob: string;
+  accountId?: string | null;
+  username?: string | null;
 };
 
 export type DiscoverPayload = {
@@ -102,6 +122,11 @@ export type ConnectorActionInput = {
   payload: ConnectorActionPayload;
   webhook?: ConnectorWebhookConfig | null;
   official?: ConnectorOfficialConfig | null;
+  /**
+   * Imported session cookie for the unofficial path. Present only when the
+   * workspace has an active AccountSession for the target account.
+   */
+  session?: ConnectorSessionConfig | null;
   /**
    * Caller-chosen dedup key for mutating actions (sendComment/publishPost),
    * e.g. the commentActionId / contentDraftId. Sent as `x-komenin-idempotency-key`

@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Komenin Connect",
+  "version": "1.0.0",
+  "description": "Sambungkan akun Instagram / Threads ke Komenin dalam satu klik. Token dipasang sekali dari halaman Connect.",
+  "permissions": ["cookies", "storage"],
+  "host_permissions": [
+    "https://www.instagram.com/*",
+    "https://instagram.com/*",
+    "https://www.threads.net/*",
+    "https://threads.net/*",
+    "https://www.threads.com/*",
+    "https://threads.com/*"
+  ],
+  "action": {
+    "default_title": "Komenin Connect",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

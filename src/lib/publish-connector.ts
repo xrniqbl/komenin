@@ -3,9 +3,11 @@ import {
   runConnectorAction,
   type ConnectorOfficialConfig,
   type ConnectorPolicy,
+  type ConnectorSessionConfig,
   type ConnectorWebhookConfig,
   type PublishPayload as ConnectorPublishPayload,
 } from "@/lib/connectors";
+import { resolveSessionConfigForAccount } from "@/lib/connectors/session-runtime";
 import { getRuntimeModeLabel } from "@/lib/runtime-mode";
 import { db } from "@/lib/db";
 import { decryptSecret } from "@/lib/encryption";
@@ -29,7 +31,7 @@ export type PublishPayload = {
 export type PublishResult = {
   ok: boolean;
   mode: "simulator" | "live";
-  connector: "simulator" | "webhook" | "official" | "live_webhook" | "live_stub" | "none";
+  connector: "simulator" | "webhook" | "official" | "session" | "live_webhook" | "live_stub" | "none";
   externalPostId?: string;
   publishedAt: Date;
   message: string;
@@ -154,6 +156,8 @@ export async function publishSocialPost(input: {
   policy?: ConnectorPolicy | string | null;
   webhook?: ConnectorWebhookConfig | null;
   official?: ConnectorOfficialConfig | null;
+  /** Imported session cookie for the unofficial path (see connector chain). */
+  session?: ConnectorSessionConfig | null;
   /** Dedup key for publish retries (see ConnectorActionInput). */
   idempotencyKey?: string | null;
 }): Promise<PublishResult> {
@@ -183,6 +187,15 @@ export async function publishSocialPost(input: {
           official: input.official,
         });
 
+  const session =
+    mode === "simulator"
+      ? (input.session ?? null)
+      : await resolveSessionConfigForAccount({
+          platform: input.target.platform,
+          workspaceId: input.target.workspaceId,
+          accountId: input.target.accountId,
+        });
+
   const result = await runConnectorAction({
     action: "publishPost",
     runtimeMode: mode,
@@ -196,6 +209,7 @@ export async function publishSocialPost(input: {
     payload: input.payload as ConnectorPublishPayload,
     webhook: input.webhook === undefined ? getDefaultWebhookConfig() : input.webhook,
     official,
+    session,
     idempotencyKey: input.idempotencyKey ?? null,
   });
 

@@ -56,9 +56,20 @@ export function evaluateLiveReadiness(): LiveReadiness {
   );
 
   if (!webhookUrl && !hasOfficialEnv) {
-    blockers.push(
-      "No live connector configured (set an external SOCIAL_PUBLISH_WEBHOOK_URL or official API tokens / OAuth vault).",
-    );
+    // `session` (unofficial cookie) and `webhook` are the two paths that need
+    // no env credentials, but the session path needs at least one imported
+    // cookie — which is per-account and not visible from env. Flag it as a
+    // warning rather than a blocker so an account with a stored session can
+    // still publish.
+    if (policy === "prefer_session" || policy === "session_only") {
+      warnings.push(
+        "Connector policy routes through imported sessions — publishing works only for accounts with an active imported cookie (unofficial path, ban-prone).",
+      );
+    } else {
+      blockers.push(
+        "No live connector configured (set an external SOCIAL_PUBLISH_WEBHOOK_URL, official API tokens / OAuth vault, or import an account session cookie).",
+      );
+    }
   }
   if (webhookUrl && !webhookToken) {
     blockers.push("SOCIAL_PUBLISH_WEBHOOK_TOKEN is required when using the publish webhook.");

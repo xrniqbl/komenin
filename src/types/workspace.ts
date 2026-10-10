@@ -9,8 +9,10 @@
 export type ConnectorPolicy =
   | "prefer_official"
   | "prefer_webhook"
+  | "prefer_session"
   | "webhook_only"
   | "official_only"
+  | "session_only"
   | "simulator_only";
 
 export type WorkspaceSummary = {

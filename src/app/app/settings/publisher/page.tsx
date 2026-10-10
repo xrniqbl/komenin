@@ -270,8 +270,10 @@ export default async function PublisherSettingsPage({
                 options={[
                   { value: "prefer_webhook", label: "prefer_webhook" },
                   { value: "prefer_official", label: "prefer_official" },
+                  { value: "prefer_session", label: "prefer_session (cookie import)" },
                   { value: "webhook_only", label: "webhook_only" },
                   { value: "official_only", label: "official_only" },
+                  { value: "session_only", label: "session_only (cookie import)" },
                   { value: "simulator_only", label: "simulator_only" },
                 ]}
               />

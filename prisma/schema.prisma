@@ -190,6 +190,7 @@ model Workspace {
   monthlyPublishLimit   Int                      @default(1000)
   webhookEndpoints      WebhookEndpoint[]
   connectorCredentials  ConnectorCredential[]
+  sessionIngests        SessionIngest[]
   deliveryLogs          DeliveryLog[]
   mentions              Mention[]
   autoReplySettings     AutoReplySettings?
@@ -388,6 +389,29 @@ model AccountSession {
 
   @@index([workspaceId, socialAccountId])
   @@index([socialAccountId, isActive])
+}
+
+/// Short-lived encrypted slot for cookies pushed by the browser extension /
+/// bookmarklet from instagram.com / threads.net.
+///
+/// Flow: wizard mints a signed token → extension POSTs cookies to
+/// /api/connectors/session/ingest → row created (encrypted, 15 min TTL) →
+/// wizard polls status → one-time claim encrypts + creates the
+/// SocialAccount and AccountSession, sets consumedAt.
+model SessionIngest {
+  id          String    @id @default(cuid())
+  userId      String
+  workspaceId String
+  platform    Platform
+  payloadEnc  String    @db.Text
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, expiresAt])
+  @@index([consumedAt])
 }
 
 model ProxyEndpoint {
@@ -1051,8 +1075,10 @@ model ContentDraft {
 enum ConnectorPolicy {
   prefer_official
   prefer_webhook
+  prefer_session
   webhook_only
   official_only
+  session_only
   simulator_only
 }
 
