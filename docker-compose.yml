@@ -116,6 +116,12 @@ services:
       AUTH_GOOGLE_ID: ${AUTH_GOOGLE_ID}
       AUTH_GOOGLE_SECRET: ${AUTH_GOOGLE_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      # HMAC secret buat token pasangan ingest cookie (extension bridge).
+      # Wajib di produksi — tokenSecret() melempar di prod kalau kosong, jadi
+      # tombol "Buat token" akan 500 tanpa nilai ini. Bukan AUTH_SECRET:
+      # tujuannya beda, dan nilai sendiri memudahkan rotate tanpa mengganti
+      # sesi login.
+      SESSION_INGEST_SECRET: ${SESSION_INGEST_SECRET:-}
       SIMULATOR_MODE: ${SIMULATOR_MODE:-false}
       ALLOW_SECURITY_STUBS: "false"
       SSO_ENFORCE_LOGIN: "false"
