@@ -8,14 +8,18 @@ import {
   type ConnectorAction,
   type ConnectorActionPayload,
   type ConnectorResult,
+  type ConnectorSessionConfig,
   type ConnectorTarget,
 } from "@/lib/connectors";
+import { resolveSessionConfigForAccount } from "@/lib/connectors/session-runtime";
 import { getRuntimeModeLabel } from "@/lib/runtime-mode";
 
 /**
  * Shared social action entry for workers (discover / send / rotate / health).
- * Resolves workspace vault OAuth credentials the same way publish does — env
- * tokens alone are not enough once accounts connect via OAuth.
+ *
+ * Credential resolution mirrors the connector chain: workspace vault OAuth
+ * token first, then an imported session cookie. Env tokens alone are not
+ * enough once accounts connect via OAuth or via cookie import.
  */
 export async function executeSocialAction(input: {
   action: ConnectorAction;
@@ -46,6 +50,13 @@ export async function executeSocialAction(input: {
       workspaceId,
       accountId: target.accountId,
     }),
+    session: await resolveSessionConfigForAccount({
+      platform: target.platform,
+      workspaceId,
+      accountId: target.accountId,
+    }),
     idempotencyKey: input.idempotencyKey ?? null,
   });
 }
+
+export type { ConnectorSessionConfig };

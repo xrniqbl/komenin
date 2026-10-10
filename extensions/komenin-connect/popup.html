@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <title>Komenin Connect</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0d12;
+        --panel: #14171f;
+        --line: rgba(255, 255, 255, 0.08);
+        --text: #e7e9ee;
+        --muted: #8b90a0;
+        --accent: #4f8cff;
+        --ok: #2fbf71;
+        --bad: #ff5d5d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        width: 340px;
+        margin: 0;
+        padding: 16px;
+        background: var(--bg);
+        color: var(--text);
+        font: 13px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      h1 {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 4px;
+        font-size: 15px;
+        font-weight: 650;
+      }
+      h1 svg { color: var(--accent); }
+      .sub { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+      label { display: block; margin: 12px 0 6px; font-size: 12px; color: var(--muted); }
+      input, select {
+        width: 100%;
+        padding: 9px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        color: var(--text);
+        font: inherit;
+      }
+      input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+      .row { display: flex; gap: 8px; margin-top: 14px; }
+      button {
+        flex: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        color: var(--text);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.18); }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+      button.primary { background: var(--accent); border-color: transparent; color: #fff; }
+      #status {
+        display: none;
+        margin-top: 14px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-size: 12px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      #status.show { display: block; }
+      #status.ok { border-color: rgba(47, 191, 113, 0.4); background: rgba(47, 191, 113, 0.1); color: #9ff0c6; }
+      #status.bad { border-color: rgba(255, 93, 93, 0.4); background: rgba(255, 93, 93, 0.1); color: #ffb3b3; }
+      .hint { margin-top: 10px; color: var(--muted); font-size: 11px; }
+      .hint code {
+        padding: 1px 4px;
+        border-radius: 4px;
+        background: rgba(255, 255, 255, 0.06);
+        font-size: 10.5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      </svg>
+      Komenin Connect
+    </h1>
+    <p class="sub">Buka Instagram/Threads yang sudah login, lalu klik Sambungkan.</p>
+
+    <label for="apiBase">Alamat server Komenin</label>
+    <input id="apiBase" type="url" placeholder="https://komenin.id" autocomplete="off" />
+
+    <label for="token">Token dari halaman Connect</label>
+    <input id="token" type="text" placeholder="tempel token di sini" autocomplete="off" spellcheck="false" />
+
+    <label for="platform">Platform</label>
+    <select id="platform">
+      <option value="instagram">Instagram</option>
+      <option value="threads">Threads</option>
+    </select>
+
+    <div class="row">
+      <button id="save" type="button">Simpan</button>
+      <button id="connect" class="primary" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+        </svg>
+        Sambungkan
+      </button>
+    </div>
+
+    <div id="status"></div>
+
+    <p class="hint">
+      Token berlaku 10 menit dan dipakai sekali. Ambil dari
+      <code>/app/accounts/new</code> → tab Sesi.
+    </p>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
