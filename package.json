@@ -39,7 +39,7 @@
     "@gsap/react": "^2.1.2",
     "@mui/icons-material": "^9.4.0",
     "@mui/material": "^9.4.0",
-    "@prisma/client": "^6.19.0",
+    "@prisma/client": "^7.10.0",
     "@swc/helpers": "^0.5.15",
     "@tailwindcss/typography": "^0.5.20",
     "@testing-library/dom": "^10.4.1",
