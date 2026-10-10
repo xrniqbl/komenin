@@ -13,6 +13,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:mock-bridge": "vitest run tests/unit/mock-social-bridge.test.ts tests/unit/webhook-connector.test.ts",
+    "test:extension-bridge": "node scripts/verify-content-bridge.mjs",
     "test:live-bridge": "vitest run tests/unit/live-bridge.test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",

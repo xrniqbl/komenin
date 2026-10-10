@@ -106,6 +106,8 @@ export function ConnectWizard({
   const [tokenNotice, setTokenNotice] = useState<string | null>(null);
   const [ingest, setIngest] = useState<IngestState>("idle");
   const [ingestNote, setIngestNote] = useState<string | null>(null);
+  // Content script announces itself on load; we ask, we don't assume.
+  const [extStatus, setExtStatus] = useState<"unknown" | "ready" | "absent">("unknown");
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [raw, setRaw] = useState("");
@@ -162,6 +164,46 @@ export function ConnectWizard({
     return stopPolling;
   }, [step, mode, token, ingest, stopPolling]);
 
+  // One-click bridge: the injected content script answers on this channel.
+  // Without it (extension not installed) nothing breaks — the popup and
+  // paste routes stay available, so this only ever upgrades the experience.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== window) return;
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as
+        | { type?: string; action?: string; ok?: boolean; message?: string; cookieCount?: number }
+        | undefined;
+      if (!data || data.type !== "komenin:pairing") return;
+
+      if (data.action === "ready" || data.action === "available") {
+        setExtStatus("ready");
+        return;
+      }
+      if (data.action !== "result" || !token) return;
+
+      if (data.ok) {
+        setIngest("ready");
+        setIngestNote(`Cookie diterima (${data.cookieCount || 0} item). Lanjut ke langkah terakhir.`);
+        stopPolling();
+        setStep(2);
+      } else {
+        setIngest("idle");
+        setIngestNote(data.message || "Ekstensi gagal mengirim cookie. Pakai tombol Sambungkan di ekstensi.");
+      }
+    };
+
+    window.addEventListener("message", onMessage);
+    window.postMessage({ type: "komenin:pairing", action: "ping" }, window.location.origin);
+    const timer = setTimeout(() => {
+      setExtStatus((current) => (current === "unknown" ? "absent" : current));
+    }, 1500);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      clearTimeout(timer);
+    };
+  }, [token, stopPolling]);
+
   const resetForPlatform = (next: Platform) => {
     setPlatform(next);
     setToken("");
@@ -181,8 +223,30 @@ export function ConnectWizard({
     try {
       const result = await mintSessionIngestToken(platform as "instagram" | "threads" | "tiktok");
       setToken(result.token);
-      setTokenNotice(`Token aktif ${result.expiresInMinutes} menit. Salin ke ekstensi, lalu klik Sambungkan di tab Instagram.`);
       setIngest("waiting");
+
+      if (extStatus === "ready") {
+        // One-click: the content script is there, so the pairing token goes
+        // straight to the worker and the cookies come back without a paste.
+        setTokenNotice("Ekstensi terdeteksi — mengirim cookie…");
+        setIngestNote("Ekstensi membaca cookie dan mengirim…");
+        window.postMessage(
+          {
+            type: "komenin:pairing",
+            action: "connect",
+            token: result.token,
+            platform,
+            // Advisory only: the worker overwrites this with the sender's own
+            // origin, so the page cannot aim cookies anywhere else.
+            apiBase: appOrigin,
+          },
+          window.location.origin,
+        );
+      } else {
+        setTokenNotice(
+          `Token aktif ${result.expiresInMinutes} menit. Salin ke ekstensi, lalu klik Sambungkan di tab Instagram.`,
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal membuat token.");
     } finally {
@@ -404,34 +468,68 @@ export function ConnectWizard({
 
             {mode === "extension" ? (
               <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                <div className="flex items-center gap-2 text-xs">
+                  <span
+                    className={[
+                      "h-2 w-2 rounded-full",
+                      extStatus === "ready" ? "bg-emerald-500" : "animate-pulse bg-amber-400",
+                    ].join(" ")}
+                    aria-hidden="true"
+                  />
+                  <span className="text-muted-foreground">
+                    {extStatus === "ready"
+                      ? "Ekstensi terpasang — mode satu klik aktif."
+                      : extStatus === "absent"
+                        ? "Ekstensi belum terdeteksi — pasang sekali, atau pakai tempel manual."
+                        : "Mendeteksi ekstensi…"}
+                  </span>
+                </div>
+
                 <ol className="flex flex-col gap-2 text-xs text-muted-foreground">
-                  <li>
-                    <span className="font-medium text-foreground">1.</span> Unduh folder{" "}
-                    <code className="rounded bg-white/10 px-1">extensions/komenin-connect</code>{" "}
-                    dari repo, lalu buka <code className="rounded bg-white/10 px-1">chrome://extensions</code>{" "}
-                    dan aktifkan <em>Developer mode</em> → <em>Load unpacked</em>.
-                  </li>
-                  <li>
-                    <span className="font-medium text-foreground">2.</span> Login di{" "}
-                    <a
-                      className="underline"
-                      href={loginUrlForPlatform(platform)}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                    >
-                      {platform}.com
-                    </a>{" "}
-                    lalu klik tombol <em>Sambungkan</em> di ekstensi.
-                  </li>
-                  <li>
-                    <span className="font-medium text-foreground">3.</span> Balik ke sini — halaman
-                    ini otomatis mendeteksi dan lanjut sendiri.
-                  </li>
+                  {extStatus === "ready" ? (
+                    <li>
+                      <span className="font-medium text-foreground">1.</span> Klik tombol di bawah.
+                      Cookie dibaca dan dikirim sendiri — halaman ini lanjut sendiri.
+                    </li>
+                  ) : (
+                    <>
+                      <li>
+                        <span className="font-medium text-foreground">1.</span> Unduh folder{" "}
+                        <code className="rounded bg-white/10 px-1">extensions/komenin-connect</code>{" "}
+                        dari repo, lalu buka <code className="rounded bg-white/10 px-1">chrome://extensions</code>{" "}
+                        dan aktifkan <em>Developer mode</em> → <em>Load unpacked</em>.
+                      </li>
+                      <li>
+                        <span className="font-medium text-foreground">2.</span> Reload halaman ini
+                        setelah ekstensi dipasang.
+                      </li>
+                      <li>
+                        <span className="font-medium text-foreground">3.</span> Login di{" "}
+                        <a
+                          className="underline"
+                          href={loginUrlForPlatform(platform)}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                        >
+                          {platform}.com
+                        </a>{" "}
+                        lalu balik ke sini dan klik tombol di bawah.
+                      </li>
+                    </>
+                  )}
                 </ol>
 
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" variant="electric" onClick={mintToken} disabled={pending}>
-                    {token ? "Buat token baru" : "Buat token"}
+                    {pending
+                      ? "Membuat token…"
+                      : extStatus === "ready"
+                        ? token
+                          ? "Ulangi satu klik"
+                          : "Satu klik: ambil cookie"
+                        : token
+                          ? "Buat token baru"
+                          : "Buat token"}
                   </Button>
                   {token ? (
                     <Button type="button" variant="glass" onClick={copyToken}>

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Komenin Connect",
-  "version": "1.0.0",
-  "description": "Sambungkan akun Instagram / Threads ke Komenin dalam satu klik. Token dipasang sekali dari halaman Connect.",
+  "version": "1.1.0",
+  "description": "Sambungkan akun Instagram / Threads ke Komenin dalam satu klik. Klik 'Buat token' di halaman Connect, sisanya jalan sendiri.",
   "permissions": ["cookies", "storage"],
   "host_permissions": [
     "https://www.instagram.com/*",
@@ -18,5 +18,12 @@
   },
   "background": {
     "service_worker": "background.js"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://komenin.id/*", "https://*.komenin.id/*", "http://localhost:3000/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
 }
